@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.nihongo.Admin.AdminLoginScreen
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.screens.homepage.HomeScreen
 import com.example.nihongo.User.ui.screens.login.LoginScreen
@@ -21,6 +22,9 @@ fun AppNavGraph(navController: NavHostController, userRepo: UserRepository) {
         }
         composable(NavigationRoutes.HOME) {
             HomeScreen() // màn hình chính sau khi đăng nhập thành công
+        }
+        composable("admin_login") {
+            AdminLoginScreen(navController)
         }
         composable("otp_screen") {
             val expectedOtp = navController.previousBackStackEntry

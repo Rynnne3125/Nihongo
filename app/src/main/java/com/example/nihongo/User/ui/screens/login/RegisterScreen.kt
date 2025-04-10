@@ -60,7 +60,7 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp))
+                .border(1.dp, Color(0xFFB0EACD), RoundedCornerShape(16.dp))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -71,7 +71,7 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
 
             OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
+                onValueChange = { username = it; message = "" },
                 label = { Text("Tên người dùng") },
                 singleLine = true
             )
@@ -80,16 +80,21 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = { email = it; message = "" },
                 label = { Text("Email") },
-                singleLine = true
+                singleLine = true,
+                isError = email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()
             )
+
+            if (email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                Text("Email không hợp lệ!", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = { password = it; message = "" },
                 label = { Text("Mật khẩu") },
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -141,17 +146,21 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
                         }
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C))
             ) {
                 Text("Đăng ký", color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = message,
-                color = if (message.contains("thành công")) Color(0xFF4CAF50) else Color.Red
-            )
+            if (message.isNotEmpty()) {
+                Text(
+                    text = message,
+                    color = if (message.contains("thành công")) Color(0xFF4CAF50) else Color.Red,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
