@@ -1,13 +1,23 @@
 package com.example.nihongo.User.data.models
 
-import io.realm.kotlin.types.RealmObject
-import io.realm.kotlin.types.annotations.PrimaryKey
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import java.time.LocalDateTime
 import java.util.UUID
 
-class UserProgress : RealmObject {
-    @PrimaryKey
-    var id: String = UUID.randomUUID().toString() // Chuyển UUID thành String
-    var userId: String = UUID.randomUUID().toString() // Chuyển UUID thành String
-    var lessonId: String = UUID.randomUUID().toString() // Chuyển UUID thành String
-    var completedAt: String = ""
-}
+@Entity(
+    tableName = "user_progress",
+    foreignKeys = [
+        ForeignKey(entity = User::class, parentColumns = ["id"], childColumns = ["userId"]),
+        ForeignKey(entity = Lesson::class, parentColumns = ["id"], childColumns = ["lessonId"])
+    ],
+    indices = [Index("userId"), Index("lessonId")]
+)
+data class UserProgress(
+    @PrimaryKey val id: UUID = UUID.randomUUID(),
+    val userId: UUID,
+    val lessonId: UUID,
+    val completedAt: LocalDateTime
+)

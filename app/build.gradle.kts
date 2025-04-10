@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("io.realm.kotlin") // Realm plugin
+    id("kotlin-kapt") // cần thiết cho Room annotation processing
 }
 
 android {
@@ -41,41 +41,54 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.3" // Ensure this matches the Compose version
+        kotlinCompilerExtensionVersion = "1.5.11"
     }
-
+    packaging {
+        resources {
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/NOTICE.md"
+        }
+    }
 }
 
 dependencies {
-    // Compose UI
+    // === ROOM DATABASE ===
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    kapt(libs.room.compiler)
+    implementation(libs.room.paging)
+    //Gmail sender
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
+
+    // === COROUTINES ===
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android)
+
+    // === COMPOSE UI ===
     implementation("androidx.compose.ui:ui:1.5.3")
-
-    // Compose Material
+    implementation("androidx.compose.material:material-icons-extended:1.5.3")
     implementation("androidx.compose.material3:material3:1.2.0")
-
-    // Tooling (Preview UI)
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.3")
-    implementation(libs.androidx.navigation.runtime.ktx)
-    implementation(libs.androidx.navigation.compose)
     debugImplementation("androidx.compose.ui:ui-tooling:1.5.3")
 
-    // Realm Library
-    implementation("io.realm.kotlin:library-base:1.11.0")
+    // === NAVIGATION ===
+    implementation(libs.androidx.navigation.runtime.ktx)
+    implementation(libs.androidx.navigation.compose)
 
-    // Compose Activity
-    implementation("androidx.activity:activity-compose:1.7.2")
-
-    // AndroidX Libraries
+    // === ACTIVITY & LIFECYCLE ===
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+
+    // === COMPOSE BOM & UI EXTENSIONS ===
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    // Testing Libraries
+    // === TESTING ===
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

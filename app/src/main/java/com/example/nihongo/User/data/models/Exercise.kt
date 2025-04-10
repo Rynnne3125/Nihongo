@@ -1,32 +1,27 @@
 package com.example.nihongo.User.data.models
 
-import io.realm.kotlin.types.RealmObject
-import io.realm.kotlin.types.annotations.PrimaryKey
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
 import java.util.UUID
 
+@Entity(
+    tableName = "exercises",
+    foreignKeys = [
+        ForeignKey(entity = Lesson::class, parentColumns = ["id"], childColumns = ["lessonId"])
+    ],
+    indices = [Index("lessonId")]
+)
+data class Exercise(
+    @PrimaryKey val id: UUID = UUID.randomUUID(),
+    val lessonId: UUID,
+    val question: String,
+    val answer: String,
+    val type: ExerciseType
+)
+
 enum class ExerciseType {
-    MULTIPLE_CHOICE,
-    TRANSLATION,
-    LISTENING
+    MULTIPLE_CHOICE, TRANSLATION, LISTENING
 }
 
-class Exercise : RealmObject {
-    @PrimaryKey
-    var id: String = UUID.randomUUID().toString() // Lưu UUID dưới dạng String
-    var lessonId: String = UUID.randomUUID().toString() // Lưu UUID dưới dạng String
-    var question: String = ""
-    var answer: String = ""
-
-    // Lưu ExerciseType dưới dạng String
-    var type: String = ExerciseType.MULTIPLE_CHOICE.name
-
-    // Sử dụng phương thức này để chuyển đổi String thành enum khi cần
-    fun getType(): ExerciseType {
-        return ExerciseType.valueOf(type)
-    }
-
-    // Sử dụng phương thức này để chuyển đổi từ enum thành String khi cần lưu trữ
-    fun setType(exerciseType: ExerciseType) {
-        this.type = exerciseType.name
-    }
-}

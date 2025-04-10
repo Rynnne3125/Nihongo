@@ -1,20 +1,23 @@
 package com.example.nihongo.User.data.repository
 
 import com.example.nihongo.User.data.models.User
-import io.realm.kotlin.Realm
-import io.realm.kotlin.ext.query
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
-class UserRepository(private val realm: Realm) {
-    suspend fun createUser(user: User) {
-        realm.write { copyToRealm(user) }
+class UserRepository(private val userDao: UserDao) {
+    suspend fun registerUser(user: User): Boolean {
+        val existing = userDao.getUserByUsername(user.username)
+        return if (existing == null) {
+            userDao.insertUser(user)
+            true
+        } else {
+            false
+        }
     }
 
-    fun authenticate(username: String, password: String): Flow<User?> {
-        return realm.query<User>("username == $0 AND password == $1", username, password)
-            .first()
-            .asFlow()
-            .map { it.obj }
+    suspend fun loginUser(username: String, password: String): User? {
+        return userDao.login(username, password)
     }
+    suspend fun loginUserByEmail(email: String, password: String): User? {
+        return userDao.getUserByEmailAndPassword(email, password)
+    }
+
 }

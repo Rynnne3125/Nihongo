@@ -1,13 +1,21 @@
 package com.example.nihongo.User.data.models
 
-import io.realm.kotlin.types.RealmObject
-import io.realm.kotlin.types.annotations.PrimaryKey
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
 import java.util.UUID
 
-class Lesson : RealmObject {
-    @PrimaryKey
-    var id: String = UUID.randomUUID().toString() // Chuyển UUID thành String
-    var courseId: String = UUID.randomUUID().toString() // Chuyển UUID thành String
-    var title: String = ""
-    var difficultyLevel: Int = 1
-}
+@Entity(
+    tableName = "lessons",
+    foreignKeys = [
+        ForeignKey(entity = Course::class, parentColumns = ["id"], childColumns = ["courseId"])
+    ],
+    indices = [Index("courseId")]
+)
+data class Lesson(
+    @PrimaryKey val id: UUID = UUID.randomUUID(),
+    val courseId: UUID,
+    val title: String,
+    val difficultyLevel: Int
+)
