@@ -55,6 +55,7 @@ dependencies {
     // === ROOM DATABASE ===
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
     kapt(libs.room.compiler)
     implementation(libs.room.paging)
     //Gmail sender

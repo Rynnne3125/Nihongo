@@ -20,16 +20,18 @@ fun AppNavGraph(navController: NavHostController, userRepo: UserRepository) {
         composable(NavigationRoutes.REGISTER) {
             RegisterScreen(navController, userRepo)
         }
-        composable(NavigationRoutes.HOME) {
-            HomeScreen() // màn hình chính sau khi đăng nhập thành công
+        composable("home/{user_email}") { backStackEntry ->
+            val user_email = backStackEntry.arguments?.getString("user_email") ?: ""
+            HomeScreen(navController = navController, user_email = user_email, userRepository = userRepo)
         }
+
         composable("admin_login") {
             AdminLoginScreen(navController)
         }
         composable("otp_screen") {
-            val expectedOtp = navController.previousBackStackEntry
-                ?.savedStateHandle?.get<String>("expectedOtp") ?: ""
-            OTPScreen(navController, expectedOtp)
+            val expectedOtp = navController.previousBackStackEntry?.savedStateHandle?.get<String>("expectedOtp") ?: ""
+            val user_email = navController.previousBackStackEntry?.savedStateHandle?.get<String>("user_email") ?: ""
+            OTPScreen(navController = navController, expectedOtp = expectedOtp, user_email = user_email)
         }
 
 

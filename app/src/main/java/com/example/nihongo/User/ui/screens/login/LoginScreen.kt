@@ -143,7 +143,10 @@ fun LoginScreen(navController: NavController, userRepo: UserRepository) {
                                     otp = otp,
                                     onSuccess = {
                                         scope.launch {
-                                            navController.currentBackStackEntry?.savedStateHandle?.set("expectedOtp", otp)
+                                            navController.currentBackStackEntry?.savedStateHandle?.apply {
+                                                set("expectedOtp", otp)
+                                                set("user_email", email)
+                                            }
                                             navController.navigate("otp_screen")
                                             isSendingOtp = false
                                         }

@@ -43,7 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 
 @Composable
-fun OTPScreen(navController: NavController, expectedOtp: String) {
+fun OTPScreen(navController: NavController, expectedOtp: String, user_email: String)
+ {
     val backgroundColor = Color(0xFFE8F5E9)
     val focusManager = LocalFocusManager.current
     val previousOtpValues = remember { mutableStateListOf("", "", "", "", "", "") }
@@ -135,7 +136,7 @@ fun OTPScreen(navController: NavController, expectedOtp: String) {
             Button(
                 onClick = {
                     if (getOtp() == expectedOtp) {
-                        navController.navigate("home")
+                        navController.navigate("home/$user_email")
                     } else {
                         errorMessage = "Mã OTP không đúng"
                     }

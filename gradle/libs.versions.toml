@@ -15,6 +15,7 @@ navigationCompose = "2.8.9"
 # Room + Coroutines
 room = "2.6.1"
 coroutines = "1.7.3"
+lifecycleLivedataKtx = "2.8.7"
 
 [libraries]
 # AndroidX Core + Lifecycle
@@ -50,6 +51,7 @@ room-paging = { group = "androidx.room", name = "room-paging", version.ref = "ro
 # Coroutines
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+androidx-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "lifecycleLivedataKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
