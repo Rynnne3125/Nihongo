@@ -2,6 +2,7 @@ package com.example.nihongo.User.ui.screens.homepage
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,17 +56,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.nihongo.R
 import com.example.nihongo.User.data.models.Course
 import com.example.nihongo.User.data.models.User
+import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 
 @Composable
-fun HomeScreen(navController: NavController, user_email: String, userRepository : UserRepository) {
+fun HomeScreen(navController: NavController, user_email: String = "banhbeothuy10@gmail.com", userRepository : UserRepository, courseRepository: CourseRepository) {
 
     var currentUser by remember { mutableStateOf<User?>(null) }
+    val courseList by courseRepository.allCourses.collectAsState(initial = emptyList())
 
+    LaunchedEffect(true) {
+        courseRepository.insertSampleData()
+    }
     LaunchedEffect(user_email) {
         currentUser = userRepository.getUserByEmail(user_email)
     }
@@ -153,7 +159,9 @@ fun HomeScreen(navController: NavController, user_email: String, userRepository 
                     MiniFeatureCard("Progress", Icons.Filled.HourglassEmpty)
                 }
                 item {
-                    MiniFeatureCard("Courses", Icons.Filled.School)
+                    MiniFeatureCard("Courses", Icons.Filled.School, modifier = Modifier.clickable {
+                        navController.navigate("courses")
+                    })
                 }
                 item {
                     MiniFeatureCard("Flashcards", Icons.Filled.ViewAgenda)
@@ -163,41 +171,12 @@ fun HomeScreen(navController: NavController, user_email: String, userRepository 
                 }
             }
 
-
-
-
-
-            val courseList = listOf(
-                Course(
-                    title = "Hiragana",
-                    description = "Hiragana Standard",
-                    rating = 4.5,
-                    reviews = 1684,
-                    likes = 1500,
-                    imageRes = R.drawable.course_hiragana
-                ),
-                Course(
-                    title = "Katakana",
-                    description = "Katakana Standard",
-                    rating = 4.2,
-                    reviews = 1200,
-                    likes = 980,
-                    imageRes = R.drawable.course_katakana
-                ),
-                Course(
-                    title = "N5",
-                    description = "Standard N5 Japanese",
-                    rating = 4.6,
-                    reviews = 1400,
-                    likes = 1100,
-                    imageRes = R.drawable.course_n5
-                )
-            )
             Text("Flashcard of the Day")
             FlashcardCard(term = "日本語", definition = "Japanese language")
 
 
             Text("Trending Course", style = MaterialTheme.typography.titleMedium)
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -206,9 +185,15 @@ fun HomeScreen(navController: NavController, user_email: String, userRepository 
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 courseList.forEach { course ->
-                    CourseCard(course = course)
+                    CourseCard(
+                        course = course,
+                        onClick = {
+                            navController.navigate("courses/${course.id}") // Điều hướng đến chi tiết khóa học
+                        }
+                    )
                 }
             }
+
 
 
 
@@ -227,15 +212,20 @@ fun LessonCard(title: String, difficulty: Int) {
 }
 
 @Composable
-fun CourseCard(course: Course, modifier: Modifier = Modifier) {
+fun CourseCard(
+    course: Course,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     Box(
         modifier = modifier
             .width(250.dp)
             .height(160.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(Color.LightGray) // fallback color
+            .clickable { onClick() }
     ) {
-        // Background image
+        // Background Image
         Image(
             painter = painterResource(id = course.imageRes),
             contentDescription = null,
@@ -245,19 +235,31 @@ fun CourseCard(course: Course, modifier: Modifier = Modifier) {
                 .clip(RoundedCornerShape(20.dp))
         )
 
-        // Top-left icon (external link style)
+        // Top-left: VIP Icon (Star) if course is VIP
+        if (course.isVip) {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = "VIP Course",
+                tint = Color(0xFFFFD700), // Vàng gold đậm hơn, dễ nhận biết VIP
+                modifier = Modifier
+                    .align(Alignment.TopStart) // Align top-left
+                    .background(Color.Black.copy(alpha = 0.4f), shape = CircleShape)
+                    .padding(6.dp)
+            )
+        }
+
+        // Top-right: Open icon (OpenInNew)
         Icon(
             imageVector = Icons.Default.OpenInNew,
             contentDescription = null,
             tint = Color.White,
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(12.dp)
+                .align(Alignment.TopEnd) // Align top-right
                 .background(Color.Black.copy(alpha = 0.4f), shape = CircleShape)
                 .padding(8.dp)
         )
 
-        // Gradient overlay & text
+        // Gradient overlay + Text
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -287,15 +289,25 @@ fun CourseCard(course: Course, modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.ThumbUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                Icon(
+                    imageVector = Icons.Default.ThumbUp,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
                 Text("${course.likes}", color = Color.White, fontSize = 12.sp)
 
-                Icon(Icons.Default.Comment, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                Icon(
+                    imageVector = Icons.Default.Comment,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
                 Text("${course.reviews}", color = Color.White, fontSize = 12.sp)
             }
         }
 
-        // Bottom-right: rating
+        // Bottom-right: Rating
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -318,6 +330,8 @@ fun CourseCard(course: Course, modifier: Modifier = Modifier) {
         }
     }
 }
+
+
 
 
 

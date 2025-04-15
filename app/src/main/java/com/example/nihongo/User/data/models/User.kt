@@ -26,5 +26,8 @@ data class User(
         .format(Date()),
 
     @ColumnInfo(name = "is_vip")
-    val isVip: Boolean = false
+    val isVip: Boolean = false,
+
+    @ColumnInfo(name = "isLoggedIn")
+    val isLoggedIn: Boolean = false
 )

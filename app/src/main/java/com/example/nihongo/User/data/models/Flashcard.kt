@@ -17,5 +17,10 @@ data class Flashcard(
     @PrimaryKey val id: UUID = UUID.randomUUID(),
     val lessonId: UUID,
     val term: String,
-    val definition: String
+    val definition: String,
+    val example: String? = null,           // ✅ Ví dụ sử dụng từ
+    val pronunciation: String? = null,     // ✅ Cách đọc từ
+    val audioUrl: String? = null,          // ✅ Âm thanh phát âm
+    val imageUrl: String? = null           // ✅ Hình minh họa từ
 )
+

@@ -18,10 +18,15 @@ data class Exercise(
     val lessonId: UUID,
     val question: String,
     val answer: String,
-    val type: ExerciseType
+    val type: ExerciseType,
+    val options: List<String>? = null,
+    val audioUrl: String? = null,
+    val imageUrl: String? = null,
+    val hint: String? = null,
+    val explanation: String? = null
 )
 
-enum class ExerciseType {
-    MULTIPLE_CHOICE, TRANSLATION, LISTENING
-}
 
+enum class ExerciseType {
+    MULTIPLE_CHOICE, TRANSLATION, LISTENING, WRITING
+}

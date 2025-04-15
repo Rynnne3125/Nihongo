@@ -11,7 +11,8 @@ data class Course(
     val rating: Double,
     val reviews: Int,
     val likes: Int,
-    val imageRes: Int // drawable ID
+    val imageRes: Int,
+    val isVip: Boolean = false
 )
 
 
