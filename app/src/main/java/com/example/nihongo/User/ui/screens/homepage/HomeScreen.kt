@@ -1,5 +1,6 @@
 package com.example.nihongo.User.ui.screens.homepage
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -217,6 +218,7 @@ fun CourseCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    Log.d("CourseCard", "imageRes ID: ${course.imageRes}")
     Box(
         modifier = modifier
             .width(250.dp)
@@ -225,15 +227,18 @@ fun CourseCard(
             .background(Color.LightGray) // fallback color
             .clickable { onClick() }
     ) {
+
         // Background Image
         Image(
-            painter = painterResource(id = course.imageRes),
+            painter = painterResource(id = course.imageRes), // Assuming the resource is PNG/JPG
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .matchParentSize()
                 .clip(RoundedCornerShape(20.dp))
         )
+
+
 
         // Top-left: VIP Icon (Star) if course is VIP
         if (course.isVip) {

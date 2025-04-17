@@ -19,7 +19,7 @@ import com.example.nihongo.User.ui.screens.login.RegisterScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController, userRepo: UserRepository, courseRepo: CourseRepository, lessonRepo: LessonRepository) {
-    NavHost(navController = navController, startDestination = NavigationRoutes.HOME) {
+    NavHost(navController = navController, startDestination = NavigationRoutes.LOGIN) {
 
         composable(NavigationRoutes.LOGIN) {
             LoginScreen(navController, userRepo)

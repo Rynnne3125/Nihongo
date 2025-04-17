@@ -44,4 +44,13 @@ interface UserDao {
      */
     @Query("SELECT * FROM users WHERE isLoggedIn = 1 LIMIT 1")
     suspend fun getLoggedInUser(): User?
+
+    @Query("SELECT * FROM users")
+    suspend fun getAllUsers(): List<User>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUsers(users: List<User>)
+
+    @Query("DELETE FROM users")
+    suspend fun clearUsers()
 }

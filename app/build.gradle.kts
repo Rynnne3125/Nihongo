@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("kotlin-kapt") // cần thiết cho Room annotation processing
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -56,6 +57,11 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     implementation(libs.androidx.lifecycle.livedata.ktx)
+    implementation(libs.firebase.database)
+    implementation(libs.firebase.firestore)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     kapt(libs.room.compiler)
     implementation(libs.room.paging)
     //Gmail sender
@@ -97,4 +103,13 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(platform("com.google.firebase:firebase-bom:32.1.1"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth:23.2.0")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation ("androidx.credentials:credentials:1.5.0")
+    implementation ("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation ("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation ("com.cloudinary:cloudinary-android:2.3.1")
+
 }
