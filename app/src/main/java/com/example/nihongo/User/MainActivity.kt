@@ -24,12 +24,6 @@ class MainActivity : ComponentActivity() {
         // Khởi tạo Room và UserRepository
         val db = AppDatabase.getDatabase(this)
         lifecycleScope.launch {
-            // Kiểm tra xem Room có dữ liệu chưa, nếu chưa có thì tải từ Firestore
-            if (db.userDao().getAllUsers().isEmpty()) {
-                SyncManager.loadAllFromFirestoreToRoom(this@MainActivity)
-            }
-
-            // Sau khi chắc chắn Room có dữ liệu, tiến hành đồng bộ từ Room lên Firestore
             SyncManager.syncAllToFirestore(this@MainActivity)
         }
         val userRepo = UserRepository(db.userDao())

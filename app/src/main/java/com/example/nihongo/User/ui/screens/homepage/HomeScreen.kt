@@ -64,7 +64,7 @@ import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 
 @Composable
-fun HomeScreen(navController: NavController, user_email: String = "banhbeothuy10@gmail.com", userRepository : UserRepository, courseRepository: CourseRepository) {
+fun HomeScreen(navController: NavController, user_email: String, userRepository : UserRepository, courseRepository: CourseRepository) {
 
     var currentUser by remember { mutableStateOf<User?>(null) }
     val courseList by courseRepository.allCourses.collectAsState(initial = emptyList())
