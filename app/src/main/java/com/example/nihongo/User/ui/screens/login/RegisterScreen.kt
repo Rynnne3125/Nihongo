@@ -1,5 +1,6 @@
 package com.example.nihongo.User.ui.screens.login
 
+import android.util.Log
 import android.util.Patterns
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.repository.UserRepository
+import com.example.nihongo.utils.EmailSender
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -50,6 +54,7 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    var isSendingOtp by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -139,8 +144,33 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
                         val success = userRepo.registerUser(user)
 
                         message = if (success) {
-                            navController.navigate("login")
-                            "Đăng ký thành công!"
+                            isSendingOtp = true
+                            val otp = EmailSender.generateOTP()
+                            withContext(Dispatchers.IO) {
+                                EmailSender.sendOTP(
+                                    recipientEmail = email,
+                                    otp = otp,
+                                    onSuccess = {
+                                        scope.launch {
+                                            navController.currentBackStackEntry?.savedStateHandle?.apply {
+                                                set("expectedOtp", otp)
+                                                set("user_email", email)
+                                            }
+                                            navController.navigate("otp_screen")
+                                            isSendingOtp = false
+                                        }
+                                    },
+                                    onFailure = {
+                                        it.printStackTrace()
+                                        Log.e("EmailSender", "Lỗi gửi OTP: ${it.message}", it)
+                                        scope.launch {
+                                            message = "Không thể gửi OTP: ${it.localizedMessage ?: "Lỗi không xác định"}"
+                                            isSendingOtp = false
+                                        }
+                                    }
+                                )
+                            }
+                            "Gửi OTP thành công!"
                         } else {
                             "Tài khoản đã tồn tại!"
                         }
@@ -149,7 +179,7 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C))
             ) {
-                Text("Đăng ký", color = Color.White)
+                Text(if (isSendingOtp) "Đang gửi OTP..." else "Đăng ký")
             }
 
             Spacer(modifier = Modifier.height(12.dp))

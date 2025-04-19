@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.nihongo.User.utils.NavigationRoutes
 
 @Composable
 fun OTPScreen(navController: NavController, expectedOtp: String, user_email: String)
@@ -136,7 +137,8 @@ fun OTPScreen(navController: NavController, expectedOtp: String, user_email: Str
             Button(
                 onClick = {
                     if (getOtp() == expectedOtp) {
-                        navController.navigate("home/$user_email")
+                        navController.navigate(NavigationRoutes.LOGIN)
+
                     } else {
                         errorMessage = "Mã OTP không đúng"
                     }

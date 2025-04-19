@@ -26,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -45,17 +44,14 @@ import com.example.nihongo.User.data.repository.UserRepository
 
 @Composable
 fun CoursesScreen(navController: NavController, courseRepository: CourseRepository) {
-    val courses = remember { mutableStateListOf<Course>() }
+    val courses = remember { mutableStateOf<List<Course>>(emptyList()) } // Sử dụng mutableStateOf thay vì mutableStateListOf
 
     LaunchedEffect(true) {
-        courseRepository.allCourses.collect { courseList ->
-            courses.clear()
-            courses.addAll(courseList)
-        }
+        courses.value = courseRepository.getAllCourses() // ✅ gọi hàm suspend đúng cách
     }
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(courses) { course ->
+        items(courses.value) { course ->
             CourseCard(course = course, onClick = {
                 navController.navigate("courses/${course.id}") // Điều hướng đến khóa học chi tiết
             })
@@ -65,10 +61,10 @@ fun CoursesScreen(navController: NavController, courseRepository: CourseReposito
 
 @Composable
 fun CourseDetailScreen(
-    courseId: Int?,
+    courseId: String?,  // Now accepting courseId as String
     navController: NavController,
     courseRepository: CourseRepository,
-    userRepository: UserRepository // Truyền UserRepository vào đây
+    userRepository: UserRepository
 ) {
     val course = remember { mutableStateOf<Course?>(null) }
     val isUserVip = remember { mutableStateOf(false) }  // Biến để lưu trạng thái VIP
@@ -77,6 +73,7 @@ fun CourseDetailScreen(
 
     // Lấy dữ liệu course từ repository
     LaunchedEffect(courseId) {
+        // Ensure courseId is not null and fetch the course with String ID
         course.value = courseId?.let { courseRepository.getCourseById(it) }
     }
 

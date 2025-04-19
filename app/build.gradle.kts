@@ -56,6 +56,7 @@ dependencies {
     // ROOM
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.androidx.work.runtime.ktx)
     kapt(libs.room.compiler)
 
     // Firestore (chỉ Firestore, không Auth)
@@ -63,7 +64,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx:25.1.3")  // Phiên bản sẽ được quản lý bởi BOM
     implementation("com.google.firebase:firebase-firestore:25.1.3")
 
-
+    implementation("com.google.android.gms:play-services-auth:21.1.0")
 
     // Compose UI
     implementation(platform(libs.androidx.compose.bom))

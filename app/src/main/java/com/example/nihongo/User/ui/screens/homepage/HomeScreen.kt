@@ -39,7 +39,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,16 +63,15 @@ import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 
 @Composable
-fun HomeScreen(navController: NavController, user_email: String, userRepository : UserRepository, courseRepository: CourseRepository) {
+fun HomeScreen(navController: NavController, user_email: String, userRepository: UserRepository, courseRepository: CourseRepository) {
 
     var currentUser by remember { mutableStateOf<User?>(null) }
-    val courseList by courseRepository.allCourses.collectAsState(initial = emptyList())
+    var courseList by remember { mutableStateOf<List<Course>>(emptyList()) }
 
-    LaunchedEffect(true) {
-        courseRepository.insertSampleData()
-    }
+    // Lấy thông tin người dùng và danh sách khóa học từ Firestore
     LaunchedEffect(user_email) {
         currentUser = userRepository.getUserByEmail(user_email)
+        courseList = courseRepository.getAllCourses() // Dùng repository để lấy khóa học
     }
 
     Scaffold(
@@ -142,14 +140,15 @@ fun HomeScreen(navController: NavController, user_email: String, userRepository 
                     }
                 }
             }
+
             Text("Recent Lessons")
             LessonCard(title = "Lesson 1: Greetings", difficulty = 1)
-
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Text("Your Learning Tools", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
+
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -175,9 +174,11 @@ fun HomeScreen(navController: NavController, user_email: String, userRepository 
             Text("Flashcard of the Day")
             FlashcardCard(term = "日本語", definition = "Japanese language")
 
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text("Trending Course", style = MaterialTheme.typography.titleMedium)
 
+            // Hiển thị danh sách các khóa học
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -194,10 +195,6 @@ fun HomeScreen(navController: NavController, user_email: String, userRepository 
                     )
                 }
             }
-
-
-
-
         }
     }
 }

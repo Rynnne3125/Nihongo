@@ -1,6 +1,5 @@
 package com.example.nihongo.User.ui.screens.login
 
-import android.util.Log
 import android.util.Patterns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -36,10 +35,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nihongo.User.data.repository.UserRepository
-import com.example.nihongo.utils.EmailSender
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun LoginScreen(navController: NavController, userRepo: UserRepository) {
@@ -48,7 +44,6 @@ fun LoginScreen(navController: NavController, userRepo: UserRepository) {
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
-    var isSendingOtp by remember { mutableStateOf(false) }
 
     fun isValidEmail(email: String): Boolean {
         return Patterns.EMAIL_ADDRESS.matcher(email).matches()
@@ -132,46 +127,20 @@ fun LoginScreen(navController: NavController, userRepo: UserRepository) {
                             message = "Mật khẩu phải có ít nhất 6 ký tự."
                             return@launch
                         }
-
-                        isSendingOtp = true
                         val user = userRepo.loginUserByEmail(email, password)
+
+
                         if (user != null) {
-                            val otp = EmailSender.generateOTP()
-                            withContext(Dispatchers.IO) {
-                                EmailSender.sendOTP(
-                                    recipientEmail = email,
-                                    otp = otp,
-                                    onSuccess = {
-                                        scope.launch {
-                                            navController.currentBackStackEntry?.savedStateHandle?.apply {
-                                                set("expectedOtp", otp)
-                                                set("user_email", email)
-                                            }
-                                            navController.navigate("otp_screen")
-                                            isSendingOtp = false
-                                        }
-                                    },
-                                    onFailure = {
-                                        it.printStackTrace()
-                                        Log.e("EmailSender", "Lỗi gửi OTP: ${it.message}", it)
-                                        scope.launch {
-                                            message = "Không thể gửi OTP: ${it.localizedMessage ?: "Lỗi không xác định"}"
-                                            isSendingOtp = false
-                                        }
-                                    }
-                                )
-                            }
+                            navController.navigate("home/$email")
                         } else {
                             message = "Sai email hoặc mật khẩu!"
-                            isSendingOtp = false
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isSendingOtp,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C)) // Màu xanh lá đậm hơn nền
             ) {
-                Text(if (isSendingOtp) "Đang gửi OTP..." else "Đăng nhập")
+                Text("Đăng nhập")
             }
 
             Spacer(modifier = Modifier.height(12.dp))

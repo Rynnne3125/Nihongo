@@ -1,26 +1,37 @@
 package com.example.nihongo.User.data.repository
 
-import com.example.nihongo.User.data.models.Exercise
-import com.example.nihongo.User.data.models.Flashcard
 import com.example.nihongo.User.data.models.Lesson
-import java.util.UUID
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.toObject
+import kotlinx.coroutines.tasks.await
 
-class LessonRepository(private val lessonDao: LessonDao, private val exerciseDao: ExerciseDao, private val flashcardDao: FlashcardDao) {
+class LessonRepository(
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+) {
 
-    suspend fun getLessonsByCourseId(courseId: Int): List<Lesson> {
-        // Lấy tất cả bài học thuộc khóa học
-        return lessonDao.getLessonsByCourseId(courseId)
+    private val lessonsCollection = firestore.collection("lessons")
+
+    // Lấy tất cả bài học thuộc khóa học
+    suspend fun getLessonsByCourseId(courseId: String): List<Lesson> {
+        val querySnapshot = lessonsCollection
+            .whereEqualTo("courseId", courseId)  // Lọc theo courseId
+            .get()
+            .await()
+
+        return querySnapshot.documents.mapNotNull { it.toObject<Lesson>() }
     }
 
-    suspend fun getLessonById(lessonId: UUID): Lesson? {
-        return lessonDao.getLessonById(lessonId)
+    // Lấy bài học theo ID
+    suspend fun getLessonById(lessonId: String): Lesson? {
+        val documentSnapshot = lessonsCollection.document(lessonId).get().await()
+        return if (documentSnapshot.exists()) {
+            documentSnapshot.toObject<Lesson>()
+        } else null
     }
 
-    suspend fun getExercisesByLessonId(lessonId: UUID): List<Exercise> {
-        return exerciseDao.getExercisesByLessonId(lessonId)
-    }
-
-    suspend fun getFlashcardsByLessonId(lessonId: UUID): List<Flashcard> {
-        return flashcardDao.getFlashcardsByLessonId(lessonId)
+    // Thêm một bài học mới
+    suspend fun addLesson(lesson: Lesson) {
+        val lessonRef = lessonsCollection.document(lesson.id.ifEmpty { lessonsCollection.document().id })
+        lessonRef.set(lesson).await()
     }
 }

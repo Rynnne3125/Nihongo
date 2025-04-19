@@ -23,19 +23,20 @@ import androidx.navigation.NavController
 import com.example.nihongo.User.data.models.Exercise
 import com.example.nihongo.User.data.models.Flashcard
 import com.example.nihongo.User.data.models.Lesson
+import com.example.nihongo.User.data.repository.ExerciseRepository
+import com.example.nihongo.User.data.repository.FlashcardRepository
 import com.example.nihongo.User.data.repository.LessonRepository
-import java.util.UUID
 
 @Composable
 fun LessonsScreen(
-    courseId: Int,
+    courseId: String, // Changed to String for courseId
     navController: NavController,
     lessonRepository: LessonRepository
 ) {
     val lessons = remember { mutableStateOf<List<Lesson>>(emptyList()) }
 
     LaunchedEffect(courseId) {
-        lessons.value = lessonRepository.getLessonsByCourseId(courseId)
+        lessons.value = lessonRepository.getLessonsByCourseId(courseId) // Fetch lessons by courseId (String)
     }
 
     Column(modifier = Modifier.padding(16.dp)) {
@@ -89,25 +90,26 @@ fun LessonCard(lesson: Lesson, onClick: () -> Unit) {
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
-
     }
 }
 
 @Composable
 fun LessonDetailScreen(
-    lessonId: UUID,
+    lessonId: String, // Changed to String for lessonId
     navController: NavController,
-    lessonRepository: LessonRepository
+    lessonRepository: LessonRepository,
+    exerciseRepository: ExerciseRepository,
+    flashcardRepository: FlashcardRepository
 ) {
     val lesson = remember { mutableStateOf<Lesson?>(null) }
     val exercises = remember { mutableStateOf<List<Exercise>>(emptyList()) }
     val flashcards = remember { mutableStateOf<List<Flashcard>>(emptyList()) }
 
     LaunchedEffect(lessonId) {
-        lesson.value = lessonRepository.getLessonById(lessonId)
+        lesson.value = lessonRepository.getLessonById(lessonId) // Fetch lesson by lessonId (String)
         lesson.value?.let {
-            exercises.value = lessonRepository.getExercisesByLessonId(lessonId)
-            flashcards.value = lessonRepository.getFlashcardsByLessonId(lessonId)
+            exercises.value = exerciseRepository.getExercisesByLessonId(lessonId) // Fetch exercises by lessonId (String)
+            flashcards.value = flashcardRepository.getFlashcardsByLessonId(lessonId) // Fetch flashcards by lessonId (String)
         }
     }
 
@@ -174,6 +176,7 @@ fun LessonDetailScreen(
         )
     }
 }
+
 @Composable
 fun SectionCard(
     title: String,

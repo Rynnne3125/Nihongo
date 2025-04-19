@@ -48,21 +48,23 @@ fun AppNavGraph(navController: NavHostController, userRepo: UserRepository, cour
             CoursesScreen(navController = navController, courseRepository = courseRepo)
         }
         composable("courses/{courseId}") { backStackEntry ->
-            val courseId = backStackEntry.arguments?.getString("courseId")?.toIntOrNull() // Kiểm tra xem có phải là số hay không
+            val courseId = backStackEntry.arguments?.getString("courseId") // courseId now as String
             if (courseId != null) {
                 CourseDetailScreen(courseId = courseId, navController = navController, courseRepository = courseRepo, userRepository = userRepo)
             } else {
-                InvalidCourseScreen() // Nếu courseId không hợp lệ
+                InvalidCourseScreen() // If courseId is invalid
             }
         }
+
         composable("lessons/{courseId}") { backStackEntry ->
-            val courseId = backStackEntry.arguments?.getString("courseId")?.toIntOrNull()
+            val courseId = backStackEntry.arguments?.getString("courseId") // courseId now as String
             if (courseId != null) {
                 LessonsScreen(courseId = courseId, navController = navController, lessonRepository = lessonRepo)
             } else {
-                InvalidCourseScreen() // Nếu courseId không hợp lệ
+                InvalidCourseScreen() // If courseId is invalid
             }
         }
+
     }
 }
 

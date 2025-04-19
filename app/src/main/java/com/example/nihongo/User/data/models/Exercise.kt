@@ -1,21 +1,9 @@
 package com.example.nihongo.User.data.models
 
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
-import java.util.UUID
-
-@Entity(
-    tableName = "exercises",
-    foreignKeys = [
-        ForeignKey(entity = Lesson::class, parentColumns = ["id"], childColumns = ["lessonId"])
-    ],
-    indices = [Index("lessonId")]
-)
+// Exercise model cho Firestore
 data class Exercise(
-    @PrimaryKey val id: UUID = UUID.randomUUID(),
-    val lessonId: UUID,
+    val id: String = "",              // Firestore Document ID
+    val lessonId: String,             // Firestore lessonId là String
     val question: String,
     val answer: String,
     val type: ExerciseType,
@@ -25,7 +13,6 @@ data class Exercise(
     val hint: String? = null,
     val explanation: String? = null
 )
-
 
 enum class ExerciseType {
     MULTIPLE_CHOICE, TRANSLATION, LISTENING, WRITING
