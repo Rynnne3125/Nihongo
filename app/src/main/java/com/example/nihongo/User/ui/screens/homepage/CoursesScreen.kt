@@ -49,7 +49,7 @@ fun CoursesScreen(navController: NavController, courseRepository: CourseReposito
     LaunchedEffect(true) {
         courses.value = courseRepository.getAllCourses() // ✅ gọi hàm suspend đúng cách
     }
-
+    Spacer(modifier = Modifier.height(24.dp))
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(courses.value) { course ->
             CourseCard(course = course, onClick = {
@@ -84,10 +84,14 @@ fun CourseDetailScreen(
 
     course.value?.let { course ->
         Column(modifier = Modifier.padding(16.dp)) {
+            val context = LocalContext.current
+            val imageId = remember(course.imageRes) {
+                context.resources.getIdentifier(course.imageRes, "drawable", context.packageName)
+            }
 
             // Hình ảnh khóa học
             Image(
-                painter = painterResource(id = course.imageRes),
+                painter = painterResource(id = imageId),
                 contentDescription = "Course Image",
                 modifier = Modifier
                     .fillMaxWidth()

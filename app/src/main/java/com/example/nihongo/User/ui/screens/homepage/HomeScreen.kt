@@ -1,7 +1,6 @@
 package com.example.nihongo.User.ui.screens.homepage
 
 import android.util.Log
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -50,21 +49,26 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.nihongo.User.data.models.Course
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 
-@Composable
-fun HomeScreen(navController: NavController, user_email: String, userRepository: UserRepository, courseRepository: CourseRepository) {
 
+@Composable
+fun HomeScreen(
+    navController: NavController,
+    user_email: String,
+    userRepository: UserRepository,
+    courseRepository: CourseRepository
+) {
     var currentUser by remember { mutableStateOf<User?>(null) }
     var courseList by remember { mutableStateOf<List<Course>>(emptyList()) }
 
@@ -74,130 +78,133 @@ fun HomeScreen(navController: NavController, user_email: String, userRepository:
         courseList = courseRepository.getAllCourses() // Dùng repository để lấy khóa học
     }
 
-    Scaffold(
-        bottomBar = { BottomNavigationBar(navController) }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
-        ) {
-            // Top bar
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(imageVector = Icons.Default.Menu, contentDescription = "Menu")
-
-                if (currentUser != null) {
-                    Text("👋 Hello ${currentUser!!.username}")
-                    if (currentUser!!.isVip) {
-                        Text(text = "⭐ Bạn là VIP!")
-                    }
-                }
-
-                Icon(imageVector = Icons.Default.Person, contentDescription = "Avatar")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search Banner
-            Box(
+    NeonBackground { // Lồng vào nền
+        Scaffold(
+            bottomBar = { BottomNavigationBar(navController) }
+        ) { innerPadding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFFA8E6CF), Color(0xFFDCEDC1))
-                        ),
-                        shape = RoundedCornerShape(24.dp)
-                    )
+                    .fillMaxSize()
+                    .padding(innerPadding)
                     .padding(16.dp)
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Text("NihonGo Study", style = MaterialTheme.typography.headlineMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFEDEDED), shape = RoundedCornerShape(16.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                // Top bar
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(imageVector = Icons.Default.Menu, contentDescription = "Menu")
+
+                    if (currentUser != null) {
+                        Text("👋 Hello ${currentUser!!.username}")
+                        if (currentUser!!.isVip) {
+                            Text(text = "⭐ Bạn là VIP!")
+                        }
+                    }
+
+                    Icon(imageVector = Icons.Default.Person, contentDescription = "Avatar")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Search Banner
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color(0xFFA8E6CF), Color(0xFFDCEDC1))
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .padding(16.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Text("NihonGo Study", style = MaterialTheme.typography.headlineMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFEDEDED), shape = RoundedCornerShape(16.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = Color.Gray
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("What course are you looking for?", color = Color.Gray)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("What course are you looking for?", color = Color.Gray)
+                            }
                         }
                     }
                 }
-            }
 
-            Text("Recent Lessons")
-            LessonCard(title = "Lesson 1: Greetings", difficulty = 1)
+                Text("Recent Lessons")
+                LessonCard(title = "Lesson 1: Greetings", difficulty = 1)
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Your Learning Tools", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
+                Text("Your Learning Tools", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
 
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    MiniFeatureCard("Progress", Icons.Filled.HourglassEmpty)
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        MiniFeatureCard("Progress", Icons.Filled.HourglassEmpty)
+                    }
+                    item {
+                        MiniFeatureCard("Courses", Icons.Filled.School, modifier = Modifier.clickable {
+                            navController.navigate("courses")
+                        })
+                    }
+                    item {
+                        MiniFeatureCard("Flashcards", Icons.Filled.ViewAgenda)
+                    }
+                    item {
+                        MiniFeatureCard("Exercise", Icons.Filled.FitnessCenter)
+                    }
                 }
-                item {
-                    MiniFeatureCard("Courses", Icons.Filled.School, modifier = Modifier.clickable {
-                        navController.navigate("courses")
-                    })
-                }
-                item {
-                    MiniFeatureCard("Flashcards", Icons.Filled.ViewAgenda)
-                }
-                item {
-                    MiniFeatureCard("Exercise", Icons.Filled.FitnessCenter)
-                }
-            }
 
-            Text("Flashcard of the Day")
-            FlashcardCard(term = "日本語", definition = "Japanese language")
+                Text("Flashcard of the Day")
+                FlashcardCard(term = "日本語", definition = "Japanese language")
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Trending Course", style = MaterialTheme.typography.titleMedium)
+                Text("Trending Course", style = MaterialTheme.typography.titleMedium)
 
-            // Hiển thị danh sách các khóa học
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                courseList.forEach { course ->
-                    CourseCard(
-                        course = course,
-                        onClick = {
-                            navController.navigate("courses/${course.id}") // Điều hướng đến chi tiết khóa học
-                        }
-                    )
+                // Hiển thị danh sách các khóa học
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    courseList.forEach { course ->
+                        CourseCard(
+                            course = course,
+                            onClick = {
+                                navController.navigate("courses/${course.id}") // Điều hướng đến chi tiết khóa học
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun FlashcardCard(term: String, definition: String) {
@@ -224,15 +231,15 @@ fun CourseCard(
             .background(Color.LightGray) // fallback color
             .clickable { onClick() }
     ) {
-
-        // Background Image
-        Image(
-            painter = painterResource(id = course.imageRes), // Assuming the resource is PNG/JPG
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
+        AsyncImage(
+            model = course.imageRes, // URL tải về hình ảnh từ Google Drive
+            contentDescription = "Course Image",
             modifier = Modifier
-                .matchParentSize()
-                .clip(RoundedCornerShape(20.dp))
+                .fillMaxWidth()
+                .height(200.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.Gray),
+            contentScale = ContentScale.Crop
         )
 
 

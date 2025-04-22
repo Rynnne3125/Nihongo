@@ -99,4 +99,8 @@ dependencies {
     implementation("com.sun.mail:android-mail:1.6.7")
     implementation("com.sun.mail:android-activation:1.6.7")
     implementation("com.cloudinary:cloudinary-android:2.3.1")
+
+    implementation("io.coil-kt:coil-compose:2.2.2")
+
+    implementation ("com.google.android.exoplayer:exoplayer:2.18.1")
 }

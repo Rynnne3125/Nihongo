@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.navigation.compose.rememberNavController
 import com.example.nihongo.User.data.repository.CourseRepository
+import com.example.nihongo.User.data.repository.ExerciseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.utils.AppNavGraph
@@ -26,7 +27,9 @@ class MainActivity : ComponentActivity() {
 
         val userRepo = UserRepository()
         val courseRepo = CourseRepository()
-        val lessonRepo = LessonRepository() // Khởi tạo LessonRepository
+        val lessonRepo = LessonRepository()
+        val exerciseRepo = ExerciseRepository()
+
         CoroutineScope(Dispatchers.IO).launch {
             val courses = courseRepo.getAllCourses()
             // xử lý dữ liệu nếu cần
@@ -36,7 +39,7 @@ class MainActivity : ComponentActivity() {
             NihongoTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     val navController = rememberNavController()
-                    AppNavGraph(navController = navController, userRepo = userRepo, courseRepo =  courseRepo, lessonRepo =  lessonRepo)
+                    AppNavGraph(navController = navController, userRepo = userRepo, courseRepo =  courseRepo, lessonRepo =  lessonRepo, exerciseRepo = exerciseRepo)
                 }
             }
         }

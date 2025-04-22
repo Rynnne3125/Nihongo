@@ -13,13 +13,18 @@ class LessonRepository(
 
     // Lấy tất cả bài học thuộc khóa học
     suspend fun getLessonsByCourseId(courseId: String): List<Lesson> {
-        val querySnapshot = lessonsCollection
-            .whereEqualTo("courseId", courseId)  // Lọc theo courseId
+        val firestore = FirebaseFirestore.getInstance()
+        val lessonsSnapshot = firestore.collection("lessons")
+            .whereEqualTo("courseId", courseId)
+            .orderBy("step") // Sắp xếp theo thứ tự bài học
             .get()
             .await()
 
-        return querySnapshot.documents.mapNotNull { it.toObject<Lesson>() }
+        return lessonsSnapshot.toObjects(Lesson::class.java)
     }
+
+
+
 
     // Lấy bài học theo ID
     suspend fun getLessonById(lessonId: String): Lesson? {
@@ -29,9 +34,5 @@ class LessonRepository(
         } else null
     }
 
-    // Thêm một bài học mới
-    suspend fun addLesson(lesson: Lesson) {
-        val lessonRef = lessonsCollection.document(lesson.id.ifEmpty { lessonsCollection.document().id })
-        lessonRef.set(lesson).await()
-    }
+
 }
