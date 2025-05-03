@@ -1,13 +1,14 @@
 package com.example.nihongo.User.ui.screens.homepage
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,8 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,132 +51,88 @@ fun ExerciseScreen(
     navController: NavController,
     sublessonId: String,
     exerciseRepository: ExerciseRepository,
-    lessonId: String
+    courseId: String,
+    lessonId: String,
+    userEmail: String
 ) {
     var exercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
+    var quizExercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var shouldNavigateToQuiz by remember { mutableStateOf(false) }
 
     LaunchedEffect(sublessonId) {
+        isLoading = true
         exercises = exerciseRepository.getExercisesBySubLessonId(sublessonId, lessonId)
+        quizExercises = exerciseRepository.getPracticeExercisesExcludingFirstSubLesson(lessonId)
+        isLoading = false
+
+        // Nếu không có VIDEO thì trigger navigation
+        val hasVideo = exercises.any { it.type == ExerciseType.VIDEO }
+        if (!hasVideo) {
+            shouldNavigateToQuiz = true
+        }
     }
 
-    NeonBackground {
-        if (exercises.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Đang tải bài tập...")
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
-                exercises.forEach { exercise ->
-                    when (exercise.type) {
-                        ExerciseType.VIDEO -> {
-                            VideoExerciseView(
-                                navController,
-                                sublessonId,
-                                exercise.title ?: "",
-                                exercise.videoUrl ?: "",
-                                sampleExplanation
-                            )
-                        }
-                        ExerciseType.FLASHCARD -> {
-                            FlashcardExerciseView(
-                                question = exercise.question ?: "",
-                                answer = exercise.answer ?: ""
-                            )
-                        }
-                        ExerciseType.MEMORY_GAME -> {
-                            MemoryGameExerciseView(
-                                question = exercise.question ?: "",
-                                answer = exercise.answer ?: ""
-                            )
-                        }
-                        ExerciseType.MULTIPLE_CHOICE -> {
-                            MultipleChoiceExerciseView(
-                                question = exercise.question ?: "",
-                                options = exercise.options ?: emptyList(),
-                                correctAnswer = exercise.answer ?: ""
-                            )
-                        }
-                        ExerciseType.QUIZ -> {
-                            QuizExerciseView(
-                                question = exercise.question ?: "",
-                                options = exercise.options ?: emptyList(),
-                                correctAnswer = exercise.answer ?: ""
-                            )
-                        }
-                        else -> {
-                            Text("Không xác định loại bài tập.")
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
+    if (isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Đang tải bài tập...")
+        }
+    } else if (shouldNavigateToQuiz) {
+        // Navigation chỉ gọi đúng 1 lần
+        LaunchedEffect(Unit) {
+            navController.currentBackStackEntry?.savedStateHandle?.set("quizList", quizExercises)
+            navController.navigate("quiz_screen/${Uri.encode(userEmail)}/$courseId/$lessonId")
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(color = Color(0xFFEEEEEE)),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            val videoExercise = exercises.find { it.type == ExerciseType.VIDEO }
+
+            if (videoExercise != null) {
+                VideoExerciseView(
+                    navController = navController,
+                    userEmail = userEmail,
+                    courseId = courseId,
+                    lessonId = lessonId,
+                    title = videoExercise.title ?: "",
+                    videoPath = videoExercise.videoUrl ?: "",
+                    explanation = sampleExplanation,
+                    quiz = quizExercises
+                )
             }
         }
     }
 }
 
-
-@Composable
-fun NeonBackground(content: @Composable () -> Unit) {
-    val gradientBrush = Brush.linearGradient(
-        colorStops = arrayOf(
-            0.0f to Color(0xFF00CC00).copy(alpha = 0.5f),  // Xanh lá đậm
-            0.2f to Color(0xFF00CC00).copy(alpha = 0.3f),  // Xanh lá nhạt
-            0.5f to Color.White.copy(alpha = 0.2f),         // Trắng mờ dần
-            0.7f to Color(0xFF0099CC).copy(alpha = 0.3f),  // Xanh biển nhạt
-            1.0f to Color(0xFF0099CC).copy(alpha = 0.5f)   // Xanh biển đậm
-        ),
-        start = Offset(0f, 0f),    // Tạo điểm bắt đầu
-        end = Offset(1000f, 1000f) // Tạo điểm kết thúc
-    )
-
-    // Radial Gradient toả sáng từ giữa
-    val radialBrush = Brush.radialGradient(
-        colorStops = arrayOf(
-            0.0f to Color(0xFF00CC00).copy(alpha = 0.6f),  // Xanh lá đậm ở trung tâm
-            0.3f to Color(0xFF00CC00).copy(alpha = 0.4f),  // Xanh lá nhẹ hơn khi ra ngoài
-            0.6f to Color.White.copy(alpha = 0.3f),         // Pha trắng nhẹ hơn nữa
-            1.0f to Color(0xFF0099CC).copy(alpha = 0.2f)   // Xanh biển pha loãng gần biên
-        ),
-        center = Offset(500f, 1000f),  // Canh giữa màn hình
-        radius = 1500f                  // Phạm vi tỏa sáng
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(brush = radialBrush) // Tạo background radial gradient
-            .background(brush = gradientBrush) // Đồng thời áp dụng linear gradient
-    ) {
-        content() // Nội dung của bạn ở đây
-    }
-}
-
-
-
-
-
-
-
 @Composable
 fun VideoExerciseView(
     navController: NavController,
-    sublessonId: String,
+    userEmail: String,
+    courseId: String,
+    lessonId: String,
     title: String,
     videoPath: String,
-    explanation: List<Pair<String, String>>
+    explanation: List<Pair<String, String>>,
+    quiz: List<Exercise>
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // 👇 Video full width, sát viền ứng dụng
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(text = title, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         AndroidView(
             factory = { context ->
                 val player = SimpleExoPlayer.Builder(context).build().apply {
@@ -188,42 +143,36 @@ fun VideoExerciseView(
                 }
                 PlayerView(context).apply { this.player = player }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16 / 9f)
+            modifier = Modifier.fillMaxWidth().aspectRatio(16 / 9f)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 👇 Phần nội dung còn lại có padding như thường
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             ExpandableExplanationCards(
+                navController,
                 explanationItems = explanation,
-                subLessonId = sublessonId,
-                onPracticeClick = { id, type ->
-                    navController.navigate("exercise/${id}/${type.name}")
-                }
+                userEmail = userEmail,
+                courseId = courseId,
+                lessonId = lessonId,
+                exercises = quiz
             )
-
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 
+
+
 @Composable
 fun ExpandableExplanationCards(
+    navController: NavController,
     explanationItems: List<Pair<String, String>>,
-    subLessonId: String,
-    onPracticeClick: (subLessonId: String, exerciseType: ExerciseType) -> Unit
+    userEmail: String,
+    courseId: String,
+    lessonId: String,
+    exercises: List<Exercise> // <-- Thêm danh sách bài tập
 ) {
     val expandedCardIndex = remember { mutableStateOf(-1) }
 
@@ -237,7 +186,6 @@ fun ExpandableExplanationCards(
 
             Card(
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
@@ -246,7 +194,7 @@ fun ExpandableExplanationCards(
                         expandedCardIndex.value = if (isExpanded) -1 else index
                     },
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFF9FAFB) // Nền mềm mại
+                    containerColor = Color(0xFFF9FAFB)
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -254,7 +202,7 @@ fun ExpandableExplanationCards(
                         text = title,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B) // Xanh đậm hiện đại
+                            color = Color(0xFF1E293B)
                         )
                     )
 
@@ -278,104 +226,35 @@ fun ExpandableExplanationCards(
             }
         }
 
-        // Nút "Bắt đầu luyện tập" căn giữa
+        // Nút "Bắt đầu luyện tập"
         Box(
-            modifier = Modifier.fillMaxWidth(), // Đảm bảo Box chiếm toàn bộ chiều rộng
-            contentAlignment = Alignment.Center // Căn giữa Button trong Box
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
         ) {
             Button(
                 onClick = {
-                    onPracticeClick(subLessonId, ExerciseType.FLASHCARD)
+
+                        Log.d("QuizLog", "Quiz Exercises: ${exercises.map { it.question }}")
+
+                    // Lưu dữ liệu vào SavedStateHandle
+                    navController.currentBackStackEntry?.savedStateHandle?.set("quizList", exercises)
+                    navController.navigate("quiz_screen/$userEmail/$courseId/$lessonId")
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF10B981), // Màu xanh lá chuyên nghiệp
+                    containerColor = Color(0xFF10B981),
                     contentColor = Color.White
                 ),
-                modifier = Modifier.padding(top = 16.dp) // Căn chỉnh và tạo khoảng cách
+                modifier = Modifier.padding(top = 16.dp)
             ) {
                 Text("Bắt đầu luyện tập")
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
+
 }
 
-
-
-@Composable
-fun FlashcardExerciseView(question: String, answer: String) {
-    var isAnswerVisible by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Flashcard", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(question, fontSize = 18.sp, modifier = Modifier.padding(bottom = 16.dp))
-        Button(onClick = { isAnswerVisible = !isAnswerVisible }) {
-            Text(text = if (isAnswerVisible) "Ẩn câu trả lời" else "Hiện câu trả lời")
-        }
-        AnimatedVisibility(visible = isAnswerVisible) {
-            Text(answer, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp))
-        }
-    }
-}
-
-@Composable
-fun MemoryGameExerciseView(question: String, answer: String) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Memory Game", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(question, fontSize = 18.sp)
-        // Placeholder cho trò chơi memory game
-    }
-}
-
-@Composable
-fun MultipleChoiceExerciseView(question: String, options: List<String>, correctAnswer: String) {
-    var selectedOption by remember { mutableStateOf("") }
-    var isAnswerCorrect by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Multiple Choice", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(question, fontSize = 18.sp, modifier = Modifier.padding(bottom = 16.dp))
-        options.forEach { option ->
-            Row(modifier = Modifier.fillMaxWidth().clickable {
-                selectedOption = option
-                isAnswerCorrect = option == correctAnswer
-            }) {
-                Text(option, fontSize = 18.sp, modifier = Modifier.padding(8.dp))
-            }
-        }
-        if (selectedOption.isNotEmpty()) {
-            Text(
-                text = if (isAnswerCorrect) "Chính xác!" else "Sai rồi!",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isAnswerCorrect) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-            )
-        }
-    }
-}
-
-@Composable
-fun QuizExerciseView(question: String, options: List<String>, correctAnswer: String) {
-    var selectedOption by remember { mutableStateOf("") }
-    var isAnswerCorrect by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Quiz", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(question, fontSize = 18.sp, modifier = Modifier.padding(bottom = 16.dp))
-        options.forEach { option ->
-            Row(modifier = Modifier.fillMaxWidth().clickable {
-                selectedOption = option
-                isAnswerCorrect = option == correctAnswer
-            }) {
-                Text(option, fontSize = 18.sp, modifier = Modifier.padding(8.dp))
-            }
-        }
-        if (selectedOption.isNotEmpty()) {
-            Text(
-                text = if (isAnswerCorrect) "Chính xác!" else "Sai rồi!",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isAnswerCorrect) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-            )
-        }
-    }
-}
 
 val sampleExplanation = listOf(
     "I. Giới thiệu các loại chữ trong tiếng Nhật" to """

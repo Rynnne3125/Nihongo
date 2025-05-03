@@ -7,6 +7,6 @@ data class Course(
     val rating: Double = 0.0,
     val reviews: Int = 0,
     val likes: Int = 0,
-    val imageRes: String = "",      // vẫn giữ imageRes kiểu Int nếu ảnh local
+    val imageRes: String = "",
     val isVip: Boolean = false
 )

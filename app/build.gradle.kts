@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("kotlin-kapt")
+    id ("kotlin-parcelize")
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.0"
     id("com.google.gms.google-services")
 }
@@ -102,5 +103,11 @@ dependencies {
 
     implementation("io.coil-kt:coil-compose:2.2.2")
 
+    implementation("androidx.compose.foundation:foundation:1.8.0") // hoặc phiên bản mới nhất
+
     implementation ("com.google.android.exoplayer:exoplayer:2.18.1")
+
+    implementation ("com.google.accompanist:accompanist-flowlayout:0.32.0")
+    implementation("androidx.compose.ui:ui-text-google-fonts:1.5.0")
+
 }

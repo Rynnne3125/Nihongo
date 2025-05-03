@@ -1,23 +1,14 @@
 package com.example.nihongo.User.data.models
 
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
-import java.time.LocalDateTime
-import java.util.UUID
-
-@Entity(
-    tableName = "user_progress",
-    foreignKeys = [
-        ForeignKey(entity = User::class, parentColumns = ["id"], childColumns = ["userId"]),
-        ForeignKey(entity = Lesson::class, parentColumns = ["id"], childColumns = ["lessonId"])
-    ],
-    indices = [Index("userId"), Index("lessonId")]
-)
 data class UserProgress(
-    @PrimaryKey val id: UUID = UUID.randomUUID(),
-    val userId: UUID,
-    val lessonId: UUID,
-    val completedAt: LocalDateTime
+    val userId: String = "",                         // ID người dùng
+    val courseId: String = "",                       // ID khóa học
+    val courseTitle: String = "",                    // Tiêu đề khóa học
+    val currentLessonId: String? = null,             // Bài học hiện tại mà người dùng đang học
+    val completedLessons: List<String> = emptyList(),     // Danh sách các bài học đã hoàn thành
+    val completedExercises: List<String> = emptyList(),   // Danh sách các bài tập đã làm
+    val passedExercises: List<String> = emptyList(),      // Danh sách các bài tập đã vượt qua
+    val progress: Float = 0.0f,                      // Tiến độ học (%)
+    val lastUpdated: Long = 0L,                      // Thời gian cập nhật
+    val totalLessons: Int = 0                        // Tổng số bài học
 )
