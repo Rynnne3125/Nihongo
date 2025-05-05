@@ -14,7 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -78,15 +78,21 @@ fun ProfileScreen(
                     currentUser?.let {
                         Column {
                             Text("👋 こんにちわ ${it.username} さん", style = MaterialTheme.typography.bodyLarge)
-                            if (it.isVip) {
+                            if (it.vip) {
                                 Text("⭐ VIP です!", style = MaterialTheme.typography.labelMedium, color = Color(0xFFFFC107))
                             }
                         }
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                    IconButton(onClick = {
+                        navController.navigate("community/$userEmail") {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }) {
+                        Icon(Icons.Default.Group, contentDescription = "Notifications")
                     }
                 }
             )
@@ -134,7 +140,7 @@ fun ProfileScreen(
                 // User Info
                 Text(user.username, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
                 Text(user.email, fontSize = 14.sp, color = Color.Gray, modifier = Modifier.align(Alignment.CenterHorizontally))
-                if (user.isVip) {
+                if (user.vip) {
                     Text("⭐ VIP Member", color = Color(0xFFFFC107), fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.CenterHorizontally))
                 }
 

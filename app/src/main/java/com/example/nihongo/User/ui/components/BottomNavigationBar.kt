@@ -20,7 +20,7 @@ fun BottomNavigationBar(
         BottomNavItem.Home,
         BottomNavItem.Courses,
         BottomNavItem.Vocabulary,
-        BottomNavItem.Notifications,
+        BottomNavItem.Community,
         BottomNavItem.Profile
     )
 

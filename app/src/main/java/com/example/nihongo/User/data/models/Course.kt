@@ -8,5 +8,5 @@ data class Course(
     val reviews: Int = 0,
     val likes: Int = 0,
     val imageRes: String = "",
-    val isVip: Boolean = false
+    val vip: Boolean = false
 )

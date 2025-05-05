@@ -10,7 +10,8 @@ data class User(
     val username: String = "",
     val email: String = "",
     val password: String = "",
+    val imageUrl: String = "",
     val createdAt: String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date()),
-    val isVip: Boolean = false,
+    val vip: Boolean = false,
     val isLoggedIn: Boolean = false
 )

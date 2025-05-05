@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Comment
-import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -128,8 +128,14 @@ fun CoursesScreen(
                     TopBarIcon(selectedItem = selectedItem)
                 },
                 actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                    IconButton(onClick = {
+                        navController.navigate("community/$userEmail") {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }) {
+                        Icon(Icons.Default.Group, contentDescription = "Notifications")
                     }
                     IconButton(onClick = {
                         navController.navigate("profile/$userEmail") {
@@ -291,7 +297,7 @@ fun CourseDetailScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (course.isVip) {
+                if (course.vip) {
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = "VIP Icon",
@@ -304,7 +310,7 @@ fun CourseDetailScreen(
 
                 Button(
                     onClick = {
-                        if (course.isVip && !isUserVip.value) {
+                        if (course.vip && !isUserVip.value) {
                             Toast.makeText(context, "You need to be VIP to join this course", Toast.LENGTH_SHORT).show()
                         } else {
                             coroutineScope.launch {

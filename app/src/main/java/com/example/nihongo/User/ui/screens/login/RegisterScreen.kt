@@ -138,7 +138,7 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
                             email = email,
                             password = password,
                             createdAt = createdAt,
-                            isVip = false
+                            vip = false
                         )
 
                         val success = userRepo.registerUser(user)

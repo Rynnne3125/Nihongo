@@ -14,6 +14,7 @@ import com.example.nihongo.User.data.repository.ExerciseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavItem
+import com.example.nihongo.User.ui.screens.homepage.CommunityScreenFull
 import com.example.nihongo.User.ui.screens.homepage.CourseDetailScreen
 import com.example.nihongo.User.ui.screens.homepage.CoursesScreen
 import com.example.nihongo.User.ui.screens.homepage.ExerciseScreen
@@ -82,6 +83,13 @@ fun AppNavGraph(
                 }
             )
         }
+        composable("${BottomNavItem.Community.route}/{user_email}",
+            arguments = listOf(navArgument("user_email") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
+            CommunityScreenFull(navController, userRepo, userEmail)
+        }
+
 
         // Other Screens
         composable("admin_login") {

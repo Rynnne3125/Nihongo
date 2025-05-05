@@ -1,9 +1,10 @@
 package com.example.nihongo.User.ui.components
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Icon
@@ -16,7 +17,8 @@ fun TopBarIcon(selectedItem: String) {
     val icon = when (selectedItem) {
         "home" -> Icons.Filled.Home
         "courses" -> Icons.Filled.School
-        "notifications" -> Icons.Filled.Notifications
+        "vocabulary" -> Icons.Filled.Book
+        "community" -> Icons.Filled.Group
         "profile" -> Icons.Filled.Person
         else -> Icons.Filled.Help
     }

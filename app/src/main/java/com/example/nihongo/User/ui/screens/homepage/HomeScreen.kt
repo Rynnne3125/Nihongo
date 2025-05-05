@@ -32,8 +32,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
@@ -131,7 +131,7 @@ fun HomeScreen(
                     currentUser?.let {
                         Column {
                             Text("\uD83D\uDC4B こんにちわ ${it.username} さん", style = MaterialTheme.typography.bodyLarge)
-                            if (it.isVip) {
+                            if (it.vip) {
                                 Text("\u2B50 VIP です!", style = MaterialTheme.typography.labelMedium, color = Color(0xFFFFC107))
                             }
                         }
@@ -141,8 +141,14 @@ fun HomeScreen(
                     TopBarIcon(selectedItem = selectedItem)
                 },
                 actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                    IconButton(onClick = {
+                        navController.navigate("community/$user_email") {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }) {
+                        Icon(Icons.Default.Group, contentDescription = "Notifications")
                     }
                     IconButton(onClick = {
                         navController.navigate("profile/$user_email") {
@@ -268,7 +274,13 @@ fun HomeScreen(
                     ) {
                         courseList.forEach { course ->
                             CourseCard(course = course, onClick = {
-                                navController.navigate("courses/${course.id}/$user_email")
+                                val progress = userProgressList.find { it.courseId == course.id }
+                                if (progress != null) {
+                                    navController.navigate("lessons/${course.id}/$user_email")
+                                }
+                                else{
+                                    navController.navigate("courses/${course.id}/$user_email")
+                                }
                             })
                         }
                     }
@@ -399,7 +411,7 @@ fun CourseCard(
             contentScale = ContentScale.Crop
         )
 
-        if (course.isVip) {
+        if (course.vip) {
             Icon(
                 imageVector = Icons.Default.Star,
                 contentDescription = "VIP Course",

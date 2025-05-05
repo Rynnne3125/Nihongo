@@ -27,18 +27,6 @@ class UserRepository(
         }
     }
 
-    suspend fun loginUser(username: String, password: String): User? {
-        val hashedPassword = hashPassword(password)
-        val querySnapshot = usersCollection
-            .whereEqualTo("username", username)
-            .whereEqualTo("password", hashedPassword)
-            .get()
-            .await()
-
-        val user = querySnapshot.documents.firstOrNull()?.toObject<User>()
-        currentUser = user
-        return user
-    }
 
     suspend fun loginUserByEmail(email: String, password: String): User? {
         val hashedPassword = hashPassword(password)
@@ -59,11 +47,31 @@ class UserRepository(
             .get()
             .await()
 
-        return querySnapshot.documents.firstOrNull()?.toObject<User>()
+        val document = querySnapshot.documents.firstOrNull()
+
+        // Log raw Firestore document data
+        Log.d("UserRepository", "Raw document data: ${document?.data}")
+
+        val user = document?.toObject<User>()
+
+        // Log mapped User object
+        Log.d("UserRepository", "Mapped User object: $user")
+
+        return user
     }
 
-    suspend fun isVip(): Boolean {
-        return getCurrentUser()?.isVip == true
+    suspend fun getAllUsers(): List<User> {
+        return try {
+            val querySnapshot = usersCollection.get().await()
+            querySnapshot.documents.mapNotNull { it.toObject<User>() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+     fun isVip(): Boolean {
+        return getCurrentUser()?.vip == true
     }
 
     fun getCurrentUser(): User? {
@@ -207,9 +215,5 @@ class UserRepository(
             Log.e("UserProgress", "Error getting user progress for course", e)
             null
         }
-    }
-
-    fun calculateProgress(completed: Int, total: Int): Double {
-        return if (total > 0) (completed.toDouble() / total.toDouble()) else 0.0
     }
 }

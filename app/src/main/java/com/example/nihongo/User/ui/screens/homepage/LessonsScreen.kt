@@ -35,7 +35,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,7 +74,7 @@ fun LessonsScreen(
     val isUserVip = remember { mutableStateOf(false) }
     val expandedLessons = remember { mutableStateMapOf<String, Boolean>() }
     val expandedUnits = remember { mutableStateMapOf<String, Boolean>() }
-    var selectedItem by rememberSaveable { mutableStateOf("courses") }
+    val selectedItem = "home"
     val hasAddedExercises = remember { mutableStateOf(false) }
     var userProgress by remember { mutableStateOf<List<UserProgress>>(emptyList()) }
     var isLessonCompleted by remember { mutableStateOf(false) }
@@ -178,7 +177,7 @@ fun LessonsScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(course.description, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
 
-                            if (course.isVip) {
+                            if (course.vip) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Icon(Icons.Default.Star, contentDescription = "VIP", tint = Color(0xFFFFD700), modifier = Modifier.size(24.dp))
                             }
@@ -801,7 +800,9 @@ fun addExercisesToLesson(lesson: Lesson) {
                                 "audioUrl" to exercise.audioUrl,
                                 "imageUrl" to exercise.imageUrl,
                                 "title" to exercise.title,
-                                "explanation" to exercise.explanation
+                                "explanation" to exercise.explanation,
+                                "romanji" to exercise.romanji,
+                                "kana" to exercise.kana
                             )
 
                             // Thêm exercise vào Firestore
@@ -900,313 +901,317 @@ fun generateExercisesForSubLesson(subLesson: SubLesson, subLessonId: String): Li
         "Practice" -> listOf(
             Exercise(
                 subLessonId = "1-2",
-                question = "Luyện tập ghi nhớ chữ a",
-                answer = "あ",
+                question = "Chữ 'あ' thuộc loại nào trong hệ thống chữ cái Nhật Bản?",
+                answer = "Hiragana",
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
                 type = ExerciseType.PRACTICE,
-                options = listOf("あ", "い", "う", "え"),
-                title = "Hiragana Flashcard",
-                explanation = "Chọn ký tự đúng tương ứng với chữ cái 'a' trong tiếng Nhật"
+                options = listOf("Hiragana", "Katakana", "Kanji", "Romaji"),
+                title = "Hiragana Knowledge",
+                explanation = "Chữ 'あ' là một ký tự trong bảng chữ cái Hiragana.",
+                romanji = "a",
+                kana = "あ"
             ),
             Exercise(
                 subLessonId = "1-2",
-                question = "Chữ \"い\" nghĩa là gì?",
-                answer = "i",
+                question = "Chữ \"い\" được sử dụng trong từ nào dưới đây?",
+                answer = "いえ",
                 type = ExerciseType.PRACTICE,
-                options = listOf("a", "i", "u", "e"),
-                title = "Flashcard Hiragana",
-                explanation = "Hãy chọn nghĩa đúng tương ứng với ký tự 'い' trong bảng chữ cái Hiragana."
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("いえ", "いく", "いま", "いち"),
+                title = "Hiragana Vocabulary",
+                explanation = "Chữ 'い' có thể xuất hiện trong từ 'いえ' (nhà).",
+                romanji = "i",
+                kana = "い"
             ),
             Exercise(
                 subLessonId = "2-2",
-                question = "Luyện tập ghi nhớ từ vựng với hàng あ",
-                answer = "あ",
+                question = "Từ vựng nào sau đây có chữ 'あ' và có nghĩa 'bạn'?",
+                answer = "あなた",
                 type = ExerciseType.PRACTICE,
-                options = listOf("あ", "い", "う", "え"),
-                title = "Flashcard Hiragana",
-                explanation = "Chọn ký tự đúng với chữ cái 'あ' trong tiếng Nhật."
-            ),
-            Exercise(
-                subLessonId = "2-3",
-                question = "Chữ \"い\" đọc là gì?",
-                answer = "i",
-                type = ExerciseType.PRACTICE,
-                options = listOf("a", "i", "u", "e"),
-                title = "Flashcard Hiragana",
-                explanation = "Chọn nghĩa đúng tương ứng với chữ 'い'."
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("あなた", "あき", "あさ", "あら"),
+                title = "Hiragana Vocabulary",
+                explanation = "'あなた' có nghĩa là 'bạn' trong tiếng Nhật.",
+                romanji = "anata",
+                kana = "あなた"
             ),
             Exercise(
                 subLessonId = "3-2",
-                question = "Từ vựng với hàng か",
-                answer = "か",
+                question = "Chữ \"か\" có thể được sử dụng trong từ nào sau đây?",
+                answer = "かばん",
                 type = ExerciseType.PRACTICE,
-                options = listOf("か", "き", "く", "け"),
-                title = "Flashcard Hiragana",
-                explanation = "Chọn chữ cái đúng với từ 'か'."
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("かばん", "かさ", "きもの", "きょう"),
+                title = "Hiragana Vocabulary",
+                explanation = "'かばん' có nghĩa là 'cái cặp'.",
+                romanji = "kaban",
+                kana = "かばん"
             ),
             Exercise(
                 subLessonId = "3-3",
-                question = "Luyện viết hàng か",
-                answer = "か",
+                question = "Chữ 'き' có thể kết hợp với từ nào sau đây để có nghĩa 'bài học'?",
+                answer = "きょうか",
                 type = ExerciseType.PRACTICE,
-                options = listOf("か", "き", "く", "け"),
-                title = "Practice Hiragana Writing",
-                explanation = "Hãy luyện viết chữ cái 'か'."
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("きょうか", "きんきょう", "きんこう", "きょうし"),
+                title = "Hiragana Vocabulary",
+                explanation = "'きょうか' có nghĩa là 'bài học'.",
+                romanji = "kyouka",
+                kana = "きょうか"
             ),
             Exercise(
                 subLessonId = "4-2",
-                question = "Từ vựng với hàng さ",
-                answer = "さ",
+                question = "Chữ 'さ' thường gặp trong từ nào sau đây?",
+                answer = "さくら",
                 type = ExerciseType.PRACTICE,
-                options = listOf("さ", "し", "す", "せ"),
-                title = "Flashcard Hiragana",
-                explanation = "Chọn chữ cái đúng với từ 'さ'."
-            ),
-            Exercise(
-                subLessonId = "4-3",
-                question = "Chữ \"す\" đọc là gì?",
-                answer = "su",
-                type = ExerciseType.PRACTICE,
-                options = listOf("sa", "su", "se", "so"),
-                title = "Flashcard Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'す'."
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("さくら", "さよなら", "すし", "せんせい"),
+                title = "Hiragana Vocabulary",
+                explanation = "'さくら' có nghĩa là 'hoa anh đào'.",
+                romanji = "sakura",
+                kana = "さくら"
             ),
             Exercise(
                 subLessonId = "5-2",
-                question = "Từ vựng với hàng た",
-                answer = "た",
+                question = "Chữ 'た' có thể dùng trong từ nào dưới đây để có nghĩa 'một'?",
+                answer = "たったいま",
                 type = ExerciseType.PRACTICE,
-                options = listOf("た", "ち", "つ", "て"),
-                title = "Flashcard Hiragana",
-                explanation = "Chọn chữ cái đúng với từ 'た'."
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("たったいま", "たべる", "たちまち", "たけやま"),
+                title = "Hiragana Vocabulary",
+                explanation = "'たったいま' có nghĩa là 'vừa mới'.",
+                romanji = "tattaima",
+                kana = "たったいま"
             ),
             Exercise(
                 subLessonId = "5-3",
-                question = "Luyện viết hàng た",
-                answer = "た",
+                question = "Khi viết chữ 'た', bạn cần phải chú ý điều gì để viết đúng?",
+                answer = "Viết nét ngang trước rồi mới viết nét đứng.",
                 type = ExerciseType.PRACTICE,
-                options = listOf("た", "ち", "つ", "て"),
-                title = "Practice Hiragana Writing",
-                explanation = "Hãy luyện viết chữ cái 'た'."
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("Viết nét ngang trước rồi mới viết nét đứng", "Viết nét đứng trước rồi mới viết nét ngang", "Viết từ trên xuống dưới", "Viết từ trái qua phải"),
+                title = "Writing Hiragana",
+                explanation = "Để viết đúng chữ 'た', bạn cần viết nét ngang trước rồi viết nét đứng.",
+                romanji = "ta",
+                kana = "た"
             ),
             Exercise(
                 subLessonId = "6-2",
-                question = "Từ vựng với hàng な",
-                answer = "な",
+                question = "Chữ 'な' trong từ 'なま' có nghĩa là gì?",
+                answer = "Sống",
                 type = ExerciseType.PRACTICE,
-                options = listOf("な", "に", "ぬ", "ね"),
-                title = "Flashcard Hiragana",
-                explanation = "Chọn chữ cái đúng với từ 'な'."
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("Sống", "Người", "Nước", "Nay"),
+                title = "Hiragana Vocabulary",
+                explanation = "'なま' có nghĩa là 'sống', ví dụ như 'なまもの' (thực phẩm tươi).",
+                romanji = "nama",
+                kana = "なま"
             ),
             Exercise(
                 subLessonId = "6-3",
-                question = "Chữ \"ぬ\" đọc là gì?",
-                answer = "nu",
+                question = "Chữ 'ぬ' trong từ 'ぬいぐるみ' có nghĩa là gì?",
+                answer = "Búp bê",
                 type = ExerciseType.PRACTICE,
-                options = listOf("nu", "na", "ni", "ne"),
-                title = "Flashcard Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'ぬ'."
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("Búp bê", "Cửa", "Điều", "Gối"),
+                title = "Hiragana Vocabulary",
+                explanation = "'ぬいぐるみ' có nghĩa là 'búp bê'.",
+                romanji = "nuigurumi",
+                kana = "ぬいぐるみ"
             ),
             Exercise(
                 subLessonId = "7-2",
-                question = "Từ vựng với hàng は",
-                answer = "は",
+                question = "Chữ 'は' được sử dụng trong từ nào dưới đây?",
+                answer = "はたけ (ruộng)",
                 type = ExerciseType.PRACTICE,
-                options = listOf("は", "ひ", "ふ", "へ"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("はな (hoa)", "はたけ (ruộng)", "ひと (người)", "ふる (cũ)"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn chữ cái đúng với từ 'は'."
+                explanation = "Chọn từ đúng chứa chữ 'は'.",
+                romanji = "ha",
+                kana = "は"
             ),
             Exercise(
                 subLessonId = "7-3",
-                question = "Chữ \"ひ\" phát âm là gì?",
-                answer = "hi",
+                question = "Chữ 'ひ' là chữ thuộc hàng nào trong bảng Hiragana?",
+                answer = "Hàng ひ",
                 type = ExerciseType.PRACTICE,
-                options = listOf("ha", "hi", "fu", "he"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("Hàng ほ", "Hàng ひ", "Hàng ふ", "Hàng へ"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'ひ'."
+                explanation = "Chọn hàng đúng của chữ 'ひ'.",
+                romanji = "hi",
+                kana = "ひ"
             ),
             Exercise(
                 subLessonId = "8-2",
-                question = "Từ vựng với hàng ま",
-                answer = "ま",
+                question = "Từ nào sau đây chứa chữ 'ま'?",
+                answer = "まど (cửa sổ)",
                 type = ExerciseType.PRACTICE,
-                options = listOf("ま", "み", "む", "め"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("みず (nước)", "まど (cửa sổ)", "むし (côn trùng)", "めがね (kính)"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn chữ cái đúng với từ 'ま'."
+                explanation = "Chọn từ đúng chứa chữ 'ま'.",
+                romanji = "ma",
+                kana = "ま"
             ),
             Exercise(
                 subLessonId = "8-3",
-                question = "Chữ \"む\" phát âm là gì?",
+                question = "Chữ 'む' phát âm là gì trong từ 'むし' (côn trùng)?",
                 answer = "mu",
                 type = ExerciseType.PRACTICE,
-                options = listOf("mu", "ma", "mi", "me"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("mi", "mu", "me", "mo"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'む'."
+                explanation = "Chọn nghĩa đúng với chữ 'む' trong từ 'むし'.",
+                romanji = "mu",
+                kana = "む"
             ),
             Exercise(
                 subLessonId = "9-2",
-                question = "Từ vựng với hàng や",
-                answer = "や",
+                question = "Chữ 'や' thường xuất hiện trong các từ vựng nào sau đây?",
+                answer = "やさい (rau)",
                 type = ExerciseType.PRACTICE,
-                options = listOf("や", "ゆ", "よ"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("やすみ (nghỉ ngơi)", "やさい (rau)", "ゆめ (giấc mơ)", "よる (ban đêm)"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn chữ cái đúng với từ 'や'."
+                explanation = "Chọn từ đúng chứa chữ 'や'.",
+                romanji = "ya",
+                kana = "や"
             ),
             Exercise(
                 subLessonId = "9-3",
-                question = "Chữ \"ゆ\" phát âm là gì?",
+                question = "Chữ 'ゆ' được phát âm là gì trong từ 'ゆめ' (giấc mơ)?",
                 answer = "yu",
                 type = ExerciseType.PRACTICE,
-                options = listOf("yu", "ya", "yo"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("ya", "yu", "yo", "yi"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'ゆ'."
+                explanation = "Chọn nghĩa đúng với chữ 'ゆ' trong từ 'ゆめ'.",
+                romanji = "yu",
+                kana = "ゆ"
             ),
             Exercise(
                 subLessonId = "10-2",
-                question = "Từ vựng với hàng ら",
-                answer = "ら",
+                question = "Chữ 'ら' trong từ 'らく' (dễ chịu) được phát âm là gì?",
+                answer = "ra",
                 type = ExerciseType.PRACTICE,
-                options = listOf("ら", "り", "る", "れ"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("ra", "ri", "ru", "re"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn chữ cái đúng với từ 'ら'."
+                explanation = "Chọn nghĩa đúng với chữ 'ら' trong từ 'らく'.",
+                romanji = "ra",
+                kana = "ら"
             ),
             Exercise(
                 subLessonId = "10-3",
-                question = "Chữ \"り\" phát âm là gì?",
-                answer = "ri",
+                question = "Chữ 'り' được sử dụng trong từ nào dưới đây?",
+                answer = "りんご (táo)",
                 type = ExerciseType.PRACTICE,
-                options = listOf("ra", "ri", "ru", "re"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("りんご (táo)", "るす (vắng nhà)", "れんしゅう (luyện tập)", "れいぞうこ (tủ lạnh)"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'り'."
+                explanation = "Chọn từ đúng chứa chữ 'り'.",
+                romanji = "ri",
+                kana = "り"
             ),
             Exercise(
                 subLessonId = "11-2",
-                question = "Từ vựng với hàng わ",
-                answer = "わ",
+                question = "Chữ 'わ' xuất hiện trong từ nào dưới đây?",
+                answer = "わたし (tôi)",
                 type = ExerciseType.PRACTICE,
-                options = listOf("わ", "を", "ん"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("わたし (tôi)", "を (biểu tượng chỉ đối tượng trong câu)", "ん (âm cuối của từ)", "よ (chỉ sự chú ý)"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn chữ cái đúng với từ 'わ'."
+                explanation = "Chọn từ đúng chứa chữ 'わ'.",
+                romanji = "wa",
+                kana = "わ"
             ),
             Exercise(
                 subLessonId = "11-3",
-                question = "Chữ \"ん\" phát âm là gì?",
+                question = "Chữ 'ん' trong từ 'きんぎょ' (cá vàng) phát âm là gì?",
                 answer = "n",
                 type = ExerciseType.PRACTICE,
-                options = listOf("na", "ni", "nu", "n"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("n", "m", "ng", "no"),
                 title = "Flashcard Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'ん'."
+                explanation = "Chọn nghĩa đúng với chữ 'ん' trong từ 'きんぎょ'.",
+                romanji = "n",
+                kana = "ん"
             ),
             Exercise(
                 subLessonId = "12-2",
-                question = "Kiểm tra lại tất cả các hàng Hiragana",
-                answer = "あ, い, う, え, お",
-                options = listOf("あ, い, う, え, お", "か, き, く, け, こ", "さ, し, す, せ, そ"),
+                question = "Chữ nào thuộc hàng 'た' trong bảng Hiragana?",
+                answer = "た",
                 type = ExerciseType.PRACTICE,
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("た", "ち", "つ", "て"),
                 title = "Hiragana Review",
-                explanation = "Hãy chọn thứ tự đúng các hàng Hiragana."
+                explanation = "Chọn chữ đúng thuộc hàng 'た'.",
+                romanji = "ta",
+                kana = "た"
             ),
             Exercise(
                 subLessonId = "12-2",
-                question = "Hãy ghép chữ cái với âm tương ứng.",
-                answer = "し -> shi",
-                options = listOf("し -> shi", "す -> su", "た -> ta", "に -> ni"),
+                question = "Chữ 'し' trong từ 'しごと' (công việc) phát âm là gì?",
+                answer = "shi",
                 type = ExerciseType.PRACTICE,
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("shi", "sa", "su", "se"),
                 title = "Flashcard Hiragana",
-                explanation = "Ghép chữ cái với âm tương ứng."
+                explanation = "Chọn nghĩa đúng với chữ 'し' trong từ 'しごと'.",
+                romanji = "shi",
+                kana = "し"
             ),
             Exercise(
                 subLessonId = "13-1",
-                question = "Viết chữ cái 'あ' theo đúng thứ tự.",
-                answer = "あ",
+                question = "Viết chữ cái 'ち' theo đúng thứ tự.",
+                answer = "ち",
                 type = ExerciseType.PRACTICE,
-                options = listOf("あ", "い", "う", "え"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("ち", "つ", "て", "と"),
                 title = "Practice Hiragana Writing",
-                explanation = "Luyện viết chữ cái 'あ' theo đúng thứ tự."
+                explanation = "Luyện viết chữ cái 'ち' theo đúng thứ tự.",
+                romanji = "chi",
+                kana = "ち"
             ),
             Exercise(
                 subLessonId = "13-1",
-                question = "Viết chữ cái 'さ' theo đúng thứ tự.",
-                answer = "さ",
+                question = "Chữ 'し' trong từ 'しゅくだい' (bài tập) phát âm là gì?",
+                answer = "shi",
                 type = ExerciseType.PRACTICE,
-                options = listOf("さ", "し", "す", "せ"),
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("su", "shi", "sa", "se"),
                 title = "Practice Hiragana Writing",
-                explanation = "Luyện viết chữ cái 'さ'."
+                explanation = "Chọn nghĩa đúng với chữ 'し' trong từ 'しゅくだい'.",
+                romanji = "shi",
+                kana = "し"
             ),
             Exercise(
                 subLessonId = "14-1",
-                question = "Chữ nào thuộc hàng 'な'?",
-                answer = "な",
-                options = listOf("な", "に", "ぬ", "ね"),
-                type = ExerciseType.PRACTICE,
-                title = "Final Quiz Hiragana",
-                explanation = "Chọn chữ cái đúng thuộc hàng 'な'."
-            ),
-            Exercise(
-                subLessonId = "14-1",
-                question = "Chữ 'す' phát âm là gì?",
-                answer = "su",
-                options = listOf("su", "sa", "shi", "se"),
-                type = ExerciseType.PRACTICE,
-                title = "Final Quiz Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'す'."
-            ),
-            Exercise(
-                subLessonId = "14-1",
-                question = "Chữ nào thuộc hàng 'は'?",
+                question = "Chữ nào thuộc hàng 'は' trong từ 'はな' (hoa)?",
                 answer = "は",
                 options = listOf("は", "ひ", "ふ", "へ"),
                 type = ExerciseType.PRACTICE,
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
                 title = "Final Quiz Hiragana",
-                explanation = "Chọn chữ cái đúng thuộc hàng 'は'."
+                explanation = "Chọn chữ cái đúng thuộc hàng 'は'.",
+                romanji = "ha",
+                kana = "は"
             ),
             Exercise(
                 subLessonId = "14-1",
-                question = "Chữ 'き' phát âm là gì?",
+                question = "Chữ 'き' trong từ 'きもの' (kimono) phát âm là gì?",
                 answer = "ki",
-                options = listOf("ka", "ki", "ku", "ke"),
                 type = ExerciseType.PRACTICE,
+                imageUrl = "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh",
+                options = listOf("ki", "ka", "ku", "ke"),
                 title = "Final Quiz Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'き'."
+                explanation = "Chọn nghĩa đúng với chữ 'き' trong từ 'きもの'.",
+                romanji = "ki",
+                kana = "き"
             ),
-            Exercise(
-                subLessonId = "14-1",
-                question = "Chữ 'お' phát âm là gì?",
-                answer = "o",
-                options = listOf("a", "o", "u", "e"),
-                type = ExerciseType.PRACTICE,
-                title = "Final Quiz Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'お'."
-            ),
-            Exercise(
-                subLessonId = "14-1",
-                question = "Kiểm tra cuối khóa: Chữ nào thuộc hàng 'や'?",
-                answer = "や",
-                options = listOf("や", "ゆ", "よ", "ん"),
-                type = ExerciseType.PRACTICE,
-                title = "Final Quiz Hiragana",
-                explanation = "Chọn chữ cái đúng thuộc hàng 'や'."
-            ),
-            Exercise(
-                subLessonId = "14-1",
-                question = "Kiểm tra cuối khóa: Chữ nào thuộc hàng 'ま'?",
-                answer = "ま",
-                options = listOf("ま", "み", "む", "め"),
-                type = ExerciseType.PRACTICE,
-                title = "Final Quiz Hiragana",
-                explanation = "Chọn chữ cái đúng thuộc hàng 'ま'."
-            ),
-            Exercise(
-                subLessonId = "14-1",
-                question = "Chữ 'や' phát âm là gì?",
-                answer = "ya",
-                options = listOf("ya", "yu", "yo", "ya"),
-                type = ExerciseType.PRACTICE,
-                title = "Final Quiz Hiragana",
-                explanation = "Chọn nghĩa đúng với chữ 'や'."
             )
-
-
-        )
 
 
 

@@ -13,7 +13,7 @@ data class Exercise(
     val type: ExerciseType? = null,
     val options: List<String>? = null,
     val videoUrl: String? = null,
-    val romanji: List<String>? = null,
+    val romanji: String? = null,
     val kana: String? = null,
     val audioUrl: String? = null,
     val imageUrl: String? = null,

@@ -12,8 +12,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -39,6 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -55,6 +59,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.nihongo.User.data.models.Exercise
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.models.UserProgress
@@ -67,7 +72,7 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 @Composable
-fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: String, lessonId: String, navController: NavController) {
+fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: String, lessonId: String,  navController: NavController) {
     var currentIndex by remember { mutableStateOf(0) }
     val currentExercise = quizExercises.getOrNull(currentIndex)
     val correctAnswer = currentExercise?.answer ?: ""
@@ -142,8 +147,9 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
                     ) {
                         QuestionCard(
                             question = it.question ?: "",
-                            romaji = "mi zu to sushi",
-                            kana = "みずとすし",
+                            imageUrl = it.imageUrl ?:"",
+                            romaji = it.romanji ?:"",
+                            kana = it.kana ?: "",
                             options = it.options ?: emptyList(),
                             selectedWords = selectedWords,
                             onWordSelected = { word ->
@@ -253,7 +259,7 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
                         result = null
                         isAnswerChecked = false
                     } else {
-                        navController.popBackStack()
+                        navController.navigate("lessons/${courseId}/$userEmail")
                     }
                 }
             )
@@ -268,6 +274,7 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
 @Composable
 fun QuestionCard(
     question: String,
+    imageUrl: String,
     romaji: String,
     kana: String,
     options: List<String>,
@@ -291,13 +298,46 @@ fun QuestionCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text("🧍‍♂️", fontSize = 42.sp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // LEFT: Animated Image
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = "Human Figure",
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.width(80.dp))
 
-        Text(text = romaji, color = Color.Gray)
-        Text(text = kana, fontSize = 20.sp)
-
+            // RIGHT: Romaji & Kana (centered vertically)
+            Column(
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.Start,
+                modifier = Modifier
+                    .height(80.dp)
+                    .padding(vertical = 4.dp)
+            ) {
+                Text(
+                    text = kana,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = romaji,
+                    color = Color.Gray,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         // Selected words
