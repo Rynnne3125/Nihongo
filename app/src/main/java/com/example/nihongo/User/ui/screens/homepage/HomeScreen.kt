@@ -130,10 +130,20 @@ fun HomeScreen(
                 title = {
                     currentUser?.let {
                         Column {
-                            Text("\uD83D\uDC4B こんにちわ ${it.username} さん", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "\uD83D\uDC4B こんにちわ ${it.username} さん",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 12.sp
+                                )
+                            )
                             if (it.vip) {
-                                Text("\u2B50 VIP です!", style = MaterialTheme.typography.labelMedium, color = Color(0xFFFFC107))
-                            }
+                                Text(
+                                    "\u2B50 VIP です!",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontSize = 10.sp
+                                    ),
+                                    color = Color(0xFFFFC107)
+                                )                            }
                         }
                     }
                 },

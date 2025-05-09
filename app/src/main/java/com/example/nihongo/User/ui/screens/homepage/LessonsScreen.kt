@@ -56,7 +56,6 @@ import com.example.nihongo.User.data.models.UserProgress
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
-import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -74,18 +73,16 @@ fun LessonsScreen(
     val isUserVip = remember { mutableStateOf(false) }
     val expandedLessons = remember { mutableStateMapOf<String, Boolean>() }
     val expandedUnits = remember { mutableStateMapOf<String, Boolean>() }
-    val selectedItem = "home"
     val hasAddedExercises = remember { mutableStateOf(false) }
     var userProgress by remember { mutableStateOf<List<UserProgress>>(emptyList()) }
     var isLessonCompleted by remember { mutableStateOf(false) }
     var user by remember { mutableStateOf<User?>(null) }
 
-
     LaunchedEffect(courseId) {
         lessons.value = lessonRepository.getLessonsByCourseId(courseId)
         course.value = courseRepository.getCourseById(courseId)
         isUserVip.value = userRepository.isVip()
-        user = userRepository.getUserByEmail(userEmail) // Lấy thông tin người dùng từ userRepository
+        user = userRepository.getUserByEmail(userEmail)
         userProgress = user?.let {
             listOfNotNull(userRepository.getUserProgressForCourse(it.id, courseId))
         } ?: emptyList()
@@ -98,21 +95,7 @@ fun LessonsScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFFF5F5F5),
-        bottomBar = {
-            BottomNavigationBar(
-                navController = navController,
-                selectedItem = selectedItem,
-                userEmail = userEmail,
-                onItemSelected = { selectedRoute ->
-                    navController.navigate("$selectedRoute/$userEmail") {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                }
-            )
-        }
+        containerColor = Color(0xFFF5F5F5)
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -219,7 +202,6 @@ fun LessonsScreen(
         }
     }
 }
-
 
 
 

@@ -11,7 +11,7 @@ class ExerciseRepository(
 ) {
 
     suspend fun getExercisesBySubLessonId(subLessonId: String, lessonId: String): List<Exercise> {
-         val exercisesCollection = firestore.collection("lessons")
+        val exercisesCollection = firestore.collection("lessons")
             .document(lessonId)
             .collection("exercises")
         return try {

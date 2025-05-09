@@ -54,10 +54,14 @@ android {
 }
 
 dependencies {
+    // Thêm thư viện Gson
+    implementation("com.google.code.gson:gson:2.10.1")
+    
     // ROOM
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.firebase.auth.ktx)
     kapt(libs.room.compiler)
 
     // Firestore (chỉ Firestore, không Auth)
@@ -111,3 +115,4 @@ dependencies {
     implementation("androidx.compose.ui:ui-text-google-fonts:1.5.0")
 
 }
+

@@ -46,6 +46,11 @@ import com.example.nihongo.User.data.models.UserProgress
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
+import com.example.nihongo.User.utils.NavigationRoutes
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -166,7 +171,26 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Button(
-                    onClick = onSignOut,
+                    onClick = {
+                        // Cập nhật trạng thái offline trước khi đăng xuất
+                        currentUser?.let { user ->
+                            CoroutineScope(Dispatchers.IO).launch {
+                                userRepository.updateUserOnlineStatus(user.id, false)
+                                // Đảm bảo cập nhật xong trước khi đăng xuất
+                                withContext(Dispatchers.Main) {
+                                    userRepository.logout() // This will clear both in-memory and SharedPreferences
+                                    navController.navigate(NavigationRoutes.LOGIN) {
+                                        popUpTo(0)
+                                    }
+                                }
+                            }
+                        } ?: run {
+                            userRepository.logout()
+                            navController.navigate(NavigationRoutes.LOGIN) {
+                                popUpTo(0)
+                            }
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                     modifier = Modifier.fillMaxWidth()
                 ) {

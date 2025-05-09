@@ -129,9 +129,16 @@ fun LoginScreen(navController: NavController, userRepo: UserRepository) {
                         }
                         val user = userRepo.loginUserByEmail(email, password)
 
-
                         if (user != null) {
-                            navController.navigate("home/$email")
+                            // Cập nhật trạng thái online của người dùng
+                            userRepo.updateUserOnlineStatus(user.id, true)
+                            
+                            navController.navigate("home/$email") {
+                                // Clear the entire back stack so user can't go back to login
+                                popUpTo(0) {
+                                    inclusive = true
+                                }
+                            }
                         } else {
                             message = "Sai email hoặc mật khẩu!"
                         }

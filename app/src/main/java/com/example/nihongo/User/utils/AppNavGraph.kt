@@ -14,6 +14,8 @@ import com.example.nihongo.User.data.repository.ExerciseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavItem
+import com.example.nihongo.User.ui.screens.chat.GroupChatScreen
+import com.example.nihongo.User.ui.screens.chat.PrivateChatScreen
 import com.example.nihongo.User.ui.screens.homepage.CommunityScreenFull
 import com.example.nihongo.User.ui.screens.homepage.CourseDetailScreen
 import com.example.nihongo.User.ui.screens.homepage.CoursesScreen
@@ -33,9 +35,10 @@ fun AppNavGraph(
     userRepo: UserRepository,
     courseRepo: CourseRepository,
     lessonRepo: LessonRepository,
-    exerciseRepo: ExerciseRepository
+    exerciseRepo: ExerciseRepository,
+    startDestination: String = NavigationRoutes.LOGIN
 ) {
-    NavHost(navController = navController, startDestination = NavigationRoutes.LOGIN) {
+    NavHost(navController = navController, startDestination = startDestination) {
 
         // Auth
         composable(NavigationRoutes.LOGIN) {
@@ -148,6 +151,42 @@ fun AppNavGraph(
         composable("vocabulary/{user_email}") { backStackEntry ->
             val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
             FlashcardScreen(navController, userEmail)
+        }
+
+        // Thêm route cho màn hình chat nhóm
+        composable(
+            "group_chat/{groupId}/{user_email}",
+            arguments = listOf(
+                navArgument("groupId") { type = NavType.StringType },
+                navArgument("user_email") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
+            GroupChatScreen(
+                navController = navController,
+                groupId = groupId,
+                userEmail = userEmail,
+                userRepository = userRepo
+            )
+        }
+
+        // Thêm route cho màn hình chat cá nhân
+        composable(
+            "private_chat/{partnerId}/{user_email}",
+            arguments = listOf(
+                navArgument("partnerId") { type = NavType.StringType },
+                navArgument("user_email") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val partnerId = backStackEntry.arguments?.getString("partnerId") ?: ""
+            val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
+            PrivateChatScreen(
+                navController = navController,
+                partnerUserId = partnerId,
+                userEmail = userEmail,
+                userRepository = userRepo
+            )
         }
 
     }

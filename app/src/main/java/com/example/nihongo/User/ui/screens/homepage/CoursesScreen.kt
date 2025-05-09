@@ -56,6 +56,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.nihongo.User.data.models.Course
 import com.example.nihongo.User.data.models.Lesson
+import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.models.UserProgress
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
@@ -78,9 +79,15 @@ fun CoursesScreen(
         if (searchQuery.isBlank()) allCourses.value
         else allCourses.value.filter { it.title.contains(searchQuery, ignoreCase = true) }
     }
-
+    var userProgressList by remember { mutableStateOf<List<UserProgress>>(emptyList()) }
+    var currentUser by remember { mutableStateOf<User?>(null) }
+    val userRepository = UserRepository()
     LaunchedEffect(true) {
+        currentUser = userRepository.getUserByEmail(userEmail)
         allCourses.value = courseRepository.getAllCourses()
+        userProgressList = currentUser?.let {
+            userRepository.getAllUserProgress(it.id)
+        } ?: emptyList()
     }
 
     Scaffold(
@@ -177,7 +184,13 @@ fun CoursesScreen(
         ) {
             items(filteredCourses) { course ->
                 CourseCard(course = course, onClick = {
-                    navController.navigate("courses/${course.id}/$userEmail")
+                    val progress = userProgressList.find { it.courseId == course.id }
+                    if (progress != null) {
+                        navController.navigate("lessons/${course.id}/$userEmail")
+                    }
+                    else{
+                        navController.navigate("courses/${course.id}/$userEmail")
+                    }
                 })
             }
         }
