@@ -1,0 +1,8 @@
+# Remove the file from Git but keep it locally
+git rm --cached app/src/main/assets/nihongo-ae96a-firebase-adminsdk-fbsvc-df1b5fe014.json
+
+# Add the file to .gitignore
+echo "app/src/main/assets/nihongo-ae96a-firebase-adminsdk-fbsvc-df1b5fe014.json" >> .gitignore
+
+# Commit these changes
+git commit -m "Remove sensitive credentials from repository"
