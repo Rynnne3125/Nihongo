@@ -49,6 +49,7 @@ android {
         resources {
             excludes += "META-INF/LICENSE.md"
             excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/DEPENDENCIES"
         }
     }
 }
@@ -113,6 +114,8 @@ dependencies {
 
     implementation ("com.google.accompanist:accompanist-flowlayout:0.32.0")
     implementation("androidx.compose.ui:ui-text-google-fonts:1.5.0")
-
+    //Admin
+    implementation("com.google.firebase:firebase-messaging:23.4.1")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.18.0")
 }
 

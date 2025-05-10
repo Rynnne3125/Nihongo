@@ -1,12 +1,18 @@
 package com.example.nihongo.User
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.ExerciseRepository
@@ -17,6 +23,7 @@ import com.example.nihongo.User.utils.AppNavGraph
 import com.example.nihongo.User.utils.NavigationRoutes
 import com.example.nihongo.User.utils.SessionManager
 import com.example.nihongo.ui.theme.NihongoTheme
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -87,5 +94,38 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+    requestNotificationPermissionIfNeeded()
+        FirebaseMessaging.getInstance().subscribeToTopic("all")
+            .addOnCompleteListener { task ->
+                var msg = "Subscribed to topic"
+                if (!task.isSuccessful) {
+                    msg = "Subscription failed"
+                }
+                Log.d("FCM", msg)
+            }
+}
+
+private fun requestNotificationPermissionIfNeeded() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 }
+
+// Optional: handle result if needed
+private val requestPermissionLauncher =
+    registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            Log.d("MainActivity", "Notification permission granted")
+        } else {
+            Log.w("MainActivity", "Notification permission denied")
+        }
+    }
+}
+

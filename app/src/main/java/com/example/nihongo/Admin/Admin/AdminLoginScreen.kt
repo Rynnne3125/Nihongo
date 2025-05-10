@@ -70,11 +70,12 @@ fun AdminLoginScreen(navController: NavController) {
 
         Button(
             onClick = {
-                if (username == "admin" && password == "admin123") {
-                    navController.navigate("admin_home")
-                } else {
-                    message = "Sai tài khoản hoặc mật khẩu!"
-                }
+                  navController.navigate("MainPage")
+//                if (username == "admin" && password == "admin123") {
+//                    navController.navigate("admin_home")
+//                } else {
+//                    message = "Sai tài khoản hoặc mật khẩu!"
+//                }
             },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C))

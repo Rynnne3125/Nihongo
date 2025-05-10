@@ -1,5 +1,6 @@
 package com.example.nihongo.User.utils
 
+import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
@@ -8,6 +9,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.nihongo.Admin.AdminLoginScreen
+import com.example.nihongo.Admin.ui.CoursePage
+import com.example.nihongo.Admin.ui.MainPage
 import com.example.nihongo.User.data.models.Exercise
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.ExerciseRepository
@@ -16,6 +19,7 @@ import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavItem
 import com.example.nihongo.User.ui.screens.chat.GroupChatScreen
 import com.example.nihongo.User.ui.screens.chat.PrivateChatScreen
+import com.example.nihongo.User.ui.screens.chat.DiscussionChatScreen
 import com.example.nihongo.User.ui.screens.homepage.CommunityScreenFull
 import com.example.nihongo.User.ui.screens.homepage.CourseDetailScreen
 import com.example.nihongo.User.ui.screens.homepage.CoursesScreen
@@ -28,6 +32,10 @@ import com.example.nihongo.User.ui.screens.login.LoginScreen
 import com.example.nihongo.User.ui.screens.login.OTPScreen
 import com.example.nihongo.User.ui.screens.login.RegisterScreen
 import com.example.nihongo.ui.screens.homepage.LessonsScreen
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavGraph(
@@ -83,6 +91,19 @@ fun AppNavGraph(
                     navController.navigate(NavigationRoutes.LOGIN) {
                         popUpTo(0)
                     }
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val currentUser = userRepo.getUserByEmail(userEmail)
+                        val idUser = currentUser?.id
+                        FirebaseMessaging.getInstance().unsubscribeFromTopic("$idUser")
+                            .addOnCompleteListener { task ->
+                                val msg = if (task.isSuccessful) {
+                                    "Unsubscribed from topic"
+                                } else {
+                                    "Unsubscription failed"
+                                }
+                                Log.d("FCM", msg)
+                            }
+                    }
                 }
             )
         }
@@ -94,10 +115,7 @@ fun AppNavGraph(
         }
 
 
-        // Other Screens
-        composable("admin_login") {
-            AdminLoginScreen(navController)
-        }
+
 
         composable("courses/{courseId}/{user_email}") { backStackEntry ->
             val courseId = backStackEntry.arguments?.getString("courseId")
@@ -187,6 +205,49 @@ fun AppNavGraph(
                 userEmail = userEmail,
                 userRepository = userRepo
             )
+        }
+
+        // Thêm route cho màn hình chat thảo luận
+        composable(
+            "discussion_chat/{discussionId}/{user_email}",
+            arguments = listOf(
+                navArgument("discussionId") { type = NavType.StringType },
+                navArgument("user_email") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val discussionId = backStackEntry.arguments?.getString("discussionId") ?: ""
+            val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
+            DiscussionChatScreen(
+                navController = navController,
+                discussionId = discussionId,
+                userEmail = userEmail,
+                userRepository = userRepo
+            )
+        }
+
+        // Thêm route cho màn hình tạo thảo luận mới
+        composable(
+            "create_discussion/{user_email}",
+            arguments = listOf(
+                navArgument("user_email") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
+            // Tạm thời chuyển hướng về màn hình community
+            // Sau này sẽ thay bằng màn hình tạo thảo luận thực sự
+            navController.navigate("community/$userEmail")
+        }
+// Admin
+        composable("course_page") {
+            CoursePage()
+        }
+
+
+        composable("admin_login") {
+            AdminLoginScreen(navController)
+        }
+        composable("MainPage") {
+            MainPage(navController)
         }
 
     }

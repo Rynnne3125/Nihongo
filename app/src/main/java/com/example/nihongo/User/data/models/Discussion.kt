@@ -7,7 +7,7 @@ data class Discussion(
     val authorId: String = "",
     val authorName: String = "",
     val authorImageUrl: String = "",
-    val commentCount: Int = 0,
-    val createdAt: Long = 0,
-    val tags: List<String> = emptyList()
+    val createdAt: Long = System.currentTimeMillis(),
+    val tags: List<String> = emptyList(),
+    val commentCount: Int = 0  // Thêm trường này để theo dõi số lượng bình luận
 )

@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.nihongo.User.data.models.Discussion
+import com.example.nihongo.User.data.models.DiscussionMessage
 import com.example.nihongo.User.data.models.GroupChatMessage
 import com.example.nihongo.User.data.models.LearningGoal
 import com.example.nihongo.User.data.models.PrivateChatMessage
@@ -275,7 +276,7 @@ fun CommunityScreenFull(
             // Content based on selected tab
             when (selectedTab) {
                 0 -> StudyBuddiesTab(allUsers, navController, userEmail, studyGroups, userRepository)
-                1 -> DiscussionTab(discussions)
+                1 -> DiscussionTab(discussions, navController, userEmail)
                 2 -> LeaderboardTab(allUsers, learningGoals)
             }
         }
@@ -608,7 +609,68 @@ fun StudyBuddiesTab(
 }
 
 @Composable
-fun DiscussionTab(discussions: List<Discussion>) {
+fun DiscussionTab(
+    discussions: List<Discussion>,
+    navController: NavController,  // Thêm NavController
+    userEmail: String  // Thêm userEmail
+) {
+    var currentUser by remember { mutableStateOf<User?>(null) }
+    val userRepository = remember { UserRepository() }
+    val coroutineScope = rememberCoroutineScope()
+    val firestore = FirebaseFirestore.getInstance()
+    
+    // Thêm state để lưu trữ tin nhắn mới nhất cho mỗi cuộc thảo luận
+    val latestDiscussionMessages = remember { mutableStateMapOf<String, String>() }
+    var messagesLoaded by remember { mutableStateOf(false) }
+    
+    // Lấy thông tin người dùng hiện tại
+    LaunchedEffect(userEmail) {
+        try {
+            currentUser = userRepository.getUserByEmail(userEmail)
+            Log.d("DiscussionTab", "Loaded current user: ${currentUser?.username}")
+        } catch (e: Exception) {
+            Log.e("DiscussionTab", "Error loading current user", e)
+        }
+    }
+    
+    // Tải tin nhắn mới nhất cho mỗi cuộc thảo luận
+    LaunchedEffect(discussions) {
+        if (!messagesLoaded && discussions.isNotEmpty()) {
+            coroutineScope.launch {
+                try {
+                    // Lấy tất cả tin nhắn thảo luận
+                    val allMessagesSnapshot = firestore.collection("discussionMessages")
+                        .get()
+                        .await()
+                    
+                    Log.d("DiscussionTab", "Fetched ${allMessagesSnapshot.size()} total discussion messages")
+                    
+                    // Lọc và xử lý tin nhắn cho từng cuộc thảo luận
+                    discussions.forEach { discussion ->
+                        val discussionMessages = allMessagesSnapshot.documents
+                            .mapNotNull { doc -> 
+                                val message = doc.toObject(DiscussionMessage::class.java)
+                                if (message?.discussionId == discussion.id) message else null
+                            }
+                            .sortedByDescending { it.timestamp?.seconds ?: 0 }
+                        
+                        Log.d("DiscussionTab", "Found ${discussionMessages.size} messages for discussion ${discussion.id}")
+                        
+                        if (discussionMessages.isNotEmpty()) {
+                            val latestMessage = discussionMessages.first()
+                            latestDiscussionMessages[discussion.id] = "${latestMessage.senderName}: ${latestMessage.content}"
+                            Log.d("DiscussionTab", "Latest message for discussion ${discussion.id}: ${latestMessage.content}")
+                        }
+                    }
+                    
+                    messagesLoaded = true
+                } catch (e: Exception) {
+                    Log.e("DiscussionTab", "Error loading discussion messages", e)
+                }
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -624,7 +686,10 @@ fun DiscussionTab(discussions: List<Discussion>) {
             ) {
                 Text("Cuộc thảo luận", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Button(
-                    onClick = { /* Create new discussion */ },
+                    onClick = { 
+                        // Điều hướng đến màn hình tạo thảo luận mới
+                        navController.navigate("create_discussion/$userEmail") 
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853))
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
@@ -648,7 +713,14 @@ fun DiscussionTab(discussions: List<Discussion>) {
             }
         } else {
             items(discussions) { discussion ->
-                DiscussionCardReal(discussion)
+                DiscussionCardWithChat(
+                    discussion = discussion,
+                    latestMessage = latestDiscussionMessages[discussion.id],
+                    onClick = {
+                        // Điều hướng đến màn hình chat thảo luận
+                        navController.navigate("discussion_chat/${discussion.id}/$userEmail")
+                    }
+                )
             }
         }
 
@@ -659,11 +731,15 @@ fun DiscussionTab(discussions: List<Discussion>) {
 }
 
 @Composable
-fun DiscussionCardReal(discussion: Discussion) {
+fun DiscussionCardWithChat(
+    discussion: Discussion,
+    latestMessage: String?,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Open discussion */ },
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -671,28 +747,16 @@ fun DiscussionCardReal(discussion: Discussion) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = discussion.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = discussion.content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.DarkGray,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Avatar của người tạo thảo luận
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.LightGray)
+                        .background(Color.LightGray),
+                    contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
                         model = discussion.authorImageUrl,
@@ -701,29 +765,121 @@ fun DiscussionCardReal(discussion: Discussion) {
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                Column {
+                    Text(
+                        text = discussion.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = discussion.authorName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = discussion.content,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.DarkGray,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Tags
+            if (discussion.tags.isNotEmpty()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    discussion.tags.take(3).forEach { tag ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFE0F7FA))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = tag,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF00838F)
+                            )
+                        }
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Thông tin bổ sung
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Thời gian tạo
+                val formattedDate = remember(discussion.createdAt) {
+                    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    sdf.format(Date(discussion.createdAt))
+                }
+                
                 Text(
-                    text = discussion.authorName,
+                    text = formattedDate,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Default.Comment,
-                    contentDescription = null,
-                    tint = Color(0xFF00C853),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "${discussion.commentCount}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
+                
+                // Số lượng bình luận
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Comment,
+                        contentDescription = null,
+                        tint = Color(0xFF00C853),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${discussion.commentCount} bình luận",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF00C853)
+                    )
+                }
+            }
+            
+            // Hiển thị tin nhắn mới nhất nếu có
+            if (!latestMessage.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Divider(color = Color.LightGray, thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Comment,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = latestMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF00897B),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontStyle = FontStyle.Italic
+                    )
+                }
             }
         }
     }
-    Spacer(modifier = Modifier.height(8.dp))
 }
 
 @Composable

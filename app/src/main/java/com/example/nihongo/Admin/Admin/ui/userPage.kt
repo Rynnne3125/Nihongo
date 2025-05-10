@@ -1,0 +1,894 @@
+package com.example.nihongo.Admin.ui
+
+import Campaign
+import android.net.Uri
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import com.example.nihongo.Admin.utils.AdminEmailSender
+import com.example.nihongo.Admin.viewmodel.AdminUserViewModel
+import com.example.nihongo.User.data.models.User
+import com.example.nihongo.utils.EmailSender
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
+import com.google.firebase.Timestamp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.security.MessageDigest
+
+// Custom theme colors for Japanese language learning app
+object NihongoTheme {
+    val primaryGreen = Color(0xFF4CAF50)     // Green for success/progress
+    val accentRed = Color(0xFFE53935)        // Red for Japanese flag
+    val backgroundWhite = Color(0xFFF5F5F5)  // White background
+    val textDark = Color(0xFF212121)         // Dark text
+    val secondaryLightGreen = Color(0xFFA5D6A7) // Light green for secondary elements
+}
+
+// Function to hash passwords with SHA-256
+fun hashPassword(password: String): String {
+    val bytes = MessageDigest.getInstance("SHA-256").digest(password.toByteArray())
+    return bytes.joinToString("") { "%02x".format(it) }
+}
+
+@Composable
+fun userPage(viewModel: AdminUserViewModel = viewModel()) {
+    val users by viewModel.users.collectAsState()
+    var searchText by remember { mutableStateOf("") }
+    var filterVipOnly by remember { mutableStateOf(false) }
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var selectedUser by remember { mutableStateOf<User?>(null) }
+
+    var filterLoggedInOnly by remember { mutableStateOf(false) }
+
+    val filteredUsers = users.filter {
+        val matchesSearch = it.username.contains(searchText, ignoreCase = true) ||
+                it.email.contains(searchText, ignoreCase = true)
+        val matchesVip = !filterVipOnly || it.vip
+        val matchesLoggedIn = !filterLoggedInOnly || it.online
+        matchesSearch && matchesVip && matchesLoggedIn
+    }
+
+    // Outer Box to stack content + FAB
+    Box(modifier = Modifier.fillMaxSize().background(NihongoTheme.backgroundWhite)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 64.dp, start = 16.dp, end = 16.dp, bottom = 16.dp)
+        ) {
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = { searchText = it },
+                label = { Text("Search by name or email", color = NihongoTheme.textDark) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = NihongoTheme.primaryGreen,
+                    unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                    cursorColor = NihongoTheme.primaryGreen
+                )
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Filter options with styled checkboxes
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(NihongoTheme.secondaryLightGreen.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .padding(8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Checkbox(
+                        checked = filterVipOnly,
+                        onCheckedChange = { filterVipOnly = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = NihongoTheme.primaryGreen,
+                            uncheckedColor = NihongoTheme.textDark.copy(alpha = 0.6f)
+                        )
+                    )
+                    Text("VIP Only", color = NihongoTheme.textDark)
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Checkbox(
+                        checked = filterLoggedInOnly,
+                        onCheckedChange = { filterLoggedInOnly = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = NihongoTheme.primaryGreen,
+                            uncheckedColor = NihongoTheme.textDark.copy(alpha = 0.6f)
+                        )
+                    )
+                    Text("Online Only", color = NihongoTheme.textDark)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // User List
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(filteredUsers) { user ->
+                    Log.d("UserCardDebug", "Rendering UserCard for user: ${user}")
+                    UserCard(user = user, onClick = { selectedUser = user })
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+        }
+
+        // Floating Action Button overlaid
+        FloatingActionButton(
+            onClick = { selectedUser = null; showAddDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 92.dp, end = 24.dp),
+            containerColor = NihongoTheme.primaryGreen,
+            contentColor = Color.White
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add User")
+        }
+
+        val context = LocalContext.current
+        // Dialogs
+        if (showAddDialog) {
+            AddOrEditUserDialog(
+                user = selectedUser,
+                onDismiss = { showAddDialog = false },
+                onSave = { user ->
+                    // Hash password if not empty
+                    val finalUser = if (user.password.isNotEmpty()) {
+                        user.copy(password = hashPassword(user.password))
+                    } else user
+
+                    if (selectedUser == null) viewModel.addUser(finalUser)
+                    else viewModel.updateUser(finalUser)
+                    showAddDialog = false
+                },
+                onDelete = {
+                    viewModel.deleteUser(it)
+                    showAddDialog = false
+                }
+            )
+        }
+
+        selectedUser?.let { user ->
+            AddOrEditUserDialog(
+                user = user,
+                onDismiss = { selectedUser = null },
+                onSave = { updatedUser ->
+                    // Hash password if it's been changed
+                    val finalUser = if (updatedUser.password.isNotEmpty() && updatedUser.password != user.password) {
+                        updatedUser.copy(password = hashPassword(updatedUser.password))
+                    } else updatedUser
+
+                    viewModel.updateUser(finalUser)
+                    selectedUser = null
+                },
+                onDelete = {
+                    viewModel.deleteUser(it)
+                    selectedUser = null
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun UserCard(user: User, onClick: () -> Unit) {
+    val defaultImage =
+        "https://ih1.redbubble.net/image.1629121092.8901/bg,f8f8f8-flat,750x,075,f-pad,750x1000,f8f8f8.jpg"
+    val imageUrl = if (user.imageUrl.isNullOrBlank()) defaultImage else user.imageUrl
+
+    val backgroundColor = if (user.vip)
+        NihongoTheme.secondaryLightGreen.copy(alpha = 0.3f)
+    else
+        Color.White
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(4.dp),
+        shape = RoundedCornerShape(12.dp),
+        border = if (user.vip)
+            BorderStroke(2.dp, NihongoTheme.primaryGreen)
+        else null
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(
+                    ImageRequest.Builder(LocalContext.current)
+                        .data(imageUrl)
+                        .crossfade(true)
+                        .build()
+                ),
+                contentDescription = "User Image",
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, if (user.vip) NihongoTheme.primaryGreen else Color.Gray, CircleShape),
+                contentScale = ContentScale.Crop
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = user.username,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (user.vip) NihongoTheme.primaryGreen else NihongoTheme.textDark
+                    )
+                    if (user.vip) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "VIP User",
+                            tint = NihongoTheme.primaryGreen,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = user.email,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = NihongoTheme.textDark.copy(alpha = 0.7f)
+                )
+            }
+
+            // Online status indicator
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(
+                        color = if (user.online) NihongoTheme.primaryGreen else NihongoTheme.accentRed,
+                        shape = CircleShape
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+fun AddOrEditUserDialog(
+    user: User? = null,
+    onDismiss: () -> Unit,
+    onSave: (User) -> Unit,
+    onDelete: (User) -> Unit,
+) {
+    val usernameState = remember { mutableStateOf(user?.username ?: "") }
+    val emailState = remember { mutableStateOf(user?.email ?: "") }
+    val imageUrlState = remember { mutableStateOf(user?.imageUrl ?: "") }
+    val passwordState = remember { mutableStateOf("") } // Don't show existing password
+    val vipState = remember { mutableStateOf(user?.vip ?: false) }
+    val selectedImageUri = remember { mutableStateOf<Uri?>(null) }
+    val showUrlFieldState = remember { mutableStateOf(false) }
+
+    // New state for password visibility switch
+    val showPasswordField = remember { mutableStateOf(user == null) } // Show by default for new users
+
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    var message by remember { mutableStateOf("") }
+    var selectedSendType by remember { mutableStateOf("Notification") }
+    var selectedContentType by remember { mutableStateOf("Thủ công") }
+    var emailToSend by remember { mutableStateOf(user?.email ?: "") }
+    var showDialog by remember { mutableStateOf(false) }
+    var lastSendSuccess by remember { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            if (user == null || selectedTabIndex == 0) {
+                Button(
+                    onClick = {
+                        val newUser = user?.copy(
+                            username = usernameState.value,
+                            email = emailState.value,
+                            imageUrl = imageUrlState.value,
+                            password = if (passwordState.value.isNotEmpty()) passwordState.value else (user.password ?: ""),
+                            vip = vipState.value
+                        ) ?: User(
+                            username = usernameState.value,
+                            email = emailState.value,
+                            imageUrl = imageUrlState.value,
+                            password = passwordState.value,
+                            vip = vipState.value
+                        )
+                        onSave(newUser)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NihongoTheme.primaryGreen,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Save")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = NihongoTheme.textDark
+                )
+            ) {
+                Text("Cancel")
+            }
+        },
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    if (user == null) "Add User" else "Edit User",
+                    color = NihongoTheme.primaryGreen
+                )
+                if (user != null && selectedTabIndex == 0) {
+                    IconButton(onClick = { onDelete(user) }) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = NihongoTheme.accentRed
+                        )
+                    }
+                }
+            }
+        },
+        containerColor = NihongoTheme.backgroundWhite,
+        text = {
+            Column {
+                // Only show tabs if editing an existing user
+                if (user != null) {
+                    TabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        containerColor = NihongoTheme.backgroundWhite,
+                        contentColor = NihongoTheme.primaryGreen,
+                        indicator = { tabPositions ->
+                            TabRowDefaults.Indicator(
+                                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                                color = NihongoTheme.primaryGreen
+                            )
+                        }
+                    ) {
+                        Tab(
+                            selected = selectedTabIndex == 0,
+                            onClick = { selectedTabIndex = 0 },
+                            text = { Text("Edit") },
+                            selectedContentColor = NihongoTheme.primaryGreen,
+                            unselectedContentColor = NihongoTheme.textDark.copy(alpha = 0.7f)
+                        )
+                        Tab(
+                            selected = selectedTabIndex == 1,
+                            onClick = { selectedTabIndex = 1 },
+                            text = { Text("Notify") },
+                            selectedContentColor = NihongoTheme.primaryGreen,
+                            unselectedContentColor = NihongoTheme.textDark.copy(alpha = 0.7f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Show content based on tab or directly if adding new user
+                if (user == null || selectedTabIndex == 0) {
+                    EditUserContent(
+                        usernameState = usernameState,
+                        emailState = emailState,
+                        imageUrlState = imageUrlState,
+                        passwordState = passwordState,
+                        vipState = vipState,
+                        selectedImageUri = selectedImageUri,
+                        showUrlFieldState = showUrlFieldState,
+                        showPasswordField = showPasswordField
+                    )
+                } else {
+                    NotifyContent(
+                        user = user,
+                        message = message,
+                        onMessageChange = { message = it },
+                        selectedSendType = selectedSendType,
+                        onSendTypeChange = { selectedSendType = it },
+                        selectedContentType = selectedContentType,
+                        onContentTypeChange = { selectedContentType = it },
+                        onAutoFillSelect = { message = it },
+                        toEmail = emailToSend,
+                        onSendResult = {
+                            lastSendSuccess = it
+                            showDialog = true
+                        }
+                    )
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun EditUserContent(
+    usernameState: MutableState<String>,
+    emailState: MutableState<String>,
+    imageUrlState: MutableState<String>,
+    passwordState: MutableState<String>,
+    vipState: MutableState<Boolean>,
+    selectedImageUri: MutableState<Uri?>,
+    showUrlFieldState: MutableState<Boolean>,
+    showPasswordField: MutableState<Boolean>
+) {
+    val context = LocalContext.current
+    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let {
+            selectedImageUri.value = it
+            imageUrlState.value = it.toString()
+        }
+    }
+
+    val defaultImage = "https://ih1.redbubble.net/image.1629121092.8901/bg,f8f8f8-flat,750x,075,f-pad,750x1000,f8f8f8.jpg"
+
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { imagePickerLauncher.launch("image/*") }
+                .padding(bottom = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(
+                    model = selectedImageUri.value ?: (if (imageUrlState.value.isBlank()) defaultImage else imageUrlState.value)
+                ),
+                contentDescription = "User Image",
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, NihongoTheme.primaryGreen, CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        TextButton(
+            onClick = { showUrlFieldState.value = !showUrlFieldState.value },
+            colors = ButtonDefaults.textButtonColors(contentColor = NihongoTheme.primaryGreen)
+        ) {
+            Text("URL instead")
+        }
+
+        if (showUrlFieldState.value) {
+            OutlinedTextField(
+                value = imageUrlState.value,
+                onValueChange = {
+                    imageUrlState.value = it
+                    selectedImageUri.value = null
+                },
+                label = { Text("Image URL") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = NihongoTheme.primaryGreen,
+                    unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                    cursorColor = NihongoTheme.primaryGreen
+                )
+            )
+        }
+
+        OutlinedTextField(
+            value = usernameState.value,
+            onValueChange = { usernameState.value = it },
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = NihongoTheme.primaryGreen,
+                unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                cursorColor = NihongoTheme.primaryGreen
+            )
+        )
+
+        OutlinedTextField(
+            value = emailState.value,
+            onValueChange = { emailState.value = it },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = NihongoTheme.primaryGreen,
+                unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                cursorColor = NihongoTheme.primaryGreen
+            )
+        )
+
+        // Password switch
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Text(
+                text = "Change Password",
+                style = MaterialTheme.typography.bodyMedium,
+                color = NihongoTheme.textDark
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Switch(
+                checked = showPasswordField.value,
+                onCheckedChange = { showPasswordField.value = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = NihongoTheme.primaryGreen,
+                    checkedTrackColor = NihongoTheme.secondaryLightGreen,
+                    uncheckedThumbColor = Color.Gray,
+                    uncheckedTrackColor = Color.LightGray
+                )
+            )
+        }
+
+        // Password field only shows when switch is on
+        if (showPasswordField.value) {
+            OutlinedTextField(
+                value = passwordState.value,
+                onValueChange = { passwordState.value = it },
+                label = { Text("New Password") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = NihongoTheme.primaryGreen,
+                    unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                    cursorColor = NihongoTheme.primaryGreen
+                ),
+                visualTransformation = PasswordVisualTransformation()
+            )
+
+            Text(
+                text = "Password will be hashed with SHA-256",
+                style = MaterialTheme.typography.bodySmall,
+                color = NihongoTheme.textDark.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+            )
+        }
+
+        // VIP user checkbox
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Checkbox(
+                checked = vipState.value,
+                onCheckedChange = { vipState.value = it },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = NihongoTheme.primaryGreen,
+                    uncheckedColor = NihongoTheme.textDark.copy(alpha = 0.6f)
+                )
+            )
+            Text(
+                "VIP User",
+                color = NihongoTheme.textDark
+            )
+        }
+    }
+}
+
+@Composable
+fun NotifyContent(
+    user: User,
+    message: String,
+    onMessageChange: (String) -> Unit,
+    selectedSendType: String,
+    onSendTypeChange: (String) -> Unit,
+    selectedContentType: String,
+    onContentTypeChange: (String) -> Unit,
+    onAutoFillSelect: (String) -> Unit,
+    toEmail: String,
+    onSendResult: (Boolean) -> Unit
+) {
+    val sendOptions = listOf("Notification", "Email")
+    val contentOptions = listOf("Thủ công", "Auto-fill")
+    val autoFillTemplates = listOf(
+        "Bạn chưa hoàn thành bài học hôm nay, hãy quay lại học nhé!",
+        "Lớp học online đang bắt đầu, mời bạn tham gia.",
+        "Bạn còn bài kiểm tra chưa làm, hãy hoàn thành sớm nhất."
+    )
+
+    var sendMenuExpanded by remember { mutableStateOf(false) }
+    var contentMenuExpanded by remember { mutableStateOf(false) }
+    var selectedTemplate by remember { mutableStateOf<String?>(null) }
+
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(scrollState)
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(4.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+
+                // Send Type Dropdown
+                Text(
+                    "Gửi dưới dạng",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = NihongoTheme.primaryGreen
+                )
+                Box {
+                    OutlinedButton(
+                        onClick = { sendMenuExpanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        border = BorderStroke(1.dp, NihongoTheme.primaryGreen),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = NihongoTheme.primaryGreen
+                        )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = if (selectedSendType == "Email") Icons.Default.Email else Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = NihongoTheme.primaryGreen
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(selectedSendType)
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = sendMenuExpanded,
+                        onDismissRequest = { sendMenuExpanded = false }
+                    ) {
+                        sendOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    onSendTypeChange(option)
+                                    sendMenuExpanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (option == "Email") Icons.Default.Email else Icons.Default.Notifications,
+                                        contentDescription = null,
+                                        tint = NihongoTheme.primaryGreen
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Content Type Dropdown
+                Text(
+                    "Nội dung gửi",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = NihongoTheme.primaryGreen
+                )
+                Box {
+                    OutlinedButton(
+                        onClick = { contentMenuExpanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        border = BorderStroke(1.dp, NihongoTheme.primaryGreen),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = NihongoTheme.primaryGreen
+                        )
+                    ) {
+                        Text(selectedContentType)
+                    }
+
+                    DropdownMenu(
+                        expanded = contentMenuExpanded,
+                        onDismissRequest = { contentMenuExpanded = false }
+                    ) {
+                        contentOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    onContentTypeChange(option)
+                                    contentMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (selectedContentType == "Thủ công") {
+                    Text(
+                        "Nội dung",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = NihongoTheme.primaryGreen
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = message,
+                        onValueChange = onMessageChange,
+                        placeholder = { Text("Nhập nội dung...") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp),
+                        maxLines = 6,
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NihongoTheme.primaryGreen,
+                            unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                            cursorColor = NihongoTheme.primaryGreen
+                        )
+                    )
+                } else {
+                    Text(
+                        "Chọn mẫu nội dung",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = NihongoTheme.primaryGreen
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        autoFillTemplates.forEach { template ->
+                            TemplateOption(
+                                template = template,
+                                isSelected = template == selectedTemplate,
+                                onClick = {
+                                    selectedTemplate = template
+                                    onAutoFillSelect(template)
+                                    onMessageChange(template)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Send button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Button(
+                onClick = {
+                    if(selectedSendType == "Email"){
+                        coroutineScope.launch {
+                            val result = withContext(Dispatchers.IO) {
+                                AdminEmailSender.sendEmail(
+                                    toEmail = toEmail,
+                                    subject = "Thông báo từ Nihongo",
+                                    body = message
+                                )
+                            }
+                            onSendResult(result)
+                            if (result) {
+                                Toast.makeText(context, "Đã gửi thành công!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Gửi thất bại, vui lòng thử lại", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    else {
+                        val campaign = Campaign(
+                            title = "Thông báo từ Nihongo",
+                            message = message,
+                            imageUrl = "",
+                            isScheduled = false,
+                            isDaily = false,
+                            scheduledFor = Timestamp.now(),
+                            dailyHour = 0,
+                            dailyMinute = 0
+                        )
+                        val viewModel = AdminNotifyPageViewModel()
+                        viewModel.sendNotificationToUser(campaign, context, user.id)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NihongoTheme.primaryGreen,
+                    contentColor = Color.White
+                )
+            ) {
+                Icon(
+                    imageVector = if (selectedSendType == "Email") Icons.Default.Email else Icons.Default.Notifications,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Gửi")
+            }
+        }
+    }
+}
+
+@Composable
+fun TemplateOption(template: String, isSelected: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) NihongoTheme.primaryGreen else Color.LightGray
+        ),
+        color = if (isSelected)
+            NihongoTheme.secondaryLightGreen.copy(alpha = 0.2f)
+        else
+            Color.White,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = isSelected,
+                onClick = onClick,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = NihongoTheme.primaryGreen,
+                    unselectedColor = Color.Gray
+                )
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = template,
+                style = MaterialTheme.typography.bodyMedium,
+                color = NihongoTheme.textDark
+            )
+        }
+    }
+}

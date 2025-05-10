@@ -248,10 +248,19 @@ class UserRepository(
     // Lấy thông tin người dùng theo ID
     suspend fun getUserById(userId: String): User? {
         return try {
-            val document = usersCollection.document(userId).get().await()
-            document.toObject<User>()
+            Log.d("UserRepository", "Attempting to get user with ID: $userId")
+            val documentSnapshot = usersCollection.document(userId).get().await()
+            
+            if (documentSnapshot.exists()) {
+                val user = documentSnapshot.toObject(User::class.java)
+                Log.d("UserRepository", "Successfully retrieved user: ${user?.username}")
+                user
+            } else {
+                Log.e("UserRepository", "User document with ID $userId does not exist")
+                null
+            }
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error getting user by ID", e)
+            Log.e("UserRepository", "Error getting user by ID: $userId", e)
             null
         }
     }
@@ -325,10 +334,30 @@ class UserRepository(
     // Thêm điểm năng động cho người dùng
     suspend fun addActivityPoints(userId: String, points: Int): Boolean {
         return try {
-            val user = getUserById(userId) ?: return false
+            Log.d("UserRepository", "Adding $points points to user $userId")
+            
+            // Lấy user từ Firestore
+            val documentSnapshot = usersCollection.document(userId).get().await()
+            
+            if (!documentSnapshot.exists()) {
+                Log.e("UserRepository", "Cannot add points: User document with ID $userId does not exist")
+                return false
+            }
+            
+            // Lấy dữ liệu user hiện tại
+            val user = documentSnapshot.toObject(User::class.java)
+            if (user == null) {
+                Log.e("UserRepository", "Cannot add points: Failed to convert document to User object")
+                return false
+            }
+            
+            // Tính toán điểm mới và rank
             val newPoints = user.activityPoints + points
             val newRank = user.calculateRank()
             
+            Log.d("UserRepository", "Updating user $userId: activityPoints from ${user.activityPoints} to $newPoints, rank to $newRank")
+            
+            // Cập nhật Firestore
             usersCollection.document(userId)
                 .update(
                     "activityPoints", newPoints,
@@ -343,9 +372,10 @@ class UserRepository(
                 )
             }
             
+            Log.d("UserRepository", "Successfully added $points points to user $userId")
             true
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error adding activity points", e)
+            Log.e("UserRepository", "Error adding activity points to user $userId", e)
             false
         }
     }

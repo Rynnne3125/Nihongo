@@ -2,6 +2,7 @@ package com.example.nihongo.User.ui.screens.homepage
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -82,6 +84,8 @@ fun CoursesScreen(
     var userProgressList by remember { mutableStateOf<List<UserProgress>>(emptyList()) }
     var currentUser by remember { mutableStateOf<User?>(null) }
     val userRepository = UserRepository()
+    
+    // Fetch data
     LaunchedEffect(true) {
         currentUser = userRepository.getUserByEmail(userEmail)
         allCourses.value = courseRepository.getAllCourses()
@@ -95,26 +99,31 @@ fun CoursesScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 16.dp) // Add padding to prevent overlap with actions
+                    ) {
                         TextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             placeholder = {
                                 Text(
                                     "Search your course?",
-                                    fontSize = 14.sp
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
                                 )
                             },
                             singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(60.dp)
-                                .padding(vertical = 5.dp)
                                 .clip(RoundedCornerShape(8.dp)),
                             colors = TextFieldDefaults.textFieldColors(
-                                containerColor = Color.Gray.copy(alpha = 0.1f), // Set the background color to a light gray
+                                containerColor = Color.Gray.copy(alpha = 0.1f),
                                 focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
+                                unfocusedIndicatorColor = Color.Transparent,
+                                cursorColor = Color(0xFF4CAF50)
                             ),
                             trailingIcon = {
                                 if (searchQuery.isNotBlank()) {
@@ -124,10 +133,15 @@ fun CoursesScreen(
                                             navController.navigate("courses/${course.id}/$userEmail")
                                         }
                                     }) {
-                                        Icon(Icons.Default.Search, contentDescription = "Search")
+                                        Icon(
+                                            Icons.Default.Search, 
+                                            contentDescription = "Search",
+                                            tint = Color(0xFF4CAF50)
+                                        )
                                     }
                                 }
-                            }
+                            },
+                            textStyle = MaterialTheme.typography.bodyMedium
                         )
                     }
                 },
@@ -142,7 +156,7 @@ fun CoursesScreen(
                             restoreState = true
                         }
                     }) {
-                        Icon(Icons.Default.Group, contentDescription = "Notifications")
+                        Icon(Icons.Default.Group, contentDescription = "Community")
                     }
                     IconButton(onClick = {
                         navController.navigate("profile/$userEmail") {
@@ -151,10 +165,10 @@ fun CoursesScreen(
                             restoreState = true
                         }
                     }) {
-                        Icon(Icons.Default.Person, contentDescription = "Avatar")
+                        Icon(Icons.Default.Person, contentDescription = "Profile")
                     }
                 },
-                modifier = Modifier.height(100.dp),
+                modifier = Modifier.height(80.dp), // Adjusted height
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White
                 )
@@ -175,23 +189,64 @@ fun CoursesScreen(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            items(filteredCourses) { course ->
-                CourseCard(course = course, onClick = {
-                    val progress = userProgressList.find { it.courseId == course.id }
-                    if (progress != null) {
-                        navController.navigate("lessons/${course.id}/$userEmail")
+            // Section title
+            Text(
+                text = "Available Courses",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            
+            // Alternating layout for courses
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(filteredCourses.chunked(2)) { rowCourses ->
+                    if (rowCourses.size == 2) {
+                        // Two cards in a row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            rowCourses.forEach { course ->
+                                Box(modifier = Modifier.weight(1f)) {
+                                    CompactCourseCard(
+                                        course = course,
+                                        onClick = {
+                                            val progress = userProgressList.find { it.courseId == course.id }
+                                            if (progress != null) {
+                                                navController.navigate("lessons/${course.id}/$userEmail")
+                                            } else {
+                                                navController.navigate("courses/${course.id}/$userEmail")
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Single card (full width)
+                        rowCourses.forEach { course ->
+                            CourseCard(
+                                course = course,
+                                onClick = {
+                                    val progress = userProgressList.find { it.courseId == course.id }
+                                    if (progress != null) {
+                                        navController.navigate("lessons/${course.id}/$userEmail")
+                                    } else {
+                                        navController.navigate("courses/${course.id}/$userEmail")
+                                    }
+                                }
+                            )
+                        }
                     }
-                    else{
-                        navController.navigate("courses/${course.id}/$userEmail")
-                    }
-                })
+                }
             }
         }
     }
@@ -356,6 +411,140 @@ fun CourseDetailScreen(
             .fillMaxSize()
             .padding(padding), contentAlignment = Alignment.Center) {
             Text("Loading or course not found...", color = Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun CompactCourseCard(
+    course: Course,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.LightGray)
+            .clickable { onClick() }
+    ) {
+        // Background image
+        AsyncImage(
+            model = course.imageRes,
+            contentDescription = "Course Image",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        
+        // Gradient overlay for better text visibility
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                        startY = 0f,
+                        endY = 300f
+                    )
+                )
+        )
+
+        // Course title at bottom
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(12.dp)
+                .fillMaxWidth(0.8f)
+        ) {
+            Text(
+                text = course.title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            
+            // Add description with limited lines
+            Text(
+                text = course.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.8f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            
+            // Add reviews and likes in a row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ThumbUp,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.size(12.dp)
+                )
+                Text(
+                    text = "${course.likes}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(start = 2.dp, end = 8.dp)
+                )
+                
+                Icon(
+                    imageVector = Icons.Default.Comment,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.size(12.dp)
+                )
+                Text(
+                    text = "${course.reviews}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(start = 2.dp)
+                )
+            }
+        }
+
+        // VIP badge
+        if (course.vip) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .background(Color(0xFFFFD700).copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "VIP",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+            }
+        }
+
+        // Rating
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${course.rating}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color(0xFFFFC107),
+                    modifier = Modifier.size(12.dp)
+                )
+            }
         }
     }
 }

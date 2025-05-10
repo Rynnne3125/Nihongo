@@ -85,6 +85,7 @@ import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavItem
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.example.nihongo.User.ui.components.TopBarIcon
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,7 +113,15 @@ fun HomeScreen(
         } ?: emptyList()
         courseList = courseRepository.getAllCourses()
     }
-
+    val idUser = currentUser?.id
+    FirebaseMessaging.getInstance().subscribeToTopic("$idUser")
+        .addOnCompleteListener { task ->
+            var msg = "Subscribed to topic"
+            if (!task.isSuccessful) {
+                msg = "Subscription failed"
+            }
+            Log.d("FCM", msg)
+        }
     val imageUrls = courseList.map { it.imageRes }
     var currentImageIndex by remember { mutableStateOf(0) }
 
@@ -422,15 +431,20 @@ fun CourseCard(
         )
 
         if (course.vip) {
-            Icon(
-                imageVector = Icons.Default.Star,
-                contentDescription = "VIP Course",
-                tint = Color(0xFFFFD700),
+            Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .background(Color.Black.copy(alpha = 0.4f), shape = CircleShape)
-                    .padding(6.dp)
-            )
+                    .padding(8.dp)
+                    .background(Color(0xFFFFD700).copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "VIP",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+            }
         }
 
         Icon(
