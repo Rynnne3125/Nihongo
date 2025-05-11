@@ -5,18 +5,59 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,7 +69,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -41,7 +81,6 @@ import coil.compose.AsyncImage
 import com.example.nihongo.Admin.viewmodel.AdminMainPageViewModel
 import com.example.nihongo.User.data.models.Course
 import com.example.nihongo.User.data.models.User
-import com.google.firebase.messaging.FirebaseMessaging
 
 @Composable
 fun MainPage(navController: NavHostController) {
@@ -74,7 +113,8 @@ fun MainPage(navController: NavHostController) {
             composable("mainPage") {
                 AdminDashboard(
                     modifier = Modifier.padding(padding),
-                    viewModel = adminViewModel
+                    viewModel = adminViewModel,
+                    navController = innerNavController
                 )
                 UIVisibilityController.enableDisplayTopBarAndBottom()
             }
@@ -94,12 +134,15 @@ fun MainPage(navController: NavHostController) {
                 UIVisibilityController.enableDisplayTopBarAndBottom()
                 userPage()
             }
+            composable("vipRequestPage") {
+                VipRequestPage(navController = innerNavController)
+            }
         }
     }
 }
 
 @Composable
-fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewModel) {
+fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewModel, navController: NavHostController ) {
     val isLoading by viewModel.isLoading
 
     val monthlyUserCount by viewModel.monthlyUserCount.collectAsState()
@@ -142,7 +185,56 @@ fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewMo
             Spacer(modifier = Modifier.height(8.dp))
             TopUsersSection(topUsers)
         }
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        try {
+                            Log.d("AdminDashboard", "Navigating to vipRequestPage")
+                            navController.navigate("vipRequestPage")
+                        } catch (e: Exception) {
+                            Log.e("AdminDashboard", "Navigation error: ${e.message}", e)
+                        }
+                    },
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFC107),
+                        modifier = Modifier.size(24.dp)
+                    )
 
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Quản lý yêu cầu VIP",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Xem và phê duyệt các yêu cầu nâng cấp VIP",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = Color.Gray
+                    )
+                }
+            }
+        }
         item {
             Text(
                 "Most Liked Courses",

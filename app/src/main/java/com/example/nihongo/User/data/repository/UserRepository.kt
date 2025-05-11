@@ -281,55 +281,7 @@ class UserRepository(
         }
     }
 
-    // Thêm đối tác học tập
-    suspend fun addStudyPartner(userId: String, partnerId: String): Boolean {
-        return try {
-            // Lấy thông tin người dùng
-            val user = getUserById(userId) ?: return false
-            
-            // Kiểm tra xem người dùng có phải là VIP không
-            if (!user.vip) {
-                Log.d("UserRepository", "User is not VIP, cannot add partner")
-                return false
-            }
-            
-            // Cập nhật danh sách đối tác của người dùng
-            val updatedUser = user.addPartner(partnerId)
-            usersCollection.document(userId).update("partners", updatedUser.partners).await()
-            
-            // Cập nhật currentUser nếu đó là người dùng hiện tại
-            if (currentUser?.id == userId) {
-                currentUser = updatedUser
-            }
-            
-            // Thêm điểm năng động cho người dùng
-            addActivityPoints(userId, 10)
-            
-            true
-        } catch (e: Exception) {
-            Log.e("UserRepository", "Error adding study partner", e)
-            false
-        }
-    }
 
-    // Xóa đối tác học tập
-    suspend fun removeStudyPartner(userId: String, partnerId: String): Boolean {
-        return try {
-            val user = getUserById(userId) ?: return false
-            val updatedUser = user.removePartner(partnerId)
-            usersCollection.document(userId).update("partners", updatedUser.partners).await()
-            
-            // Cập nhật currentUser nếu đó là người dùng hiện tại
-            if (currentUser?.id == userId) {
-                currentUser = updatedUser
-            }
-            
-            true
-        } catch (e: Exception) {
-            Log.e("UserRepository", "Error removing study partner", e)
-            false
-        }
-    }
 
     // Thêm điểm năng động cho người dùng
     suspend fun addActivityPoints(userId: String, points: Int): Boolean {
@@ -376,6 +328,118 @@ class UserRepository(
             true
         } catch (e: Exception) {
             Log.e("UserRepository", "Error adding activity points to user $userId", e)
+            false
+        }
+    }
+
+    /**
+     * Cập nhật thông tin hồ sơ người dùng
+     * @param user Đối tượng User với thông tin đã được cập nhật
+     * @return true nếu cập nhật thành công, false nếu có lỗi
+     */
+    suspend fun updateUserProfile(user: User): Boolean {
+        return try {
+            Log.d("UserRepository", "Updating user profile: ${user.id}")
+            
+            // Lấy thông tin người dùng hiện tại từ Firestore để đảm bảo dữ liệu mới nhất
+            val currentUserDoc = usersCollection.document(user.id).get().await()
+            val currentUserData = currentUserDoc.toObject(User::class.java)
+            
+            if (currentUserData == null) {
+                Log.e("UserRepository", "Failed to update profile: User not found")
+                return false
+            }
+            
+            // Tạo đối tượng User mới với các trường được cập nhật
+            // Chỉ cập nhật các trường liên quan đến hồ sơ, giữ nguyên các trường khác
+            val updatedUser = currentUserData.copy(
+                username = user.username,
+                imageUrl = user.imageUrl,
+                jlptLevel = user.jlptLevel,
+                studyMonths = user.studyMonths
+                // Các trường khác như email, password, vip, activityPoints, rank, online, partners, admin
+                // sẽ được giữ nguyên từ currentUserData
+            )
+            
+            // Cập nhật trong Firestore
+            usersCollection.document(user.id).set(updatedUser).await()
+            
+            // Cập nhật currentUser trong repository
+            currentUser = updatedUser
+            
+            // Cập nhật session nếu có SessionManager
+            sessionManager?.createLoginSession(updatedUser)
+            
+            Log.d("UserRepository", "User profile updated successfully")
+            true
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error updating user profile", e)
+            false
+        }
+    }
+
+    /**
+     * Cập nhật URL ảnh đại diện của người dùng
+     * @param userId ID của người dùng
+     * @param imageUrl URL mới của ảnh đại diện
+     * @return true nếu cập nhật thành công, false nếu có lỗi
+     */
+    suspend fun updateUserImageUrl(userId: String, imageUrl: String): Boolean {
+        return try {
+            Log.d("UserRepository", "Updating user image URL: $userId")
+            
+            // Cập nhật trong Firestore
+            usersCollection.document(userId)
+                .update("imageUrl", imageUrl)
+                .await()
+            
+            // Cập nhật currentUser nếu có
+            currentUser?.let {
+                if (it.id == userId) {
+                    currentUser = it.copy(imageUrl = imageUrl)
+                    
+                    // Cập nhật session nếu có SessionManager
+                    sessionManager?.createLoginSession(currentUser!!)
+                }
+            }
+            
+            Log.d("UserRepository", "User image URL updated successfully")
+            true
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error updating user image URL", e)
+            false
+        }
+    }
+
+    /**
+     * Cập nhật mật khẩu người dùng
+     * @param userId ID của người dùng
+     * @param newPassword Mật khẩu mới (chưa được hash)
+     * @return true nếu cập nhật thành công, false nếu có lỗi
+     */
+    suspend fun updateUserPassword(userId: String, newPassword: String): Boolean {
+        return try {
+            Log.d("UserRepository", "Updating password for user: $userId")
+            
+            // Hash mật khẩu mới
+            val hashedPassword = hashPassword(newPassword)
+            
+            // Cập nhật mật khẩu trong Firestore
+            usersCollection.document(userId)
+                .update("password", hashedPassword)
+                .await()
+            
+            // Cập nhật currentUser nếu đó là người dùng hiện tại
+            currentUser?.let {
+                if (it.id == userId) {
+                    currentUser = it.copy(password = hashedPassword)
+                }
+            }
+            
+            Log.d("UserRepository", "Password updated successfully")
+            true
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error updating password", e)
             false
         }
     }

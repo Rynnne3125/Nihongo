@@ -93,23 +93,31 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CommunityScreenFull(
+fun CommunityScreen(
     navController: NavController,
     userRepository: UserRepository,
-    userEmail: String
+    userEmail: String,
+    initialTab: Int = 0
 ) {
     var currentUser by remember { mutableStateOf<User?>(null) }
-    val selectedItem = "community"
     var allUsers by remember { mutableStateOf<List<User>>(emptyList()) }
-    var studyGroups by remember { mutableStateOf<List<StudyGroup>>(emptyList()) }
     var discussions by remember { mutableStateOf<List<Discussion>>(emptyList()) }
+    var studyGroups by remember { mutableStateOf<List<StudyGroup>>(emptyList()) }
     var learningGoals by remember { mutableStateOf<List<LearningGoal>>(emptyList()) }
-    var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Bạn bè", "Các cuộc thảo luận", "Bảng xếp hạng")
-    val context = LocalContext.current
-
+    var latestDiscussionMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var latestGroupMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var isLoading by remember { mutableStateOf(true) }
+    val selectedItem = "community"
+    
+    // Định nghĩa tabs
+    val tabs = listOf("Cộng đồng", "Thảo luận", "Bảng xếp hạng")
+    
+    // Sử dụng initialTab làm giá trị khởi tạo cho selectedTab
+    var selectedTab by remember { mutableStateOf(initialTab) }
+    
     // Thêm state để kiểm soát hiển thị dialog xác nhận
     var showUploadDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(userEmail) {
         // Lấy dữ liệu người dùng
@@ -665,7 +673,7 @@ fun DiscussionTab(
                     
                     messagesLoaded = true
                 } catch (e: Exception) {
-                    Log.e("DiscussionTab", "Error loading discussion messages", e)
+                    Log.e("DiscussionTab", "Error loading messages", e)
                 }
             }
         }

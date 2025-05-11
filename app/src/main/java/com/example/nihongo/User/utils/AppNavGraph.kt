@@ -17,10 +17,11 @@ import com.example.nihongo.User.data.repository.ExerciseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavItem
+import com.example.nihongo.User.ui.screens.chat.CreateDiscussionScreen
+import com.example.nihongo.User.ui.screens.chat.DiscussionChatScreen
 import com.example.nihongo.User.ui.screens.chat.GroupChatScreen
 import com.example.nihongo.User.ui.screens.chat.PrivateChatScreen
-import com.example.nihongo.User.ui.screens.chat.DiscussionChatScreen
-import com.example.nihongo.User.ui.screens.homepage.CommunityScreenFull
+import com.example.nihongo.User.ui.screens.homepage.CommunityScreen
 import com.example.nihongo.User.ui.screens.homepage.CourseDetailScreen
 import com.example.nihongo.User.ui.screens.homepage.CoursesScreen
 import com.example.nihongo.User.ui.screens.homepage.ExerciseScreen
@@ -107,11 +108,19 @@ fun AppNavGraph(
                 }
             )
         }
-        composable("${BottomNavItem.Community.route}/{user_email}",
-            arguments = listOf(navArgument("user_email") { type = NavType.StringType })
+        composable(
+            "community/{user_email}?tab={tab}",
+            arguments = listOf(
+                navArgument("user_email") { type = NavType.StringType },
+                navArgument("tab") { 
+                    type = NavType.IntType 
+                    defaultValue = 0
+                }
+            )
         ) { backStackEntry ->
             val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
-            CommunityScreenFull(navController, userRepo, userEmail)
+            val initialTab = backStackEntry.arguments?.getInt("tab") ?: 0
+            CommunityScreen(navController, userRepo, userEmail, initialTab)
         }
 
 
@@ -233,9 +242,11 @@ fun AppNavGraph(
             )
         ) { backStackEntry ->
             val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
-            // Tạm thời chuyển hướng về màn hình community
-            // Sau này sẽ thay bằng màn hình tạo thảo luận thực sự
-            navController.navigate("community/$userEmail")
+            CreateDiscussionScreen(
+                navController = navController,
+                userEmail = userEmail,
+                userRepository = userRepo
+            )
         }
 // Admin
         composable("course_page") {

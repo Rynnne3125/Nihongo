@@ -4,27 +4,49 @@ import android.net.Uri
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.QuestionAnswer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,6 +69,7 @@ import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.SimpleExoPlayer
 import com.google.android.exoplayer2.ui.PlayerView
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseScreen(
     navController: NavController,
@@ -60,6 +84,7 @@ fun ExerciseScreen(
     var isLoading by remember { mutableStateOf(true) }
     var shouldNavigateToQuiz by remember { mutableStateOf(false) }
 
+
     LaunchedEffect(sublessonId) {
         isLoading = true
         exercises = exerciseRepository.getExercisesBySubLessonId(sublessonId, lessonId)
@@ -73,26 +98,57 @@ fun ExerciseScreen(
         }
     }
 
-    if (isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Đang tải bài tập...")
-        }
-    } else if (shouldNavigateToQuiz) {
-        // Navigation chỉ gọi đúng 1 lần
-        LaunchedEffect(Unit) {
-            navController.currentBackStackEntry?.savedStateHandle?.set("quizList", quizExercises)
-            navController.navigate("quiz_screen/${Uri.encode(userEmail)}/$courseId/$lessonId")
-        }
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(color = Color(0xFFEEEEEE)),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = exercises.firstOrNull()?.title ?: "Bài tập",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.DarkGray
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Color.DarkGray,
+                    actionIconContentColor = Color.Gray
+                )
+            )
+        },
+        containerColor = Color(0xFFF5F5F5)
+    ) { innerPadding ->
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(color = Color(0xFF4CAF50))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "Đang tải bài tập...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.Gray
+                    )
+                }
+            }
+        } else if (shouldNavigateToQuiz) {
+            // Navigation chỉ gọi đúng 1 lần
+            LaunchedEffect(Unit) {
+                navController.currentBackStackEntry?.savedStateHandle?.set("quizList", quizExercises)
+                navController.navigate("quiz_screen/${Uri.encode(userEmail)}/$courseId/$lessonId")
+            }
+        } else {
             val videoExercise = exercises.find { it.type == ExerciseType.VIDEO }
 
             if (videoExercise != null) {
@@ -104,7 +160,8 @@ fun ExerciseScreen(
                     title = videoExercise.title ?: "",
                     videoPath = videoExercise.videoUrl ?: "",
                     explanation = sampleExplanation,
-                    quiz = quizExercises
+                    quiz = quizExercises,
+                    innerPadding = innerPadding
                 )
             }
         }
@@ -120,44 +177,286 @@ fun VideoExerciseView(
     title: String,
     videoPath: String,
     explanation: List<Pair<String, String>>,
-    quiz: List<Exercise>
+    quiz: List<Exercise>,
+    innerPadding: PaddingValues
 ) {
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .padding(innerPadding)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(vertical = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(text = title, fontSize = 20.sp, fontWeight = FontWeight.Medium)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        AndroidView(
-            factory = { context ->
-                val player = SimpleExoPlayer.Builder(context).build().apply {
-                    val mediaItem = MediaItem.fromUri(Uri.parse(videoPath))
-                    setMediaItem(mediaItem)
-                    prepare()
-                    playWhenReady = false
+        // Video Title and Description
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    color = Color(0xFF4CAF50).copy(alpha = 0.1f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF333333)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Text(
+                        text = "Xem video và học các khái niệm cơ bản trong bài học này. Sau đó làm bài tập để củng cố kiến thức.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray,
+                        lineHeight = 20.sp
+                    )
                 }
-                PlayerView(context).apply { this.player = player }
-            },
-            modifier = Modifier.fillMaxWidth().aspectRatio(16 / 9f)
-        )
+            }
+        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Video Player
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    // Video Player
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16 / 9f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Black)
+                    ) {
+                        AndroidView(
+                            factory = { context ->
+                                val player = SimpleExoPlayer.Builder(context).build().apply {
+                                    val mediaItem = MediaItem.fromUri(Uri.parse(videoPath))
+                                    setMediaItem(mediaItem)
+                                    prepare()
+                                    playWhenReady = false
+                                }
+                                PlayerView(context).apply { 
+                                    this.player = player
+                                    setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                                    useController = true
+                                    controllerAutoShow = true
+                                }
+                            }
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Video controls hint
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Nhấn vào video để phát/tạm dừng",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+        }
 
-        Column(modifier = Modifier.padding(16.dp)) {
-            ExpandableExplanationCards(
-                navController,
-                explanationItems = explanation,
-                userEmail = userEmail,
-                courseId = courseId,
-                lessonId = lessonId,
-                exercises = quiz
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+        // Lesson Content
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    color = Color(0xFF4CAF50).copy(alpha = 0.1f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MenuBook,
+                                contentDescription = null,
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Text(
+                            text = "Nội dung bài học",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF333333)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    ExpandableExplanationCards(
+                        navController = navController,
+                        explanationItems = explanation,
+                        userEmail = userEmail,
+                        courseId = courseId,
+                        lessonId = lessonId,
+                        exercises = quiz
+                    )
+                }
+            }
+        }
+        
+        // Practice Button
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    color = Color(0xFF4CAF50).copy(alpha = 0.1f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QuestionAnswer,
+                                contentDescription = null,
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Text(
+                            text = "Luyện tập",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF333333)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Text(
+                        text = "Làm bài tập để củng cố kiến thức vừa học. Bạn cần hoàn thành bài tập để mở khóa bài học tiếp theo.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray,
+                        lineHeight = 20.sp
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Button(
+                        onClick = {
+                            Log.d("QuizLog", "Quiz Exercises: ${quiz.map { it.question }}")
+                            navController.currentBackStackEntry?.savedStateHandle?.set("quizList", quiz)
+                            navController.navigate("quiz_screen/$userEmail/$courseId/$lessonId")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50),
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(vertical = 16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "BẮT ĐẦU LUYỆN TẬP",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Bottom spacing
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -172,39 +471,77 @@ fun ExpandableExplanationCards(
     userEmail: String,
     courseId: String,
     lessonId: String,
-    exercises: List<Exercise> // <-- Thêm danh sách bài tập
+    exercises: List<Exercise>
 ) {
     val expandedCardIndex = remember { mutableStateOf(-1) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         explanationItems.forEachIndexed { index, (title, content) ->
             val isExpanded = expandedCardIndex.value == index
 
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .animateContentSize()
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
                     .clickable {
                         expandedCardIndex.value = if (isExpanded) -1 else index
                     },
                 colors = CardDefaults.cardColors(
                     containerColor = Color(0xFFF9FAFB)
-                )
+                ),
+                elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(
+                                        color = Color(0xFF4CAF50).copy(alpha = 0.1f),
+                                        shape = CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${index + 1}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4CAF50)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(12.dp))
+                            
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
+                        
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (isExpanded) "Collapse" else "Expand",
+                            tint = Color(0xFF4CAF50)
                         )
-                    )
+                    }
 
                     AnimatedVisibility(visible = isExpanded) {
                         Column(modifier = Modifier.padding(top = 12.dp)) {
@@ -213,46 +550,16 @@ fun ExpandableExplanationCards(
 
                             Text(
                                 text = content,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    lineHeight = 20.sp,
-                                    color = Color(0xFF334155)
-                                )
+                                style = MaterialTheme.typography.bodyMedium,
+                                lineHeight = 20.sp,
+                                color = Color(0xFF334155)
                             )
-
-                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }
             }
         }
-
-        // Nút "Bắt đầu luyện tập"
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            Button(
-                onClick = {
-
-                        Log.d("QuizLog", "Quiz Exercises: ${exercises.map { it.question }}")
-
-                    // Lưu dữ liệu vào SavedStateHandle
-                    navController.currentBackStackEntry?.savedStateHandle?.set("quizList", exercises)
-                    navController.navigate("quiz_screen/$userEmail/$courseId/$lessonId")
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF10B981),
-                    contentColor = Color.White
-                ),
-                modifier = Modifier.padding(top = 16.dp)
-            ) {
-                Text("Bắt đầu luyện tập")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
     }
-
 }
 
 

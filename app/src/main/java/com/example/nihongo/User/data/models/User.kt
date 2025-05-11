@@ -3,7 +3,6 @@ package com.example.nihongo.User.data.models
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 data class User(
     val id: String = "",
@@ -19,7 +18,8 @@ data class User(
     val jlptLevel: Int? = null,
     val studyMonths: Int? = null,
     val online: Boolean = false,
-    val partners: List<String> = emptyList()
+    val partners: List<String> = emptyList(),
+    val admin: Boolean = false
 ) {
     // Hàm tính toán rank dựa trên điểm năng động
     fun calculateRank(): String {

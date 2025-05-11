@@ -15,23 +15,35 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,9 +62,11 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
@@ -71,8 +85,9 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: String, lessonId: String,  navController: NavController) {
+fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: String, lessonId: String, navController: NavController) {
     var currentIndex by remember { mutableStateOf(0) }
     val currentExercise = quizExercises.getOrNull(currentIndex)
     val correctAnswer = currentExercise?.answer ?: ""
@@ -92,6 +107,9 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
     var user by remember { mutableStateOf<User?>(null) }
     var userProgressList by remember { mutableStateOf<List<UserProgress>>(emptyList()) }
 
+    // Progress tracking
+    val progress = (currentIndex + 1).toFloat() / quizExercises.size.toFloat()
+
     // Load user profile when composable is launched
     LaunchedEffect(userEmail) {
         scope.launch {
@@ -99,177 +117,335 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
             userProgressList = user?.let {
                 listOfNotNull(userProgressRepository.getUserProgressForCourse(it.id, courseId))
             } ?: emptyList()
-
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .background(Color(0xFFF0FFF4))
-        ) {
-            // Header
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(4.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
                     Text(
-                        text = "Quiz nhanh dễ học",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32),
-                        fontFamily = FontFamily.SansSerif
+                        text = "Luyện tập",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.DarkGray
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (!isAnswerChecked) {
-                currentExercise?.let {
-                    val density = LocalDensity.current
-                    val animatedOffset by animateFloatAsState(
-                        targetValue = shakeOffset,
-                        animationSpec = tween(100),
-                        label = "shake"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .offset(x = with(density) { animatedOffset.toDp() })
-                            .fillMaxWidth()
-                            .weight(1f)
-                    ) {
-                        QuestionCard(
-                            question = it.question ?: "",
-                            imageUrl = it.imageUrl ?:"",
-                            romaji = it.romanji ?:"",
-                            kana = it.kana ?: "",
-                            options = it.options ?: emptyList(),
-                            selectedWords = selectedWords,
-                            onWordSelected = { word ->
-                                if (!selectedWords.contains(word)) {
-                                    selectedWords = selectedWords + word
-                                }
-                            },
-                            onWordRemoved = { index ->
-                                selectedWords = selectedWords.toMutableList().apply { removeAt(index) }
-                            }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Color.DarkGray,
+                    actionIconContentColor = Color.Gray
+                )
+            )
+        },
+        containerColor = Color(0xFFF5F5F5)
+    ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp)
+            ) {
+                // Progress indicator
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Câu hỏi ${currentIndex + 1}/${quizExercises.size}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF2E7D32)
+                            )
+                            
+                            Text(
+                                text = "${(progress * 100).toInt()}%",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = Color(0xFF4CAF50),
+                            trackColor = Color(0xFFE8F5E9)
                         )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Footer + Result
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(4.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Button(
-                        onClick = {
-                            val answer = selectedWords.joinToString(" ")
-                            if (answer == correctAnswer) {
-                                result = "Đúng rồi!"
-                                scope.launch {
+                if (!isAnswerChecked) {
+                    currentExercise?.let {
+                        val density = LocalDensity.current
+                        val animatedOffset by animateFloatAsState(
+                            targetValue = shakeOffset,
+                            animationSpec = tween(100),
+                            label = "shake"
+                        )
 
-                                    // Update user progress
-                                    user?.let {
-                                        // Here, we're passing the `exerciseId` to the repository function
-                                        userProgressRepository.updateUserProgress(
-                                            userId = it.id,
-                                            courseId = courseId,
-                                            exerciseId = currentExercise?.id ?: "",
-                                            passed = true
+                        Box(
+                            modifier = Modifier
+                                .offset(x = with(density) { animatedOffset.toDp() })
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                            QuestionCard(
+                                question = it.question ?: "",
+                                imageUrl = it.imageUrl ?: "",
+                                romaji = it.romanji ?: "",
+                                kana = it.kana ?: "",
+                                options = it.options ?: emptyList(),
+                                selectedWords = selectedWords,
+                                onWordSelected = { word ->
+                                    if (!selectedWords.contains(word)) {
+                                        selectedWords = selectedWords + word
+                                    }
+                                },
+                                onWordRemoved = { index ->
+                                    selectedWords = selectedWords.toMutableList().apply { removeAt(index) }
+                                }
+                            )
+                        }
+                    }
+                } else {
+                    // Result view
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (result == "Đúng rồi!") Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                        ),
+                        elevation = CardDefaults.cardElevation(4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .background(
+                                        color = if (result == "Đúng rồi!") Color(0xFF4CAF50) else Color.Red,
+                                        shape = CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (result == "Đúng rồi!") "✓" else "✗",
+                                    fontSize = 40.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(24.dp))
+                            
+                            Text(
+                                text = result ?: "",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (result == "Đúng rồi!") Color(0xFF2E7D32) else Color.Red
+                            )
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            currentExercise?.let {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Đáp án đúng: ",
+                                        fontSize = 16.sp,
+                                        color = Color.DarkGray
+                                    )
+                                    
+                                    Text(
+                                        text = correctAnswer,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2E7D32)
+                                    )
+                                }
+                                
+                                if (result != "Đúng rồi!") {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Đáp án của bạn: ",
+                                            fontSize = 16.sp,
+                                            color = Color.DarkGray
+                                        )
+                                        
+                                        Text(
+                                            text = selectedWords.joinToString(" "),
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.Red
                                         )
                                     }
-
-                                    // If it's the last question, mark the lesson as completed
-                                    if (currentIndex == quizExercises.lastIndex) {
-                                        user?.let {
-                                            // Lấy userProgress cho khóa học cụ thể từ userProgressList
-                                            val userProgressForCourse = userProgressList.firstOrNull { progress ->
-                                                progress.courseId == courseId // Điều kiện này đảm bảo lấy đúng khóa học
-                                            }
-
-                                            // Kiểm tra xem có userProgress cho khóa học không
-                                            userProgressForCourse?.let { userProgress ->
-                                                val totalLessons = userProgress.totalLessons // Lấy tổng số bài học của khóa học
-
-                                                userProgressRepository.markLessonAsCompleted(
-                                                    userId = it.id,
-                                                    courseId = courseId,
-                                                    lessonId = lessonId,
-                                                    totalLessons = totalLessons
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                }
-                                showConfetti = true
-                            } else {
-                                result = "Sai rồi!"
-                                scope.launch {
-                                    repeat(3) {
-                                        shakeOffset = 12f
-                                        delay(50)
-                                        shakeOffset = -12f
-                                        delay(50)
-                                    }
-                                    shakeOffset = 0f
                                 }
                             }
-                            isAnswerChecked = true
-                        },
-                        enabled = selectedWords.isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("KIỂM TRA", color = Color.White)
+                        }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    AnimatedResult(result)
+                // Footer + Result
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (!isAnswerChecked) {
+                            Button(
+                                onClick = {
+                                    val answer = selectedWords.joinToString(" ")
+                                    if (answer == correctAnswer) {
+                                        result = "Đúng rồi!"
+                                        scope.launch {
+                                            // Update user progress
+                                            user?.let {
+                                                userProgressRepository.updateUserProgress(
+                                                    userId = it.id,
+                                                    courseId = courseId,
+                                                    exerciseId = currentExercise?.id ?: "",
+                                                    passed = true
+                                                )
+                                            }
+
+                                            // If it's the last question, mark the lesson as completed
+                                            if (currentIndex == quizExercises.lastIndex) {
+                                                user?.let {
+                                                    val userProgressForCourse = userProgressList.firstOrNull { progress ->
+                                                        progress.courseId == courseId
+                                                    }
+
+                                                    userProgressForCourse?.let { userProgress ->
+                                                        val totalLessons = userProgress.totalLessons
+                                                        
+                                                        userProgressRepository.markLessonAsCompleted(
+                                                            userId = it.id,
+                                                            courseId = courseId,
+                                                            lessonId = lessonId,
+                                                            totalLessons = totalLessons
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        showConfetti = true
+                                    } else {
+                                        result = "Sai rồi!"
+                                        scope.launch {
+                                            repeat(3) {
+                                                shakeOffset = 12f
+                                                delay(50)
+                                                shakeOffset = -12f
+                                                delay(50)
+                                            }
+                                            shakeOffset = 0f
+                                        }
+                                    }
+                                    isAnswerChecked = true
+                                },
+                                enabled = selectedWords.isNotEmpty(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF2E7D32),
+                                    disabledContainerColor = Color(0xFFE0E0E0)
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 16.dp)
+                            ) {
+                                Text(
+                                    "KIỂM TRA", 
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    if (currentIndex < quizExercises.lastIndex) {
+                                        currentIndex++
+                                        selectedWords = listOf()
+                                        result = null
+                                        isAnswerChecked = false
+                                    } else {
+                                        navController.navigate("lessons/${courseId}/$userEmail")
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (currentIndex < quizExercises.lastIndex) 
+                                        Color(0xFF2E7D32) else Color(0xFF1565C0)
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 16.dp)
+                            ) {
+                                Text(
+                                    if (currentIndex < quizExercises.lastIndex) "TIẾP TỤC" else "HOÀN THÀNH",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        // 💥 Vẽ pháo hoa phía trên, chỉ top màn hình
-        if (showConfetti) {
-            ConfettiOverlay(
-                onComplete = {
-                    showConfetti = false
-                    if (currentIndex < quizExercises.lastIndex) {
-                        currentIndex++
-                        selectedWords = listOf()
-                        result = null
-                        isAnswerChecked = false
-                    } else {
-                        navController.navigate("lessons/${courseId}/$userEmail")
+            // Confetti overlay
+            if (showConfetti) {
+                ConfettiOverlay(
+                    onComplete = {
+                        showConfetti = false
                     }
-                }
-            )
+                )
+            }
         }
     }
 }
-
-
-
-
 
 @Composable
 fun QuestionCard(
@@ -282,100 +458,176 @@ fun QuestionCard(
     onWordSelected: (String) -> Unit,
     onWordRemoved: (Int) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White, shape = RoundedCornerShape(16.dp))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Text(
-            text = question,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1B5E20)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // LEFT: Animated Image
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = "Human Figure",
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(12.dp))
+            Text(
+                text = question,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1B5E20),
+                textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.width(80.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // RIGHT: Romaji & Kana (centered vertically)
-            Column(
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.Start,
-                modifier = Modifier
-                    .height(80.dp)
-                    .padding(vertical = 4.dp)
+            // Image and Japanese text
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                elevation = CardDefaults.cardElevation(0.dp)
             ) {
-                Text(
-                    text = kana,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.Black
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = romaji,
-                    color = Color.Gray,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Selected words
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            mainAxisSpacing = 8.dp,
-            crossAxisSpacing = 8.dp
-        ) {
-            selectedWords.forEachIndexed { index, word ->
-                OutlinedButton(
-                    onClick = { onWordRemoved(index) },
-                    border = BorderStroke(1.dp, Color(0xFF2E7D32)),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFC8E6C9))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(word)
+                    // Image with border
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = "Question Image",
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // Japanese text
+                    Column(
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            text = kana,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                        
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        Text(
+                            text = romaji,
+                            fontSize = 16.sp,
+                            color = Color.Gray,
+                            fontStyle = FontStyle.Italic
+                        )
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        // Options
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            mainAxisSpacing = 8.dp,
-            crossAxisSpacing = 8.dp
-        ) {
-            options.forEach { option ->
-                val isSelected = selectedWords.contains(option)
-                OutlinedButton(
-                    onClick = { onWordSelected(option) },
-                    enabled = !isSelected,
-                    border = BorderStroke(1.dp, Color.LightGray),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (isSelected) Color.LightGray else Color.Transparent
-                    )
+            // Selected words section
+            Text(
+                text = "Câu trả lời của bạn",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.DarkGray,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 60.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+            ) {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    mainAxisSpacing = 8.dp,
+                    crossAxisSpacing = 8.dp
                 ) {
-                    Text(option)
+                    if (selectedWords.isEmpty()) {
+                        Text(
+                            text = "Chọn từ bên dưới để tạo câu trả lời",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            fontStyle = FontStyle.Italic,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        selectedWords.forEachIndexed { index, word ->
+                            OutlinedButton(
+                                onClick = { onWordRemoved(index) },
+                                border = BorderStroke(1.dp, Color(0xFF2E7D32)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color(0xFFE8F5E9)
+                                ),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text(
+                                    text = word,
+                                    color = Color(0xFF2E7D32)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Options section
+            Text(
+                text = "Chọn từ để tạo câu",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.DarkGray,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                mainAxisSpacing = 8.dp,
+                crossAxisSpacing = 8.dp
+            ) {
+                options.forEach { option ->
+                    val isSelected = selectedWords.contains(option)
+                    OutlinedButton(
+                        onClick = { onWordSelected(option) },
+                        enabled = !isSelected,
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (isSelected) Color.LightGray else Color(0xFF2E7D32)
+                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = if (isSelected) Color.LightGray else Color.White,
+                            disabledContainerColor = Color.LightGray
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Text(
+                            text = option,
+                            color = if (isSelected) Color.Gray else Color(0xFF2E7D32)
+                        )
+                    }
                 }
             }
         }
@@ -444,7 +696,7 @@ fun ConfettiOverlay(onComplete: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(250.dp) // ✅ chỉ phủ phần đầu, tránh che kết quả
+            .height(250.dp)
             .padding(top = 48.dp),
         contentAlignment = Alignment.TopCenter
     ) {
