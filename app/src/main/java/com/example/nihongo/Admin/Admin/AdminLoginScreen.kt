@@ -1,5 +1,6 @@
 package com.example.nihongo.Admin
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -7,8 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -20,16 +23,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.nihongo.Admin.viewmodel.AdminUserViewModel
 
 @Composable
 fun AdminLoginScreen(navController: NavController) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
-
+    var isLoading by remember { mutableStateOf(false) }
+    
+    val viewModel = remember { AdminUserViewModel() }
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -47,9 +55,10 @@ fun AdminLoginScreen(navController: NavController) {
                 username = it
                 message = ""
             },
-            label = { Text("Tài khoản Admin") },
+            label = { Text("Email Admin") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -63,24 +72,54 @@ fun AdminLoginScreen(navController: NavController) {
             label = { Text("Mật khẩu") },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
         Button(
             onClick = {
-                  navController.navigate("MainPage")
-//                if (username == "admin" && password == "admin123") {
-//                    navController.navigate("admin_home")
-//                } else {
-//                    message = "Sai tài khoản hoặc mật khẩu!"
-//                }
+                if (username.isBlank() && password.isBlank()) {
+                    // Cho phép vào nhưng không lưu session
+                    navController.navigate("MainPage") {
+                        popUpTo("admin_login") { inclusive = true }
+                    }
+                    return@Button
+                }
+
+                if (username.isBlank() || password.isBlank()) {
+                    message = "Vui lòng nhập đầy đủ thông tin!"
+                    return@Button
+                }
+                
+                isLoading = true
+                viewModel.checkLogin(username, password) { success ->
+                    isLoading = false
+                    if (success) {
+                        val sharedPref = context.getSharedPreferences("admin_session", Context.MODE_PRIVATE)
+                        sharedPref.edit().putBoolean("isLoggedIn", true).apply()
+
+                        navController.navigate("MainPage") {
+                            popUpTo("admin_login") { inclusive = true }
+                        }
+                    } else {
+                        message = "Sai email hoặc mật khẩu!"
+                    }
+                }
             },
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C))
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C)),
+            enabled = !isLoading
         ) {
-            Text("Đăng nhập")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.White
+                )
+            } else {
+                Text("Đăng nhập")
+            }
         }
 
         if (message.isNotEmpty()) {

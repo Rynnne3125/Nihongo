@@ -1,14 +1,18 @@
 package com.example.nihongo.User.ui.screens.login
 
+import android.content.Context
 import android.util.Patterns
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
@@ -22,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,11 +35,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.ImageLoader
+import coil.compose.rememberAsyncImagePainter
+import coil.request.CachePolicy
 import com.example.nihongo.User.data.repository.UserRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -48,7 +60,65 @@ fun LoginScreen(navController: NavController, userRepo: UserRepository) {
     fun isValidEmail(email: String): Boolean {
         return Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
+    //admin part
+    val context = LocalContext.current
 
+    // ImageLoader có bật caching
+    val imageLoader = remember {
+        ImageLoader.Builder(context)
+            .crossfade(true)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .build()
+    }
+
+    var isCheckingSession by remember { mutableStateOf(true) }
+
+    val isLoggedIn = remember {
+        val prefs = context.getSharedPreferences("admin_session", Context.MODE_PRIVATE)
+        prefs.getBoolean("isLoggedIn", false)
+    }
+
+    LaunchedEffect(Unit) {
+        delay(1000)
+        if (isLoggedIn) {
+            navController.navigate("MainPage") {
+                popUpTo("admin_login") { inclusive = true }
+            }
+        } else {
+            isCheckingSession = false
+        }
+    }
+
+    if (isCheckingSession) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Image(
+                    painter = rememberAsyncImagePainter(
+                        model = "https://drive.google.com/uc?export=download&id=1QiO2eVlHxojSL5QGsetoQUhBT5aO7Yvm",
+                        imageLoader = imageLoader
+                    ),
+                    contentDescription = "Logo",
+                    modifier = Modifier
+                        .width(200.dp)
+                        .height(200.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "NIHONGO",
+                    fontSize = 44.sp,
+                    color = Color(0xFF4CAF50), // Màu xanh lá cây
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        return
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()

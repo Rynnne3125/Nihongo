@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.example.nihongo.Admin.AdminLoginScreen
 import com.example.nihongo.Admin.ui.CoursePage
 import com.example.nihongo.Admin.ui.MainPage
+import com.example.nihongo.Admin.ui.VipRequestPage
 import com.example.nihongo.User.data.models.Exercise
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.ExerciseRepository
@@ -144,7 +145,7 @@ fun AppNavGraph(
         ) { backStackEntry ->
             val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
             val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
-            LessonsScreen(courseId, userEmail, navController, lessonRepo, courseRepo, userRepo)
+            LessonsScreen(courseId, userEmail, navController, courseRepo, lessonRepo, userRepo)
         }
 
         composable("exercise/{courseId}/{lessonId}/{sublessonId}/{user_email}",
@@ -175,9 +176,20 @@ fun AppNavGraph(
             val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
             QuizScreen(quizExercises, userEmail,courseId,lessonId, navController)
         }
-        composable("vocabulary/{user_email}") { backStackEntry ->
+        composable(
+            "vocabulary/{user_email}?tab={tab}",
+            arguments = listOf(
+                navArgument("user_email") { type = NavType.StringType },
+                navArgument("tab") { 
+                    type = NavType.StringType 
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
             val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
-            FlashcardScreen(navController, userEmail)
+            val tab = backStackEntry.arguments?.getString("tab")
+            FlashcardScreen(navController, userEmail, tab)
         }
 
         // Thêm route cho màn hình chat nhóm
@@ -252,8 +264,9 @@ fun AppNavGraph(
         composable("course_page") {
             CoursePage()
         }
-
-
+        composable("vipRequestPage") {
+            VipRequestPage(navController = navController)
+        }
         composable("admin_login") {
             AdminLoginScreen(navController)
         }

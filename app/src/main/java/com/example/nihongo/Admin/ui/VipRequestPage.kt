@@ -77,6 +77,20 @@ fun VipRequestPage(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
+    // Thêm log để kiểm tra dữ liệu
+    LaunchedEffect(Unit) {
+        Log.d("VipRequestPage", "LaunchedEffect triggered, reloading data")
+        viewModel.loadVipRequests()
+    }
+    
+    // Log khi dữ liệu thay đổi
+    LaunchedEffect(vipRequests) {
+        Log.d("VipRequestPage", "Received ${vipRequests.size} VIP requests in UI")
+        vipRequests.forEach { request ->
+            Log.d("VipRequestPage", "Request: $request")
+        }
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     var showRejectDialog by remember { mutableStateOf(false) }
     var selectedRequestId by remember { mutableStateOf("") }
@@ -102,7 +116,10 @@ fun VipRequestPage(
                     titleContentColor = NihongoTheme.textDark
                 ),
                 actions = {
-                    IconButton(onClick = { viewModel.loadVipRequests() }) {
+                    // Thêm nút kiểm tra
+                    IconButton(onClick = { 
+                        viewModel.loadVipRequests()
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Làm mới",
@@ -440,6 +457,9 @@ fun PaymentDetailRow(
         )
     }
 }
+
+
+
 
 
 

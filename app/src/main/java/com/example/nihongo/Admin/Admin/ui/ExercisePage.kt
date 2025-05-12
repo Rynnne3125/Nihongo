@@ -3,7 +3,10 @@ package com.example.nihongo.Admin.ui
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -49,6 +52,12 @@ import com.google.android.exoplayer2.ui.PlayerView
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.example.nihongo.Admin.utils.CatboxUploader
+import com.example.nihongo.Admin.utils.ImgurUploader
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -468,23 +477,87 @@ fun ExerciseItem(
             }
 
             // Explanation if available
-            exercise.explanation?.let {
-                if (it.isNotEmpty()) {
-                    Text(
-                        text = "Explanation:",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.DarkGray
-                    )
-                    Text(
-                        text = it,
-                        fontSize = 14.sp,
-                        color = Color.DarkGray
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+            if(exercise.type == ExerciseType.VIDEO) {
+                exercise.explanation?.let { rawExplanation ->
+                    if (rawExplanation.isNotEmpty()) {
+                        val explanationItems = parseExplanation(rawExplanation)
+                        val expandedCardIndex = remember { mutableStateOf(-1) }
+
+                        Column {
+                            Text(
+                                text = "Explanation:",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.DarkGray
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            explanationItems.forEachIndexed { index, (title, content) ->
+                                val isExpanded = expandedCardIndex.value == index
+
+                                Card(
+                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp)
+                                        .animateContentSize { initialValue, targetValue -> }
+                                        .clickable {
+                                            expandedCardIndex.value = if (isExpanded) -1 else index
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Color(0xFFF1EBF5)
+                                    )
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text(
+                                            text = title,
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF1E293B)
+                                            )
+                                        )
+
+                                        AnimatedVisibility(visible = isExpanded) {
+                                            Column(modifier = Modifier.padding(top = 12.dp)) {
+                                                Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                                                Spacer(modifier = Modifier.height(12.dp))
+
+                                                Text(
+                                                    text = content,
+                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                        lineHeight = 20.sp,
+                                                        color = Color(0xFF334155)
+                                                    )
+                                                )
+
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-
+            else {
+                exercise.explanation?.let {
+                    if (it.isNotEmpty()) {
+                        Text(
+                            text = "Explanation:",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.DarkGray
+                        )
+                        Text(
+                            text = it,
+                            fontSize = 14.sp,
+                            color = Color.DarkGray
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+            }
             // Actions
             Row(
                 modifier = Modifier
@@ -510,6 +583,695 @@ fun ExerciseItem(
         }
     }
 }
+fun parseExplanation(raw: String): List<Pair<String, String>> {
+    val parts = raw.split("➤").filter { it.isNotBlank() }
+    val result = mutableListOf<Pair<String, String>>()
+
+    var i = 0
+    while (i < parts.size - 1) {
+        val title = parts[i].trim()
+        val content = parts[i + 1].trim()
+        result.add(title to content)
+        i += 2
+    }
+
+    return result
+}
+
+// ==== THEME SELECTION ====
+enum class DialogTheme(val primary: Color, val secondary: Color, val error: Color) {
+    GREEN(Color(0xFF388E3C), Color(0xFF81C784), Color(0xFFD32F2F)),
+    BLUE(Color(0xFF1976D2), Color(0xFF64B5F6), Color(0xFFD32F2F)),
+    RED(Color(0xFFD32F2F), Color(0xFFEF9A9A), Color(0xFFD32F2F))
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExerciseDialog(
+    exercise: Exercise,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (Exercise) -> Unit
+) {
+
+    var selectedTheme by remember { mutableStateOf(DialogTheme.BLUE) }
+    val colorScheme = lightColorScheme(
+        primary = selectedTheme.primary,
+        secondary = selectedTheme.secondary,
+        error = selectedTheme.error
+    )
+
+    // ==== STATE ====
+    var title by remember { mutableStateOf(exercise.title ?: "") }
+    var videoUrl by remember { mutableStateOf(exercise.videoUrl ?: "") }
+    var videoQuestion by remember { mutableStateOf(exercise.question ?: "") }
+    var explanation by remember { mutableStateOf(exercise.explanation ?: "") }
+    var practiceQuestion by remember { mutableStateOf(exercise.question ?: "") }
+    var practiceAnswer by remember { mutableStateOf(exercise.answer ?: "") }
+    var optionsList = remember { exercise.options?.toMutableList() ?: mutableListOf<String>() }
+    var optionsState by remember { mutableStateOf(optionsList) }
+    var romanji by remember { mutableStateOf(exercise.romanji ?: "") }
+    var kana by remember { mutableStateOf(exercise.kana ?: "") }
+    var audioUrl by remember { mutableStateOf(exercise.audioUrl ?: "") }
+    var imageUrl by remember { mutableStateOf(exercise.imageUrl ?: "") }
+    var type by remember { mutableStateOf(exercise.type ?: ExerciseType.PRACTICE) }
+    var showVideoPreview by remember { mutableStateOf(false) }
+    var showAudioPreview by remember { mutableStateOf(false) }
+    val defaultImages = listOf(
+        "https://img.freepik.com/premium-vector/man-wearing-hakama-with-crest-thinking-while-scratching-his-face_180401-12331.jpg",
+        "https://thumb.ac-illust.com/95/95d92d1467ccf189f05af2b503a3e5a0_t.jpeg",
+        "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh"
+    )
+    var imageInputType by remember { mutableStateOf(0) } // 0: Default, 1: URL, 2: Upload
+    var selectedDefaultImageIndex by remember { mutableStateOf(defaultImages.indexOf(exercise.imageUrl).takeIf { it >= 0 } ?: 0) }
+    var imageFile: File? by remember { mutableStateOf(null) }
+    var videoInputType by remember { mutableStateOf(0) } // 0: URL, 1: Upload
+    var videoFile: File? by remember { mutableStateOf(null) }
+    var newOption by remember { mutableStateOf("") }
+    var hasChanges by remember { mutableStateOf(isNew) }
+    val isVideoType = type == ExerciseType.VIDEO
+    val isPracticeType = type == ExerciseType.PRACTICE
+    val isSaveEnabled = hasChanges && when (type) {
+        ExerciseType.VIDEO -> (videoInputType == 0 && videoUrl.isNotBlank() || videoInputType == 1 && videoFile != null) && title.isNotBlank()
+        ExerciseType.PRACTICE -> practiceQuestion.isNotBlank() && practiceAnswer.isNotBlank()
+        else -> false
+    }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isUploading by remember { mutableStateOf(false) }
+
+    // Add these state variables in ExerciseDialog
+    var topics by remember { mutableStateOf(listOf<Pair<String, String>>()) }
+    var audioInputType by remember { mutableStateOf(0) } // 0: URL, 1: Upload
+    var audioFile: File? by remember { mutableStateOf(null) }
+
+    // Initialize topics from explanation if it exists
+    LaunchedEffect(exercise.explanation) {
+        if (exercise.type == ExerciseType.VIDEO && exercise.explanation != null) {
+            topics = parseExplanation(exercise.explanation)
+        }
+    }
+
+    Log.d("debugExplanation:", explanation)
+
+    MaterialTheme(colorScheme = colorScheme) {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true,
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .fillMaxHeight(0.9f),
+                shape = RoundedCornerShape(16.dp),
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    // ==== THEME SELECTOR ====
+//                    Row(
+//                        modifier = Modifier.fillMaxWidth(),
+//                        horizontalArrangement = Arrangement.Center
+//                    ) {
+//                        DialogTheme.values().forEach { theme ->
+//                            Button(
+//                                onClick = { selectedTheme = theme },
+//                                colors = ButtonDefaults.buttonColors(
+//                                    containerColor = theme.primary,
+//                                    contentColor = Color.White
+//                                ),
+//                                modifier = Modifier.padding(horizontal = 4.dp)
+//                            ) {
+//                                Text(theme.name)
+//                            }
+//                        }
+//                    }
+                    Spacer(Modifier.height(8.dp))
+
+                    // ==== HEADER ====
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isNew) "Add New Exercise" else "Edit Exercise",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close"
+                            )
+                        }
+                    }
+
+                    // ==== TYPE SELECTOR ====
+                    if (isNew) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ExerciseType.values()
+                                .filter { it == ExerciseType.PRACTICE || it == ExerciseType.VIDEO }
+                                .forEach { exerciseType ->
+                                    FilterChip(
+                                        selected = type == exerciseType,
+                                        onClick = {
+                                            type = exerciseType
+                                            hasChanges = true
+                                        },
+                                        label = {
+                                            Text(
+                                                text = when (exerciseType) {
+                                                    ExerciseType.PRACTICE -> "Practice"
+                                                    ExerciseType.VIDEO -> "Video"
+                                                    else -> exerciseType.name
+                                                }
+                                            )
+                                        }
+                                    )
+                                }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    } else {
+                        Text(
+                            text = "Type: ${type.name}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = selectedTheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    // ==== MAIN CONTENT ====
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        if (isVideoType) {
+                            item {
+                                OutlinedTextField(
+                                    value = title,
+                                    onValueChange = { title = it; hasChanges = true },
+                                    label = { Text("Title *") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    isError = title.isBlank(),
+                                    supportingText = { if (title.isBlank()) Text("Title is required") }
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = videoQuestion,
+                                    onValueChange = { videoQuestion = it; hasChanges = true },
+                                    label = { Text("Question (Optional)") },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                // ==== VIDEO INPUT ====
+                                TabRow(selectedTabIndex = videoInputType) {
+                                    Tab(selected = videoInputType == 0, onClick = { videoInputType = 0 }, text = { Text("URL") })
+                                    Tab(selected = videoInputType == 1, onClick = { videoInputType = 1 }, text = { Text("Upload") })
+                                }
+                                if (videoInputType == 0) {
+                                    OutlinedTextField(
+                                        value = videoUrl,
+                                        onValueChange = { videoUrl = it; hasChanges = true },
+                                        label = { Text("Video URL *") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        isError = videoUrl.isBlank(),
+                                        trailingIcon = {
+                                            IconButton(onClick = { showVideoPreview = !showVideoPreview }) {
+                                                Icon(
+                                                    imageVector = if (showVideoPreview) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                    contentDescription = if (showVideoPreview) "Hide preview" else "Show preview"
+                                                )
+                                            }
+                                        }
+                                    )
+                                    AnimatedVisibility(
+                                        visible = showVideoPreview && videoUrl.isNotBlank(),
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
+                                        if (videoUrl.isNotBlank()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(200.dp)
+                                                    .padding(top = 8.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                            ) {
+                                                VideoPlayer(videoUrl)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    val context = LocalContext.current
+
+                                    val launcher = rememberLauncherForActivityResult(
+                                        ActivityResultContracts.GetContent()) { uri: Uri? ->
+                                        if (uri != null) {
+                                            try {
+                                                // Convert Uri to File
+                                                val inputStream = context.contentResolver.openInputStream(uri)
+                                                val file = File(context.cacheDir, "video.mp4")
+                                                file.outputStream().use { outputStream ->
+                                                    inputStream?.copyTo(outputStream)
+                                                }
+
+                                                videoFile = file
+
+
+                                            } catch (e: Exception) {
+                                                Log.e("FileConversion", "Error: ${e.message}")
+                                            }
+                                        }
+                                    }
+                                    Button(
+                                        onClick = {
+                                            launcher.launch("video/*")
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) { Text(if (videoFile == null) "Upload video from device" else "Uploaded: ${videoFile?.name}") }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text("Topics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.height(8.dp))
+                                    
+                                    topics.forEachIndexed { index, (title, content) ->
+                                        var isExpanded by remember { mutableStateOf(false) }
+                                        
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Column(modifier = Modifier.padding(8.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    OutlinedTextField(
+                                                        value = title,
+                                                        onValueChange = { newTitle ->
+                                                            topics = topics.toMutableList().apply {
+                                                                this[index] = newTitle to content
+                                                            }
+                                                            hasChanges = true
+                                                        },
+                                                        label = { Text("Topic Title") },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    IconButton(onClick = { isExpanded = !isExpanded }) {
+                                                        Icon(
+                                                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                                            contentDescription = if (isExpanded) "Collapse" else "Expand"
+                                                        )
+                                                    }
+                                                    IconButton(
+                                                        onClick = {
+                                                            topics = topics.toMutableList().apply { removeAt(index) }
+                                                            hasChanges = true
+                                                        }
+                                                    ) {
+                                                        Icon(Icons.Default.Delete, contentDescription = "Delete topic")
+                                                    }
+                                                }
+                                                
+                                                AnimatedVisibility(visible = isExpanded) {
+                                                    OutlinedTextField(
+                                                        value = content,
+                                                        onValueChange = { newContent ->
+                                                            topics = topics.toMutableList().apply {
+                                                                this[index] = title to newContent
+                                                            }
+                                                            hasChanges = true
+                                                        },
+                                                        label = { Text("Topic Content") },
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        minLines = 3
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    Button(
+                                        onClick = {
+                                            topics = topics + ("" to "")
+                                            hasChanges = true
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Add Topic")
+                                    }
+                                }
+                            }
+                        }
+                        if (isPracticeType) {
+                            item {
+                                OutlinedTextField(
+                                    value = practiceQuestion,
+                                    onValueChange = { practiceQuestion = it; hasChanges = true },
+                                    label = { Text("Question *") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    isError = practiceQuestion.isBlank(),
+                                    supportingText = { if (practiceQuestion.isBlank()) Text("Question is required") }
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = romanji,
+                                        onValueChange = { romanji = it; hasChanges = true },
+                                        label = { Text("Romanji") },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedTextField(
+                                        value = kana,
+                                        onValueChange = { kana = it; hasChanges = true },
+                                        label = { Text("Kana") },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                // ==== OPTIONS ====
+                                Text("Multiple Choice Options", fontWeight = FontWeight.Bold)
+                                optionsList.forEachIndexed { index, option ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = option == practiceAnswer,
+                                            onCheckedChange = { isChecked ->
+                                                if (isChecked) {
+                                                    practiceAnswer = option
+                                                    hasChanges = true
+                                                }
+                                            }
+                                        )
+                                        Text(option, modifier = Modifier.weight(1f))
+                                        IconButton(
+                                            onClick = {
+                                                optionsList.removeAt(index)
+                                                optionsState = ArrayList(optionsList)
+                                                hasChanges = true
+                                            }
+                                        ) {
+                                            Icon(Icons.Default.Delete, contentDescription = "Remove", tint = colorScheme.error)
+                                        }
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    OutlinedTextField(
+                                        value = newOption,
+                                        onValueChange = { newOption = it },
+                                        label = { Text("New Option") },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            if (newOption.isNotBlank()) {
+                                                optionsList.add(newOption)
+                                                optionsState = ArrayList(optionsList)
+                                                newOption = ""
+                                                hasChanges = true
+                                            }
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add")
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                // ==== IMAGE INPUT ====
+                                Text("Exercise Image", fontWeight = FontWeight.Bold)
+                                TabRow(selectedTabIndex = imageInputType) {
+                                    Tab(selected = imageInputType == 0, onClick = { imageInputType = 0 }, text = { Text("Default") })
+                                    Tab(selected = imageInputType == 1, onClick = { imageInputType = 1 }, text = { Text("URL") })
+                                    Tab(selected = imageInputType == 2, onClick = { imageInputType = 2 }, text = { Text("Upload") })
+                                }
+                                when (imageInputType) {
+                                    0 -> LazyRow(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(100.dp)
+                                            .padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        itemsIndexed(defaultImages) { idx, url ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(90.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .border(
+                                                        width = 2.dp,
+                                                        color = if (selectedDefaultImageIndex == idx) colorScheme.primary else Color.Transparent,
+                                                        shape = RoundedCornerShape(8.dp)
+                                                    )
+                                                    .clickable {
+                                                        selectedDefaultImageIndex = idx
+                                                        imageUrl = url
+                                                        hasChanges = true
+                                                    }
+                                            ) {
+                                                AsyncImage(
+                                                    model = url,
+                                                    contentDescription = "Default image ${idx + 1}",
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                        }
+                                    }
+                                    1 -> OutlinedTextField(
+                                        value = imageUrl,
+                                        onValueChange = { imageUrl = it; hasChanges = true },
+                                        label = { Text("Image URL") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+                                    2 ->{
+                                        val context = LocalContext.current
+
+                                        // File picker launcher
+                                        val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+                                            if (uri != null) {
+                                                try {
+                                                    // Convert Uri to File
+                                                    val inputStream = context.contentResolver.openInputStream(uri)
+                                                    val file = File(context.cacheDir, "temp_image.jpg")
+                                                    file.outputStream().use { outputStream ->
+                                                        inputStream?.copyTo(outputStream)
+                                                    }
+
+                                                    // Gán imageFile
+                                                    imageFile = file
+
+
+                                                } catch (e: Exception) {
+                                                    Log.e("ImageUploader", "File conversion error: ${e.message}")
+                                                }
+                                            }
+                                        }
+                                            Button(
+                                            onClick = {
+                                                launcher.launch("image/*")
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) { Text(if (imageFile == null) "Upload image from device" else "Uploaded: ${imageFile?.name}") }
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                // ==== AUDIO ====
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text("Audio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.height(8.dp))
+                                    
+                                    TabRow(selectedTabIndex = audioInputType) {
+                                        Tab(selected = audioInputType == 0, onClick = { audioInputType = 0 }, text = { Text("URL") })
+                                        Tab(selected = audioInputType == 1, onClick = { audioInputType = 1 }, text = { Text("Upload") })
+                                    }
+                                    
+                                    when (audioInputType) {
+                                        0 -> OutlinedTextField(
+                                            value = audioUrl,
+                                            onValueChange = { audioUrl = it; hasChanges = true },
+                                            label = { Text("Audio URL") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            trailingIcon = {
+                                                IconButton(onClick = { showAudioPreview = !showAudioPreview }) {
+                                                    Icon(
+                                                        imageVector = if (showAudioPreview) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                        contentDescription = if (showAudioPreview) "Hide preview" else "Show preview"
+                                                    )
+                                                }
+                                            }
+                                        )
+                                        1 -> {
+                                            val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+                                                if (uri != null) {
+                                                    try {
+                                                        val inputStream = context.contentResolver.openInputStream(uri)
+                                                        val file = File(context.cacheDir, "audio.mp3")
+                                                        file.outputStream().use { outputStream ->
+                                                            inputStream?.copyTo(outputStream)
+                                                        }
+                                                        audioFile = file
+                                                    } catch (e: Exception) {
+                                                        Log.e("AudioUploader", "File conversion error: ${e.message}")
+                                                    }
+                                                }
+                                            }
+                                            Button(
+                                                onClick = { launcher.launch("audio/*") },
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) { 
+                                                Text(if (audioFile == null) "Upload audio from device" else "Uploaded: ${audioFile?.name}") 
+                                            }
+                                        }
+                                    }
+                                    
+                                    AnimatedVisibility(
+                                        visible = showAudioPreview && audioUrl.isNotBlank(),
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
+                                        if (audioUrl.isNotBlank()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 8.dp)
+                                            ) {
+                                                AudioPlayer(audioUrl)
+                                            }
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                // ==== EXPLANATION ====
+                                OutlinedTextField(
+                                    value = explanation,
+                                    onValueChange = { explanation = it; hasChanges = true },
+                                    label = { Text("Explanation") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    minLines = 3
+                                )
+                            }
+                        }
+                    }
+
+                    // ==== ACTION BUTTONS ====
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Cancel") }
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    isUploading = true
+                                    var finalImageUrl = imageUrl
+                                    var finalVideoUrl = videoUrl
+                                    var finalAudioUrl = audioUrl
+                                    
+                                    // IMAGE UPLOAD
+                                    if (isPracticeType && imageInputType == 2 && imageFile != null) {
+                                        val uploader = ImgurUploader()
+                                        finalImageUrl = uploader.uploadImage(imageFile!!) ?: ""
+                                    }
+                                    
+                                    // VIDEO UPLOAD
+                                    if (isVideoType && videoInputType == 1 && videoFile != null) {
+                                        finalVideoUrl = CatboxUploader.uploadVideo(videoFile!!) ?: ""
+                                    }
+                                    
+                                    // AUDIO UPLOAD
+                                    if (isPracticeType && audioInputType == 1 && audioFile != null) {
+                                        finalAudioUrl = CatboxUploader.uploadVideo(audioFile!!) ?: ""
+                                    }
+                                    
+                                    // Format explanation based on type
+                                    val finalExplanation = when (type) {
+                                        ExerciseType.VIDEO -> topics.joinToString("➤") { (title, content) ->
+                                            "$title➤$content"
+                                        }
+                                        ExerciseType.PRACTICE -> explanation
+                                        else -> null
+                                    }
+                                    
+                                    val updatedExercise = when (type) {
+                                        ExerciseType.VIDEO -> exercise.copy(
+                                            type = ExerciseType.VIDEO,
+                                            title = title,
+                                            videoUrl = finalVideoUrl,
+                                            question = videoQuestion,
+                                            explanation = finalExplanation,
+                                            answer = null,
+                                            options = null,
+                                            romanji = null,
+                                            kana = null,
+                                            audioUrl = null,
+                                            imageUrl = null
+                                        )
+                                        ExerciseType.PRACTICE -> exercise.copy(
+                                            type = ExerciseType.PRACTICE,
+                                            question = practiceQuestion,
+                                            answer = practiceAnswer,
+                                            options = optionsList,
+                                            romanji = romanji.ifBlank { null },
+                                            kana = kana.ifBlank { null },
+                                            audioUrl = finalAudioUrl.ifBlank { null },
+                                            imageUrl = finalImageUrl.ifBlank { null },
+                                            title = null,
+                                            videoUrl = null,
+                                            explanation = finalExplanation
+                                        )
+                                        else -> exercise
+                                    }
+                                    isUploading = false
+                                    onSave(updatedExercise)
+                                }
+                            },
+                            enabled = isSaveEnabled && !isUploading,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isUploading) CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            else Text("Save")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 fun VideoPlayer(url: String) {
@@ -645,751 +1407,4 @@ fun formatDuration(durationMs: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format("%02d:%02d", minutes, seconds)
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ExerciseDialog(
-    exercise: Exercise,
-    isNew: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (Exercise) -> Unit
-) {
-    // State for VIDEO type fields
-    var title by remember { mutableStateOf(exercise.title ?: "") }
-    var videoUrl by remember { mutableStateOf(exercise.videoUrl ?: "") }
-    var videoQuestion by remember { mutableStateOf(exercise.question ?: "") }
-    var explanation by remember { mutableStateOf(exercise.explanation ?: "") }
-
-    // State for PRACTICE type fields
-    var practiceQuestion by remember { mutableStateOf(exercise.question ?: "") }
-    var practiceAnswer by remember { mutableStateOf(exercise.answer ?: "") }
-    var optionsList = remember { exercise.options?.toMutableList() ?: mutableListOf<String>() }
-    var optionsState by remember { mutableStateOf(optionsList) } // For triggering recomposition
-    var romanji by remember { mutableStateOf(exercise.romanji ?: "") }
-    var kana by remember { mutableStateOf(exercise.kana ?: "") }
-    var audioUrl by remember { mutableStateOf(exercise.audioUrl ?: "") }
-    var imageUrl by remember { mutableStateOf(exercise.imageUrl ?: "") }
-
-    // Exercise type selection
-    var type by remember { mutableStateOf(exercise.type ?: ExerciseType.PRACTICE) }
-
-    // Preview states
-    var showVideoPreview by remember { mutableStateOf(false) }
-    var showAudioPreview by remember { mutableStateOf(false) }
-    // Selected default image index
-    val defaultImages = listOf(
-        "https://img.freepik.com/premium-vector/man-wearing-hakama-with-crest-thinking-while-scratching-his-face_180401-12331.jpg",
-        "https://thumb.ac-illust.com/95/95d92d1467ccf189f05af2b503a3e5a0_t.jpeg",
-        "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh"
-    )
-    // Image selection mode
-    var useDefaultImage by remember { mutableStateOf(exercise.imageUrl?.let { url ->
-        defaultImages.contains(url)
-    } ?: false) }
-
-
-
-    var selectedDefaultImageIndex by remember {
-        mutableStateOf(
-            if (useDefaultImage) defaultImages.indexOf(exercise.imageUrl).takeIf { it >= 0 } ?: 0 else 0
-        )
-    }
-
-    // Option being edited
-    var newOption by remember { mutableStateOf("") }
-
-    // Track if any field has changed
-    var hasChanges by remember { mutableStateOf(isNew) }
-
-    // Show different fields based on exercise type
-    val isVideoType = type == ExerciseType.VIDEO
-    val isPracticeType = type == ExerciseType.PRACTICE
-
-    // Validate fields based on type
-    val isSaveEnabled = hasChanges && when (type) {
-        ExerciseType.VIDEO -> videoUrl.isNotBlank() && title.isNotBlank()
-        ExerciseType.PRACTICE -> practiceQuestion.isNotBlank() && practiceAnswer.isNotBlank()
-        else -> false
-    }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true,
-            usePlatformDefaultWidth = false
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.9f),
-            shape = RoundedCornerShape(16.dp),
-            tonalElevation = 6.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isNew) "Add New Exercise" else "Edit Exercise",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close"
-                        )
-                    }
-                }
-
-                // Exercise Type Selector
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            text = "Exercise Type",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ExerciseType.values()
-                                .filter { it == ExerciseType.PRACTICE || it == ExerciseType.VIDEO }
-                                .forEach { exerciseType ->
-                                    FilterChip(
-                                        selected = type == exerciseType,
-                                        onClick = {
-                                            type = exerciseType
-                                            hasChanges = true
-                                        },
-                                        label = {
-                                            Text(
-                                                text = when(exerciseType) {
-                                                    ExerciseType.PRACTICE -> "Practice"
-                                                    ExerciseType.VIDEO -> "Video"
-                                                    else -> exerciseType.name
-                                                }
-                                            )
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = when(exerciseType) {
-                                                    ExerciseType.PRACTICE -> Icons.Default.Assignment
-                                                    ExerciseType.VIDEO -> Icons.Default.VideoLibrary
-                                                    else -> Icons.Default.Check
-                                                },
-                                                contentDescription = null,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    )
-                                }
-                        }
-                    }
-                }
-
-                // Main content scrollable area
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    // VIDEO TYPE FIELDS
-                    if (isVideoType) {
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
-                                ) {
-                                    // Title (required for VIDEO)
-                                    OutlinedTextField(
-                                        value = title,
-                                        onValueChange = {
-                                            title = it
-                                            hasChanges = true
-                                        },
-                                        label = { Text("Title *") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        isError = title.isBlank(),
-                                        supportingText = {
-                                            if (title.isBlank()) {
-                                                Text("Title is required for video exercises")
-                                            }
-                                        }
-                                    )
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Question (optional for VIDEO)
-                                    OutlinedTextField(
-                                        value = videoQuestion,
-                                        onValueChange = {
-                                            videoQuestion = it
-                                            hasChanges = true
-                                        },
-                                        label = { Text("Question (Optional)") },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            }
-                        }
-
-                        // Video URL with preview
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
-                                ) {
-                                    Text(
-                                        text = "Video Content",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    OutlinedTextField(
-                                        value = videoUrl,
-                                        onValueChange = {
-                                            videoUrl = it
-                                            hasChanges = true
-                                        },
-                                        label = { Text("Video URL *") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        isError = videoUrl.isBlank(),
-                                        supportingText = {
-                                            if (videoUrl.isBlank()) {
-                                                Text("Video URL is required")
-                                            }
-                                        },
-                                        trailingIcon = {
-                                            IconButton(onClick = { showVideoPreview = !showVideoPreview }) {
-                                                Icon(
-                                                    imageVector = if (showVideoPreview) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                    contentDescription = if (showVideoPreview) "Hide preview" else "Show preview"
-                                                )
-                                            }
-                                        }
-                                    )
-
-                                    AnimatedVisibility(
-                                        visible = showVideoPreview && videoUrl.isNotBlank(),
-                                        enter = expandVertically() + fadeIn(),
-                                        exit = shrinkVertically() + fadeOut()
-                                    ) {
-                                        if (videoUrl.isNotBlank()) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(200.dp)
-                                                    .padding(top = 16.dp)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                            ) {
-                                                VideoPlayer(videoUrl)
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    OutlinedTextField(
-                                        value = explanation,
-                                        onValueChange = {
-                                            explanation = it
-                                            hasChanges = true
-                                        },
-                                        label = { Text("Explanation") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        minLines = 3
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // PRACTICE TYPE FIELDS
-                    if (isPracticeType) {
-                        // Basic info
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
-                                ) {
-                                    OutlinedTextField(
-                                        value = practiceQuestion,
-                                        onValueChange = {
-                                            practiceQuestion = it
-                                            hasChanges = true
-                                        },
-                                        label = { Text("Question *") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        isError = practiceQuestion.isBlank(),
-                                        supportingText = {
-                                            if (practiceQuestion.isBlank()) {
-                                                Text("Question is required")
-                                            }
-                                        }
-                                    )
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-//                                    OutlinedTextField(
-//                                        value = practiceAnswer,
-//                                        onValueChange = {
-//                                            practiceAnswer = it
-//                                            hasChanges = true
-//                                        },
-//                                        label = { Text("Answer *") },
-//                                        modifier = Modifier.fillMaxWidth(),
-//                                        isError = practiceAnswer.isBlank(),
-//                                        supportingText = {
-//                                            if (practiceAnswer.isBlank()) {
-//                                                Text("Answer is required")
-//                                            }
-//                                        }
-//                                    )
-                                }
-                            }
-                        }
-
-                        // Japanese content
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
-                                ) {
-                                    Text(
-                                        text = "Japanese Content",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        OutlinedTextField(
-                                            value = romanji,
-                                            onValueChange = {
-                                                romanji = it
-                                                hasChanges = true
-                                            },
-                                            label = { Text("Romanji") },
-                                            modifier = Modifier.weight(1f)
-                                        )
-
-                                        OutlinedTextField(
-                                            value = kana,
-                                            onValueChange = {
-                                                kana = it
-                                                hasChanges = true
-                                            },
-                                            label = { Text("Kana") },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Multiple choice options with checkboxes
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
-                                ) {
-                                    Text(
-                                        text = "Multiple Choice Options",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Text(
-                                        text = "Add options and check the correct answer",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    // Display existing options with checkboxes
-                                    optionsList.forEachIndexed { index, option ->
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Checkbox(
-                                                checked = option == practiceAnswer,
-                                                onCheckedChange = { isChecked ->
-                                                    if (isChecked) {
-                                                        practiceAnswer = option
-                                                        hasChanges = true
-                                                    }
-                                                }
-                                            )
-
-                                            Text(
-                                                text = option,
-                                                modifier = Modifier.weight(1f),
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-
-                                            IconButton(
-                                                onClick = {
-                                                    optionsList.removeAt(index)
-                                                    optionsState = ArrayList(optionsList) // Create new list reference to trigger recomposition
-                                                    hasChanges = true
-                                                }
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Delete,
-                                                    contentDescription = "Remove option",
-                                                    tint = MaterialTheme.colorScheme.error
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    // Add new option
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        OutlinedTextField(
-                                            value = newOption,
-                                            onValueChange = { newOption = it },
-                                            label = { Text("New Option") },
-                                            modifier = Modifier.weight(1f),
-                                            singleLine = true
-                                        )
-
-                                        IconButton(
-                                            onClick = {
-                                                if (newOption.isNotBlank()) {
-                                                    optionsList.add(newOption)
-                                                    optionsState = ArrayList(optionsList) // Create new list reference to trigger recomposition
-                                                    newOption = ""
-                                                    hasChanges = true
-                                                }
-                                            },
-                                            modifier = Modifier.padding(start = 8.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Add,
-                                                contentDescription = "Add option"
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Media content with improved image selection
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
-                                ) {
-                                    Text(
-                                        text = "Media Content",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Image selection - TabRow for selection mode
-                                    Text(
-                                        text = "Exercise Image",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-
-                                    TabRow(
-                                        selectedTabIndex = if (useDefaultImage) 1 else 0,
-                                        modifier = Modifier
-                                            .padding(vertical = 8.dp)
-                                    ) {
-                                        Tab(
-                                            selected = !useDefaultImage,
-                                            onClick = {
-                                                useDefaultImage = false
-                                                hasChanges = true
-                                            },
-                                            text = { Text("Custom URL") }
-                                        )
-                                        Tab(
-                                            selected = useDefaultImage,
-                                            onClick = {
-                                                useDefaultImage = true
-                                                imageUrl = defaultImages[selectedDefaultImageIndex]
-                                                hasChanges = true
-                                            },
-                                            text = { Text("Default Images") }
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    // Show different content based on tab selection
-                                    if (!useDefaultImage) {
-                                        OutlinedTextField(
-                                            value = imageUrl,
-                                            onValueChange = {
-                                                imageUrl = it
-                                                hasChanges = true
-                                            },
-                                            label = { Text("Custom Image URL") },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            singleLine = true
-                                        )
-                                    } else {
-                                        LazyRow(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(120.dp)
-                                                .padding(vertical = 8.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            itemsIndexed(defaultImages) { index, defaultImage ->
-                                                Column(
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(90.dp)
-                                                            .clip(RoundedCornerShape(8.dp))
-                                                            .border(
-                                                                width = 2.dp,
-                                                                color = if (selectedDefaultImageIndex == index)
-                                                                    MaterialTheme.colorScheme.primary
-                                                                else
-                                                                    Color.Transparent,
-                                                                shape = RoundedCornerShape(8.dp)
-                                                            )
-                                                            .clickable {
-                                                                selectedDefaultImageIndex = index
-                                                                imageUrl = defaultImage
-                                                                hasChanges = true
-                                                            }
-                                                    ) {
-                                                        AsyncImage(
-                                                            model = defaultImage,
-                                                            contentDescription = "Default image ${index + 1}",
-                                                            contentScale = ContentScale.Crop,
-                                                            modifier = Modifier.fillMaxSize()
-                                                        )
-
-                                                        if (selectedDefaultImageIndex == index) {
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .fillMaxSize()
-                                                                    .background(Color(0x66000000)),
-                                                                contentAlignment = Alignment.Center
-                                                            ) {
-                                                                Icon(
-                                                                    imageVector = Icons.Default.CheckCircle,
-                                                                    contentDescription = "Selected",
-                                                                    tint = MaterialTheme.colorScheme.primary,
-                                                                    modifier = Modifier.size(32.dp)
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-
-                                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                                    Text(
-                                                        text = "Image ${index + 1}",
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Audio URL with preview
-                                    OutlinedTextField(
-                                        value = audioUrl,
-                                        onValueChange = {
-                                            audioUrl = it
-                                            hasChanges = true
-                                        },
-                                        label = { Text("Audio URL") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        trailingIcon = {
-                                            IconButton(onClick = { showAudioPreview = !showAudioPreview }) {
-                                                Icon(
-                                                    imageVector = if (showAudioPreview) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                    contentDescription = if (showAudioPreview) "Hide preview" else "Show preview"
-                                                )
-                                            }
-                                        }
-                                    )
-
-                                    AnimatedVisibility(
-                                        visible = showAudioPreview && audioUrl.isNotBlank(),
-                                        enter = expandVertically() + fadeIn(),
-                                        exit = shrinkVertically() + fadeOut()
-                                    ) {
-                                        if (audioUrl.isNotBlank()) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(top = 16.dp)
-                                            ) {
-                                                AudioPlayer(audioUrl)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Action buttons
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cancel")
-                    }
-
-                    Button(
-                        onClick = {
-                            // Create updated exercise object based on the current type
-                            val updatedExercise = when (type) {
-                                ExerciseType.VIDEO -> exercise.copy(
-                                    type = ExerciseType.VIDEO,
-                                    title = title,
-                                    videoUrl = videoUrl,
-                                    question = videoQuestion,
-                                    explanation = explanation,
-                                    // Reset PRACTICE specific fields
-                                    answer = null,
-                                    options = null,
-                                    romanji = null,
-                                    kana = null,
-                                    audioUrl = null,
-                                    imageUrl = null
-                                )
-                                ExerciseType.PRACTICE -> exercise.copy(
-                                    type = ExerciseType.PRACTICE,
-                                    question = practiceQuestion,
-                                    answer = practiceAnswer,
-                                    options = optionsList,
-                                    romanji = romanji.ifBlank { null },
-                                    kana = kana.ifBlank { null },
-                                    audioUrl = audioUrl.ifBlank { null },
-                                    imageUrl = imageUrl.ifBlank { null },
-                                    // Reset VIDEO specific fields
-                                    title = null,
-                                    videoUrl = null,
-                                    explanation = null
-                                )
-                                else -> exercise // Shouldn't happen
-                            }
-                            onSave(updatedExercise)
-                        },
-                        enabled = isSaveEnabled,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Save")
-                    }
-                }
-            }
-        }
-    }
 }

@@ -15,5 +15,6 @@ data class Campaign(
     val dailyMinute: Int = 0,
     val imageUrl: String? = null,
     val sent: Boolean = false,
-    val lastSent: Timestamp? = null
+    val lastSent: Timestamp? = null,
+    val updatedAt: Timestamp? = null
 )

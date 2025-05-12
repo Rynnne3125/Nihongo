@@ -8,6 +8,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
 
 class AdminUserViewModel : ViewModel() {
 
@@ -67,5 +68,62 @@ class AdminUserViewModel : ViewModel() {
             .addOnFailureListener {
                 // Handle error
             }
+    }
+    fun checkLogin(email: String, password: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                db.collection("users")
+                    .whereEqualTo("email", email)
+                    .whereEqualTo("admin", true)
+                    .get()
+                    .addOnSuccessListener { documents ->
+                        if (documents.isEmpty) {
+                            onResult(false)
+                            return@addOnSuccessListener
+                        }
+
+                        val admin = documents.documents[0].toObject(User::class.java)
+                        val hashedInput = sha256(password)
+
+                        if (admin != null && admin.password == hashedInput) {
+                            onResult(true)
+                        } else {
+                            onResult(false)
+                        }
+                    }
+                    .addOnFailureListener {
+                        onResult(false)
+                    }
+            } catch (e: Exception) {
+                onResult(false)
+            }
+        }
+    }
+    fun sha256(input: String): String {
+        val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    fun getCurrentAdmin(onResult: (User?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                db.collection("users")
+                    .whereEqualTo("admin", true)
+                    .get()
+                    .addOnSuccessListener { documents ->
+                        if (!documents.isEmpty) {
+                            val admin = documents.documents[0].toObject(User::class.java)
+                            onResult(admin)
+                        } else {
+                            onResult(null)
+                        }
+                    }
+                    .addOnFailureListener {
+                        onResult(null)
+                    }
+            } catch (e: Exception) {
+                onResult(null)
+            }
+        }
     }
 }

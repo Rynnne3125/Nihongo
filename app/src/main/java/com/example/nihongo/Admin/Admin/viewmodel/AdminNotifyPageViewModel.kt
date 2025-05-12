@@ -24,6 +24,7 @@ import java.io.InputStream
 import java.util.*
 import java.util.concurrent.TimeUnit
 import androidx.work.*
+import com.example.nihongo.Admin.utils.AlarmReceiver
 
 class AdminNotifyPageViewModel : ViewModel() {
     private val projectId = "nihongo-ae96a"
@@ -87,11 +88,11 @@ class AdminNotifyPageViewModel : ViewModel() {
                 val savedCampaign = saveCampaignToFirestore(campaign)
 
                 if (savedCampaign.isScheduled && savedCampaign.scheduledFor != null) {
-                    scheduleOneTimeNotification(context, savedCampaign)
+                    AlarmReceiver.scheduleOneTimeNotification(context, savedCampaign)
                 }
 
                 if (savedCampaign.isDaily) {
-                    scheduleDailyNotification(context, savedCampaign)
+                    AlarmReceiver.scheduleDailyNotification(context, savedCampaign)
                 }
             } catch (e: Exception) {
                 Log.e("AdminViewModel", "Failed to save campaign", e)
@@ -99,19 +100,46 @@ class AdminNotifyPageViewModel : ViewModel() {
         }
     }
 
+    fun updateCampaign(campaign: Campaign, context: Context) {
+        viewModelScope.launch {
+            try {
+                val updatedCampaign = saveCampaignToFirestore(campaign)
+
+                // Cancel any existing scheduled notifications
+                AlarmReceiver.cancelNotification(context, campaign.id)
+
+                // Reschedule according to updated settings
+                if (updatedCampaign.isScheduled && updatedCampaign.scheduledFor != null) {
+                    AlarmReceiver.scheduleOneTimeNotification(context, updatedCampaign)
+                }
+
+                if (updatedCampaign.isDaily) {
+                    AlarmReceiver.scheduleDailyNotification(context, updatedCampaign)
+                }
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Failed to update campaign", e)
+            }
+        }
+    }
 
     private suspend fun saveCampaignToFirestore(campaign: Campaign): Campaign {
         return try {
             if (campaign.id.isEmpty()) {
-                // Tạo mới document và lấy lại ID để gán
+                // Create new document and get ID to assign
                 val docRef = campaignsCollection.add(campaign).await()
-                val updatedCampaign = campaign.copy(id = docRef.id)
+                val updatedCampaign = campaign.copy(
+                    id = docRef.id,
+                    createdAt = Timestamp.now()  // Add creation timestamp
+                )
                 campaignsCollection.document(docRef.id).set(updatedCampaign).await()
                 updatedCampaign
             } else {
-                // Update nếu đã có ID
-                campaignsCollection.document(campaign.id).set(campaign).await()
-                campaign
+                // Update if ID exists already
+                val updatedCampaign = campaign.copy(
+                    updatedAt = Timestamp.now()  // Add updated timestamp
+                )
+                campaignsCollection.document(campaign.id).set(updatedCampaign).await()
+                updatedCampaign
             }
         } catch (e: Exception) {
             Log.e("AdminViewModel", "Error saving campaign to Firestore", e)
@@ -119,12 +147,11 @@ class AdminNotifyPageViewModel : ViewModel() {
         }
     }
 
-
-    fun deleteCampaign(campaignId: String) {
+    fun deleteCampaign(campaignId: String, context: Context) {
         viewModelScope.launch {
             try {
-                // Cancel any scheduled work for this campaign
-                WorkManager.getInstance().cancelUniqueWork(campaignId)
+                // Cancel any scheduled notifications
+                AlarmReceiver.cancelNotification(context, campaignId)
 
                 // Delete from Firestore
                 campaignsCollection.document(campaignId).delete().await()
@@ -194,7 +221,7 @@ class AdminNotifyPageViewModel : ViewModel() {
                                 }
                             }
                         })
-                        put("topic", token) // <- gửi đến topic cá nhân
+                        put("topic", token) // <- send to individual topic
                     })
                 }
 
@@ -227,43 +254,10 @@ class AdminNotifyPageViewModel : ViewModel() {
         }
     }
 
-
-    fun scheduleOneTimeNotification(context: Context, campaign: Campaign) {
-        val workRequest = OneTimeWorkRequestBuilder<CampaignWorker>()
-            .setInitialDelay(
-                campaign.scheduledFor!!.toDate().time - System.currentTimeMillis(),
-                TimeUnit.MILLISECONDS
-            )
-            .setInputData(workDataOf("campaignId" to campaign.id))
-            .addTag(campaign.id)
-            .build()
-
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            campaign.id,
-            ExistingWorkPolicy.REPLACE,
-            workRequest
-        )
-    }
-
-
-    fun scheduleDailyNotification(context: Context, campaign: Campaign) {
-        val workRequest = PeriodicWorkRequestBuilder<CampaignWorker>(1, TimeUnit.DAYS)
-            .setInputData(workDataOf("campaignId" to campaign.id))
-            .addTag(campaign.id)
-            .build()
-
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            campaign.id,
-            ExistingPeriodicWorkPolicy.REPLACE,
-            workRequest
-        )
-    }
-
-
     private suspend fun getAccessToken(context: Context): String? {
         return try {
             withContext(Dispatchers.IO) {
-                val inputStream: InputStream = context.assets.open("nihongo-ae96a-firebase-adminsdk-fbsvc-df1b5fe014.json")
+                val inputStream: InputStream = context.assets.open("nihongo-ae96a-firebase-adminsdk-fbsvc-d68fa60724.json")
                 val googleCredentials = GoogleCredentials.fromStream(inputStream)
                     .createScoped(listOf("https://www.googleapis.com/auth/firebase.messaging"))
                 googleCredentials.refreshIfExpired()
@@ -275,3 +269,4 @@ class AdminNotifyPageViewModel : ViewModel() {
         }
     }
 }
+

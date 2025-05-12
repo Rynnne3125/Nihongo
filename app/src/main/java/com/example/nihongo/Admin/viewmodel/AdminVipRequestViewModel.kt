@@ -26,10 +26,16 @@ data class VipPaymentRequest(
 
 class AdminVipRequestViewModel : ViewModel() {
     private val firestore = FirebaseFirestore.getInstance()
-    // Sửa tên collection để khớp với ProfileScreen
-    private val vipRequestsCollection = firestore.collection("vipPaymentRequests")
+    
+    // Sử dụng một hằng số cho tên collection để dễ dàng thay đổi nếu cần
+    companion object {
+        const val VIP_REQUESTS_COLLECTION = "vipRequests"
+    }
+    
+    private val vipRequestsCollection = firestore.collection(VIP_REQUESTS_COLLECTION)
     private val usersCollection = firestore.collection("users")
 
+    // Khởi tạo các StateFlow với giá trị mặc định
     private val _vipRequests = MutableStateFlow<List<VipPaymentRequest>>(emptyList())
     val vipRequests: StateFlow<List<VipPaymentRequest>> = _vipRequests
 
@@ -39,7 +45,9 @@ class AdminVipRequestViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
+    // Thêm log để kiểm tra
     init {
+        Log.d("VipRequestVM", "Initializing with collection: $VIP_REQUESTS_COLLECTION")
         loadVipRequests()
     }
 
@@ -47,36 +55,60 @@ class AdminVipRequestViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                Log.d("VipRequestVM", "Starting to load VIP requests")
+                Log.d("VipRequestVM", "Starting to load VIP requests from $VIP_REQUESTS_COLLECTION")
                 
-                // Lấy tất cả yêu cầu VIP, sắp xếp theo thời gian gần nhất
                 val snapshot = vipRequestsCollection
-                    .orderBy("requestDate", Query.Direction.DESCENDING)
                     .get()
                     .await()
                 
                 Log.d("VipRequestVM", "Firestore query completed, documents: ${snapshot.documents.size}")
                 
+                if (snapshot.documents.isEmpty()) {
+                    Log.d("VipRequestVM", "No documents found in $VIP_REQUESTS_COLLECTION collection")
+                    _vipRequests.value = emptyList()
+                    _isLoading.value = false
+                    return@launch
+                }
+                
+                // Xử lý và sắp xếp ở phía client
                 val requests = snapshot.documents.mapNotNull { doc ->
                     try {
-                        // Log dữ liệu để debug
-                        Log.d("VipRequestVM", "Document data: ${doc.data}")
-                        
-                        // Chuyển đổi thủ công để tránh lỗi
                         val id = doc.id
-                        val data = doc.data ?: return@mapNotNull null
+                        val data = doc.data
+                        if (data == null) {
+                            Log.d("VipRequestVM", "Document $id has null data")
+                            return@mapNotNull null
+                        }
+                        
+                        // Kiểm tra từng trường và log chi tiết
+                        val userId = data["userId"] as? String
+                        val userEmail = data["userEmail"] as? String
+                        val username = data["username"] as? String
+                        val amount = when (val amountValue = data["amount"]) {
+                            is Number -> amountValue.toInt()
+                            is String -> amountValue.toIntOrNull() ?: 0
+                            else -> 0
+                        }
+                        val paymentMethod = data["paymentMethod"] as? String
+                        val reference = data["reference"] as? String
+                        val requestDate = data["requestDate"] as? Timestamp
+                        val status = data["status"] as? String
+                        val notes = data["notes"] as? String
+                        
+                        Log.d("VipRequestVM", "Parsing document $id: userId=$userId, userEmail=$userEmail, " +
+                                "username=$username, amount=$amount, status=$status")
                         
                         VipPaymentRequest(
                             id = id,
-                            userId = data["userId"] as? String ?: "",
-                            userEmail = data["userEmail"] as? String ?: "",
-                            username = data["username"] as? String ?: "",
-                            amount = (data["amount"] as? Number)?.toInt() ?: 0,
-                            paymentMethod = data["paymentMethod"] as? String ?: "",
-                            reference = data["reference"] as? String ?: "",
-                            requestDate = data["requestDate"] as? Timestamp,
-                            status = data["status"] as? String ?: "pending",
-                            notes = data["notes"] as? String ?: ""
+                            userId = userId ?: "",
+                            userEmail = userEmail ?: "",
+                            username = username ?: "",
+                            amount = amount,
+                            paymentMethod = paymentMethod ?: "",
+                            reference = reference ?: "",
+                            requestDate = requestDate,
+                            status = status ?: "pending",
+                            notes = notes ?: ""
                         )
                     } catch (e: Exception) {
                         Log.e("VipRequestVM", "Error parsing document ${doc.id}", e)
@@ -84,8 +116,11 @@ class AdminVipRequestViewModel : ViewModel() {
                     }
                 }
                 
-                _vipRequests.value = requests
-                Log.d("VipRequestVM", "Loaded ${requests.size} VIP requests")
+                // Sắp xếp ở phía client
+                val sortedRequests = requests.sortedByDescending { it.requestDate?.seconds ?: 0 }
+                
+                _vipRequests.value = sortedRequests
+                Log.d("VipRequestVM", "Loaded ${sortedRequests.size} VIP requests")
             } catch (e: Exception) {
                 Log.e("VipRequestVM", "Error loading VIP requests", e)
                 _errorMessage.value = "Không thể tải yêu cầu VIP: ${e.message}"
@@ -183,5 +218,11 @@ class AdminVipRequestViewModel : ViewModel() {
         return Timestamp(calendar.time)
     }
 }
+
+
+
+
+
+
 
 

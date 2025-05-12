@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,14 +30,13 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.QuestionAnswer
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,8 +44,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
@@ -60,6 +58,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -74,7 +73,6 @@ import com.example.nihongo.User.data.models.Course
 import com.example.nihongo.User.data.models.Lesson
 import com.example.nihongo.User.data.models.SubLesson
 import com.example.nihongo.User.data.models.UnitItem
-import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.models.UserProgress
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
@@ -88,96 +86,84 @@ fun LessonsScreen(
     courseId: String,
     userEmail: String,
     navController: NavController,
-    lessonRepository: LessonRepository,
     courseRepository: CourseRepository,
-    userRepository: UserRepository,
+    lessonRepository: LessonRepository,
+    userRepository: UserRepository
 ) {
-    val lessons = remember { mutableStateOf<List<Lesson>>(emptyList()) }
     val course = remember { mutableStateOf<Course?>(null) }
-    val isUserVip = remember { mutableStateOf(false) }
+    val lessons = remember { mutableStateOf<List<Lesson>>(emptyList()) }
+    val userProgress = remember { mutableStateOf<UserProgress?>(null) }
     val expandedLessons = remember { mutableStateMapOf<String, Boolean>() }
     val expandedUnits = remember { mutableStateMapOf<String, Boolean>() }
-    var userProgress by remember { mutableStateOf<List<UserProgress>>(emptyList()) }
-    var user by remember { mutableStateOf<User?>(null) }
+    val selectedItem = "courses"
     
-    // Add tabs for different sections
+    // Thêm tabs và selectedTab
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Bài học", "Tiến độ", "Tài liệu")
     
-    // Add refresh trigger for data updates
-    var refreshTrigger by remember { mutableStateOf(0) }
-    
-    fun refreshData() {
-        refreshTrigger += 1
-    }
-
-    LaunchedEffect(courseId, refreshTrigger) {
-        lessons.value = lessonRepository.getLessonsByCourseId(courseId)
+    // Fetch data
+    LaunchedEffect(courseId) {
         course.value = courseRepository.getCourseById(courseId)
-        isUserVip.value = userRepository.isVip()
-        user = userRepository.getUserByEmail(userEmail)
-        userProgress = user?.let {
-            listOfNotNull(userRepository.getUserProgressForCourse(it.id, courseId))
-        } ?: emptyList()
+        lessons.value = lessonRepository.getLessonsByCourseId(courseId)
+        
+        // Lấy tiến độ của người dùng
+        val user = userRepository.getUserByEmail(userEmail)
+        user?.let {
+            userProgress.value = userRepository.getUserProgressForCourse(it.id, courseId)
+        }
     }
-
+    
     Scaffold(
+        containerColor = Color(0xFFF5F5F5),
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = course.value?.title ?: "Bài học",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color.DarkGray
+                        course.value?.title ?: "Đang tải...",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color.DarkGray,
-                    actionIconContentColor = Color.Gray
+                    containerColor = Color(0xFF4CAF50),
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
                 )
             )
-        },
-        containerColor = Color(0xFFF5F5F5)
-    ) { innerPadding ->
+        }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(paddingValues)
         ) {
-            // Course header with image and basic info
+            // Course header
             CourseHeader(course.value)
             
-            // Tab Row
-            ScrollableTabRow(
+            // Tabs
+            TabRow(
                 selectedTabIndex = selectedTab,
-                edgePadding = 16.dp,
+                containerColor = Color.White,
+                contentColor = Color(0xFF4CAF50),
                 indicator = { tabPositions ->
                     TabRowDefaults.Indicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
                         height = 3.dp,
-                        color = Color(0xFF00C853)
+                        color = Color(0xFF4CAF50)
                     )
-                },
-                containerColor = Color.White,
-                contentColor = Color(0xFF00C853)
+                }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = {
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
+                        text = { Text(title) }
                     )
                 }
             }
@@ -186,15 +172,19 @@ fun LessonsScreen(
             when (selectedTab) {
                 0 -> LessonsTab(
                     lessons = lessons.value,
-                    userProgress = userProgress,
+                    userProgress = userProgress.value,
                     expandedLessons = expandedLessons,
                     expandedUnits = expandedUnits,
                     onSubLessonClick = { sub, lesson ->
                         navController.navigate("exercise/${course.value?.id}/${lesson.id}/${sub.id}/$userEmail")
                     }
                 )
-                1 -> ProgressTab(userProgress, lessons.value)
-                2 -> MaterialsTab(course.value)
+                1 -> {
+                    // Chuyển đổi UserProgress? thành List<UserProgress>
+                    val progressList = userProgress.value?.let { listOf(it) } ?: emptyList()
+                    ProgressTab(progressList, lessons.value)
+                }
+                2 -> MaterialsTab(course.value, navController, userEmail)
             }
         }
     }
@@ -313,32 +303,30 @@ fun CourseHeader(course: Course?) {
 @Composable
 fun LessonsTab(
     lessons: List<Lesson>,
-    userProgress: List<UserProgress>,
-    expandedLessons: MutableMap<String, Boolean>,
-    expandedUnits: MutableMap<String, Boolean>,
+    userProgress: UserProgress?,
+    expandedLessons: SnapshotStateMap<String, Boolean>,
+    expandedUnits: SnapshotStateMap<String, Boolean>,
     onSubLessonClick: (SubLesson, Lesson) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 16.dp)
     ) {
         items(lessons) { lesson ->
-            val isCompleted = userProgress.any { progress ->
-                progress.completedLessons.contains(lesson.id)
-            }
-            
+            val isExpanded = expandedLessons[lesson.id] ?: false
+            val isCompleted = userProgress?.completedLessons?.contains(lesson.id) ?: false
+
             ModernLessonCard(
                 lesson = lesson,
+                isExpanded = isExpanded,
                 isLessonCompleted = isCompleted,
-                isExpanded = expandedLessons[lesson.id] == true,
-                onToggleExpand = {
-                    expandedLessons[lesson.id] = !(expandedLessons[lesson.id] ?: false)
-                },
                 expandedUnits = expandedUnits,
-                onSubLessonClick = { sub -> onSubLessonClick(sub, lesson) }
+                onToggleExpand = { expandedLessons[lesson.id] = !isExpanded },
+                onSubLessonClick = { subLesson -> onSubLessonClick(subLesson, lesson) }
             )
+            
+            Spacer(modifier = Modifier.height(8.dp))
         }
         
         // Add some space at the bottom
@@ -608,88 +596,67 @@ fun ProgressTab(userProgress: List<UserProgress>, lessons: List<Lesson>) {
     val progressPercentage = if (totalLessons > 0) {
         (completedLessons.toFloat() / totalLessons.toFloat()) * 100
     } else 0f
-    
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(16.dp)
     ) {
-        // Overall progress card
+        // Progress overview
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+                    modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Tiến độ tổng quan",
+                        "Tổng quan tiến độ",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // Progress circle
-                        CircularProgressIndicator(
-                            progress = { progressPercentage / 100 },
-                            modifier = Modifier.size(120.dp),
-                            strokeWidth = 12.dp,
-                            color = Color(0xFF4CAF50),
-                            trackColor = Color(0xFFE0E0E0)
-                        )
-                        
-                        // Percentage text
-                        Text(
-                            text = "${progressPercentage.toInt()}%",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF4CAF50)
-                        )
-                    }
+                    LinearProgressIndicator(
+                        progress = { progressPercentage / 100 },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp),
+                        color = Color(0xFF4CAF50),
+                        trackColor = Color(0xFFE0E0E0)
+                    )
                     
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     
-                    // Stats
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        ProgressStat(
-                            value = completedLessons,
-                            label = "Bài học đã hoàn thành",
-                            icon = Icons.Default.CheckCircle,
-                            color = Color(0xFF4CAF50)
+                        Text(
+                            "Hoàn thành: $completedLessons/$totalLessons bài học",
+                            style = MaterialTheme.typography.bodyMedium
                         )
                         
-                        ProgressStat(
-                            value = totalLessons - completedLessons,
-                            label = "Bài học còn lại",
-                            icon = Icons.Default.Schedule,
-                            color = Color(0xFFFFA000)
+                        Text(
+                            "${progressPercentage.toInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4CAF50)
                         )
                     }
                 }
             }
         }
         
-        // Lesson progress header
+        // Section title
         item {
-            Spacer(modifier = Modifier.height(8.dp))
-            
             Text(
-                text = "Chi tiết tiến độ",
+                "Chi tiết tiến độ bài học",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(vertical = 8.dp)
@@ -791,7 +758,7 @@ fun LessonProgressItem(
 }
 
 @Composable
-fun MaterialsTab(course: Course?) {
+fun MaterialsTab(course: Course?, navController: NavController, userEmail: String) {
     if (course == null) {
         Box(
             modifier = Modifier
@@ -813,53 +780,70 @@ fun MaterialsTab(course: Course?) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
         
-        // Add your materials content here
-        // For example, you can list documents, videos, or other resources
-        // This is a placeholder implementation
+        // Danh sách tài liệu với liên kết đến FlashcardScreen
         val materials = listOf(
-            "Bảng chữ Hiragana",
-            "Bảng chữ Katakana"
+            Pair("Bảng chữ Hiragana", "hiragana"),
+            Pair("Bảng chữ Katakana", "katakana"),
+            Pair("Kanji cơ bản N5", "kanji"),
+            Pair("Từ vựng N5", "vocabulary")
         )
         
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(materials) { material ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { /* Handle material click */ }
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(4.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Description,
-                            contentDescription = null,
-                            tint = Color(0xFF4CAF50),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        
-                        Spacer(modifier = Modifier.width(16.dp))
-                        
-                        Text(
-                            text = material,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.DarkGray
-                        )
+            items(materials) { (title, type) ->
+                MaterialCard(
+                    title = title,
+                    onClick = {
+                        // Điều hướng đến FlashcardScreen với tab được chọn
+                        navController.navigate("vocabulary/$userEmail?tab=$type") {
+                            launchSingleTop = true
+                        }
                     }
-                }
+                )
             }
+        }
+    }
+}
+
+@Composable
+fun MaterialCard(title: String, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.MenuBook,
+                contentDescription = null,
+                tint = Color(0xFF4CAF50),
+                modifier = Modifier.size(24.dp)
+            )
             
-            // Add some space at the bottom
-            item {
-                Spacer(modifier = Modifier.height(80.dp))
-            }
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = "Mở",
+                tint = Color(0xFF4CAF50),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.example.nihongo.Admin.ui
 
+import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -41,6 +43,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -66,6 +70,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,8 +84,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.nihongo.Admin.viewmodel.AdminMainPageViewModel
+import com.example.nihongo.User.MainActivity
 import com.example.nihongo.User.data.models.Course
 import com.example.nihongo.User.data.models.User
+
+// Define custom theme colors
+val primaryGreen = Color(0xFF4CAF50)
+val lightGreen = Color(0xFFDCEDC8)
+val darkGreen = Color(0xFF2E7D32)
+val backgroundColor = Color.White
+val surfaceColor = Color.White
+val cardBackgroundColor = Color(0xFFF9FFF5)
 
 @Composable
 fun MainPage(navController: NavHostController) {
@@ -95,18 +109,9 @@ fun MainPage(navController: NavHostController) {
     UIVisibilityController.showTopBarState = showTopBar
     UIVisibilityController.showBottomBarState = showBottomBar
 
-//    FirebaseMessaging.getInstance().unsubscribeFromTopic("all")
-//        .addOnCompleteListener { task ->
-//            var msg = "Unsubscribed from topic"
-//            if (!task.isSuccessful) {
-//                msg = "Unsubscription failed"
-//            }
-//            Log.d("FCM", msg)
-//        }
-
-
     Scaffold(
-        topBar = { if (showTopBar.value) TopBar() },
+        containerColor = backgroundColor,
+        topBar = { if (showTopBar.value) TopBar(innerNavController) },
         bottomBar = { if (showBottomBar.value) BottomNavigationBar(innerNavController, selectedItemIndex)}
     ) { padding ->
         NavHost(innerNavController, startDestination = "mainPage") {
@@ -114,7 +119,7 @@ fun MainPage(navController: NavHostController) {
                 AdminDashboard(
                     modifier = Modifier.padding(padding),
                     viewModel = adminViewModel,
-                    navController = innerNavController
+                    navController =  navController
                 )
                 UIVisibilityController.enableDisplayTopBarAndBottom()
             }
@@ -122,9 +127,9 @@ fun MainPage(navController: NavHostController) {
                 UIVisibilityController.enableDisplayTopBarAndBottom()
                 CoursePage()
             }
-            composable("CommunityPage") {
-                UIVisibilityController.enableDisplayTopBarAndBottom()
+            composable("NotifyPage") {
                 NotifyPage()
+                UIVisibilityController.disableDisplayTopBar()
             }
             composable("FlashcardPage") {
                 UIVisibilityController.disableDisplayTopBar()
@@ -137,12 +142,16 @@ fun MainPage(navController: NavHostController) {
             composable("vipRequestPage") {
                 VipRequestPage(navController = innerNavController)
             }
+            composable("ProfilePage") {
+                UIVisibilityController.disableDisplayTopBarAndBottom()
+                ProfilePage(navController)
+            }
         }
     }
 }
 
 @Composable
-fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewModel, navController: NavHostController ) {
+fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewModel, navController: NavHostController) {
     val isLoading by viewModel.isLoading
 
     val monthlyUserCount by viewModel.monthlyUserCount.collectAsState()
@@ -155,7 +164,8 @@ fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewMo
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .background(backgroundColor),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
@@ -170,7 +180,8 @@ fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewMo
             Text(
                 "Monthly User Growth",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = darkGreen
             )
             Spacer(modifier = Modifier.height(8.dp))
             MonthlyUserChart(monthlyUserCount)
@@ -180,7 +191,8 @@ fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewMo
             Text(
                 "Top 5 Active Users",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = darkGreen
             )
             Spacer(modifier = Modifier.height(8.dp))
             TopUsersSection(topUsers)
@@ -239,7 +251,8 @@ fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewMo
             Text(
                 "Most Liked Courses",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = darkGreen
             )
             Spacer(modifier = Modifier.height(8.dp))
             TopCoursesSection(topCourses)
@@ -249,7 +262,8 @@ fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewMo
             Text(
                 "Most Enrolled Courses",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = darkGreen
             )
             Spacer(modifier = Modifier.height(8.dp))
             MostEnrolledCoursesSection(mostEnrolledCourses)
@@ -263,7 +277,7 @@ fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewMo
                 .background(Color.Black.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            CircularProgressIndicator(color = primaryGreen)
         }
     }
 }
@@ -281,7 +295,7 @@ fun DashboardHeader(totalCourseCount: Int, vipMemberCount: Int) {
             icon = Icons.Default.MenuBook,
             title = "Total Courses",
             value = totalCourseCount.toString(),
-            backgroundColor = Color(0xFFE3F2FD)
+            backgroundColor = lightGreen
         )
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -291,7 +305,7 @@ fun DashboardHeader(totalCourseCount: Int, vipMemberCount: Int) {
             icon = Icons.Default.Star,
             title = "VIP Members",
             value = vipMemberCount.toString(),
-            backgroundColor = Color(0xFFFFF8E1)
+            backgroundColor = lightGreen
         )
     }
 }
@@ -306,7 +320,8 @@ fun StatCard(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -317,7 +332,7 @@ fun StatCard(
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = primaryGreen,
                 modifier = Modifier.size(32.dp)
             )
 
@@ -325,13 +340,15 @@ fun StatCard(
 
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = darkGreen
             )
 
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = darkGreen
             )
         }
     }
@@ -339,8 +356,6 @@ fun StatCard(
 
 @Composable
 fun MonthlyUserChart(monthlyData: Map<String, Int>) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-
     if (monthlyData.isEmpty()) {
         EmptyStateCard("No monthly user data available")
         return
@@ -353,7 +368,9 @@ fun MonthlyUserChart(monthlyData: Map<String, Int>) {
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Box(
             modifier = Modifier
@@ -387,7 +404,7 @@ fun MonthlyUserChart(monthlyData: Map<String, Int>) {
                     val x = index * barWidth + barWidth / 4
 
                     drawLine(
-                        color = primaryColor,
+                        color = primaryGreen,
                         start = Offset(x + barWidth / 2, size.height),
                         end = Offset(x + barWidth / 2, size.height - barHeight),
                         strokeWidth = barWidth / 2,
@@ -411,7 +428,8 @@ fun MonthlyUserChart(monthlyData: Map<String, Int>) {
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        color = darkGreen
                     )
                 }
             }
@@ -428,7 +446,9 @@ fun TopUsersSection(users: List<User>) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             users.forEachIndexed { index, user ->
@@ -441,7 +461,7 @@ fun TopUsersSection(users: List<User>) {
                 if (index < users.size - 1) {
                     Divider(
                         modifier = Modifier.padding(vertical = 8.dp),
-                        color = Color.LightGray
+                        color = lightGreen
                     )
                 }
             }
@@ -459,20 +479,21 @@ fun UserRankItem(rank: Int, user: User, modifier: Modifier = Modifier) {
             text = "$rank",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(32.dp)
+            modifier = Modifier.width(32.dp),
+            color = darkGreen
         )
 
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .background(lightGreen),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = user.username.take(1).uppercase(),
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = darkGreen
             )
         }
 
@@ -482,13 +503,14 @@ fun UserRankItem(rank: Int, user: User, modifier: Modifier = Modifier) {
             Text(
                 text = user.username,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = darkGreen
             )
 
             Text(
                 text = if (user.vip) "VIP Member" else "Standard Member",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (user.vip) Color(0xFFFFB300) else Color.Gray
+                color = if (user.vip) Color(0xFF4CAF50) else Color.Gray
             )
         }
 
@@ -496,7 +518,8 @@ fun UserRankItem(rank: Int, user: User, modifier: Modifier = Modifier) {
             Text(
                 text = "${user.activityPoints}",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = darkGreen
             )
 
             Text(
@@ -532,7 +555,9 @@ fun TopCoursesSection(courses: List<Course>) {
 fun CourseCard(course: Course, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Box(
@@ -540,15 +565,14 @@ fun CourseCard(course: Course, modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .height(120.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .background(lightGreen),
                 contentAlignment = Alignment.Center
             ) {
-                // Thay Icon bằng hình ảnh từ Coil
                 AsyncImage(
-                    model = course.imageRes, // có thể là URL hoặc resource ID
+                    model = course.imageRes,
                     contentDescription = "Course Image",
-                    modifier = Modifier.size(240.dp), // bạn có thể điều chỉnh size theo ý
-                    contentScale = ContentScale.Fit
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
             }
 
@@ -559,7 +583,8 @@ fun CourseCard(course: Course, modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                color = darkGreen
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -569,7 +594,7 @@ fun CourseCard(course: Course, modifier: Modifier = Modifier) {
                     imageVector = Icons.Default.Star,
                     contentDescription = "Rating",
                     modifier = Modifier.size(16.dp),
-                    tint = Color(0xFFFFB300)
+                    tint = primaryGreen
                 )
 
                 Spacer(modifier = Modifier.width(4.dp))
@@ -577,6 +602,7 @@ fun CourseCard(course: Course, modifier: Modifier = Modifier) {
                 Text(
                     text = course.rating.toString(),
                     style = MaterialTheme.typography.bodySmall,
+                    color = darkGreen
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -595,7 +621,7 @@ fun CourseCard(course: Course, modifier: Modifier = Modifier) {
                     imageVector = Icons.Default.Favorite,
                     contentDescription = "Likes",
                     modifier = Modifier.size(16.dp),
-                    tint = Color.Red
+                    tint = primaryGreen
                 )
 
                 Spacer(modifier = Modifier.width(4.dp))
@@ -603,13 +629,14 @@ fun CourseCard(course: Course, modifier: Modifier = Modifier) {
                 Text(
                     text = "${course.likes} likes",
                     style = MaterialTheme.typography.bodySmall,
+                    color = darkGreen
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
 
                 if (course.vip) {
                     Surface(
-                        color = Color(0xFFFFB300),
+                        color = primaryGreen,
                         shape = RoundedCornerShape(4.dp),
                         modifier = Modifier.offset(y = (-5).dp)
                     ) {
@@ -635,9 +662,13 @@ fun MostEnrolledCoursesSection(courseEnrollments: List<AdminMainPageViewModel.Co
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
             courseEnrollments.forEachIndexed { index, enrollment ->
                 CourseEnrollmentItem(
                     rank = index + 1,
@@ -648,12 +679,18 @@ fun MostEnrolledCoursesSection(courseEnrollments: List<AdminMainPageViewModel.Co
                 if (index < courseEnrollments.size - 1) {
                     Divider(
                         modifier = Modifier.padding(vertical = 8.dp),
-                        color = Color.LightGray
+                        color = lightGreen
                     )
                 }
             }
         }
     }
+    // ✅ Box màu đỏ cao 8dp ở cuối
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(16.dp)
+    )
 }
 
 @Composable
@@ -670,13 +707,14 @@ fun CourseEnrollmentItem(
             text = "$rank",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(32.dp)
+            modifier = Modifier.width(32.dp),
+            color = darkGreen
         )
 
         Icon(
             imageVector = Icons.Default.MenuBook,
             contentDescription = "Course",
-            tint = MaterialTheme.colorScheme.primary,
+            tint = primaryGreen,
             modifier = Modifier.size(28.dp)
         )
 
@@ -688,13 +726,15 @@ fun CourseEnrollmentItem(
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            color = darkGreen
         )
 
         Text(
             text = "${enrollment.enrollmentCount}",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = darkGreen
         )
 
         Spacer(modifier = Modifier.width(4.dp))
@@ -713,7 +753,9 @@ fun EmptyStateCard(message: String) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(
             modifier = Modifier
@@ -726,7 +768,7 @@ fun EmptyStateCard(message: String) {
                 imageVector = Icons.Default.Info,
                 contentDescription = "Info",
                 modifier = Modifier.size(48.dp),
-                tint = Color.Gray
+                tint = primaryGreen
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -734,7 +776,7 @@ fun EmptyStateCard(message: String) {
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
+                color = darkGreen,
                 textAlign = TextAlign.Center
             )
         }
@@ -742,7 +784,10 @@ fun EmptyStateCard(message: String) {
 }
 
 @Composable
-fun TopBar() {
+fun TopBar(navController: NavHostController) {
+    var expanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -750,10 +795,54 @@ fun TopBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("NIHONGO", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Text(
+            "NIHONGO",
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = darkGreen
+        )
         Row {
-            Icon(Icons.Default.Notifications, contentDescription = "Notifications", modifier = Modifier.padding(end = 16.dp))
-            Icon(Icons.Default.Settings, contentDescription = "Settings")
+            Icon(
+                Icons.Default.Notifications,
+                contentDescription = "Notifications",
+                modifier = Modifier.padding(end = 16.dp),
+                tint = primaryGreen
+            )
+
+            Box {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    modifier = Modifier
+                        .clickable { expanded = true },
+                    tint = primaryGreen
+                )
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Profile", color = darkGreen) },
+                        onClick = {
+                            expanded = false
+                            navController.navigate("ProfilePage")
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Logout", color = darkGreen) },
+                        onClick = {
+                            val sharedPref = context.getSharedPreferences("admin_session", Context.MODE_PRIVATE)
+                            sharedPref.edit().clear().apply()
+
+                            expanded = false
+                            val intent = Intent(context, MainActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            context.startActivity(intent)
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -766,24 +855,27 @@ fun SearchBar() {
 
     // Animation for TextField color
     val textFieldColor by animateColorAsState(
-        targetValue = if (text.isEmpty()) Color(0xFFF0F0F0) else Color(0xFFE0E0E0),
+        targetValue = if (text.isEmpty()) Color(0xFFF5FFF0) else Color(0xFFE8F5E9),
         animationSpec = tween(durationMillis = 500)
     )
 
     TextField(
         value = text,
         onValueChange = { newText -> text = newText },
-        placeholder = { Text("Search...") },
+        placeholder = { Text("Search...", color = Color.Gray) },
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(64.dp)
             .padding(bottom = 8.dp),
         leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Search Icon")
+            Icon(Icons.Default.Search, contentDescription = "Search Icon", tint = primaryGreen)
         },
         shape = RoundedCornerShape(12.dp),
         colors = TextFieldDefaults.textFieldColors(
-            containerColor = textFieldColor // Use animated color
+            containerColor = textFieldColor,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            cursorColor = primaryGreen
         )
     )
 }
@@ -794,58 +886,58 @@ fun BottomNavigationBar(navController: NavController, selectedItemIndex: Mutable
         containerColor = Color.White
     ) {
         NavigationBarItem(
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-            label = { Text("Home", fontSize = 10.sp) },
+            icon = { Icon(Icons.Default.Home, contentDescription = "Home", tint = if (selectedItemIndex.value == 0) primaryGreen else Color.Gray) },
+            label = { Text("Home", fontSize = 10.sp, color = if (selectedItemIndex.value == 0) primaryGreen else Color.Gray) },
             selected = selectedItemIndex.value == 0,
             onClick = {
                 navController.navigate("mainPage") {
                     launchSingleTop = true
                 }
-                selectedItemIndex.value = 0 // Update index when item is selected
+                selectedItemIndex.value = 0
             }
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.Folder, contentDescription = "Courses") },
-            label = { Text("Courses" , fontSize = 10.sp) },
+            icon = { Icon(Icons.Default.Folder, contentDescription = "Courses", tint = if (selectedItemIndex.value == 1) primaryGreen else Color.Gray) },
+            label = { Text("Courses" , fontSize = 10.sp, color = if (selectedItemIndex.value == 1) primaryGreen else Color.Gray) },
             selected = selectedItemIndex.value == 1,
             onClick = {
                 navController.navigate("CoursePage") {
                     launchSingleTop = true
                 }
-                selectedItemIndex.value = 1 // Update index when item is selected
+                selectedItemIndex.value = 1
             }
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.LibraryBooks, contentDescription = "FlashCard") },
-            label = { Text("FlashCard" , fontSize = 10.sp) },
+            icon = { Icon(Icons.Default.LibraryBooks, contentDescription = "FlashCard", tint = if (selectedItemIndex.value == 2) primaryGreen else Color.Gray) },
+            label = { Text("FlashCard" , fontSize = 10.sp, color = if (selectedItemIndex.value == 2) primaryGreen else Color.Gray) },
             selected = selectedItemIndex.value == 2,
             onClick = {
                 navController.navigate("FlashcardPage") {
                     launchSingleTop = true
                 }
-                selectedItemIndex.value = 2 // Update index when item is selected
+                selectedItemIndex.value = 2
             }
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.Notifications , contentDescription = "Notify") },
-            label = { Text("Notify" , fontSize = 10.sp) },
+            icon = { Icon(Icons.Default.Notifications, contentDescription = "Notify", tint = if (selectedItemIndex.value == 3) primaryGreen else Color.Gray) },
+            label = { Text("Notify" , fontSize = 10.sp, color = if (selectedItemIndex.value == 3) primaryGreen else Color.Gray) },
             selected = selectedItemIndex.value == 3,
             onClick = {
-                navController.navigate("CommunityPage") {
+                navController.navigate("NotifyPage") {
                     launchSingleTop = true
                 }
-                selectedItemIndex.value = 3 // Update index when item is selected
+                selectedItemIndex.value = 3
             }
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.Person, contentDescription = "Users") },
-            label = { Text("Users" , fontSize = 10.sp) },
+            icon = { Icon(Icons.Default.Person, contentDescription = "Users", tint = if (selectedItemIndex.value == 4) primaryGreen else Color.Gray) },
+            label = { Text("Users" , fontSize = 10.sp, color = if (selectedItemIndex.value == 4) primaryGreen else Color.Gray) },
             selected = selectedItemIndex.value == 4,
             onClick = {
                 navController.navigate("userPage") {
                     launchSingleTop = true
                 }
-                selectedItemIndex.value = 4 // Update index when item is selected
+                selectedItemIndex.value = 4
             }
         )
     }

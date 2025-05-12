@@ -1,11 +1,8 @@
 package com.example.nihongo.User.ui.screens.homepage
 
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -34,8 +31,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -48,19 +45,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -91,20 +89,31 @@ import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FlashcardScreen(navController: NavController, user_email: String) {
+fun FlashcardScreen(navController: NavController, user_email: String, initialTab: String? = null) {
     val tabs = listOf("Hiragana", "Katakana", "Kanji", "Từ vựng")
-    var selectedTab by remember { mutableStateOf(0) }
+    
+    // Xác định tab ban đầu dựa trên tham số
+    val initialTabIndex = when (initialTab) {
+        "hiragana" -> 0
+        "katakana" -> 1
+        "kanji" -> 2
+        "vocabulary" -> 3
+        else -> 0 // Mặc định là Hiragana
+    }
+    
+    var selectedTab by remember { mutableStateOf(initialTabIndex) }
     val selectedItem = "vocabulary"
     var showStartSessionDialog by remember { mutableStateOf(false) }
     var studySessionConfig by remember { mutableStateOf<StudySessionConfig?>(null) }
+    
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
         topBar = {
@@ -128,9 +137,24 @@ fun FlashcardScreen(navController: NavController, user_email: String) {
                     containerColor = Color(0xFF4CAF50),
                     titleContentColor = Color.White
                 ),
-                modifier = Modifier
-                    .animateContentSize()
-                    .shadow(elevation = 4.dp)
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Quay lại",
+                            tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showStartSessionDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Bắt đầu học",
+                            tint = Color.White
+                        )
+                    }
+                }
             )
         },
         bottomBar = {
@@ -147,124 +171,31 @@ fun FlashcardScreen(navController: NavController, user_email: String) {
                 }
             )
         }
-    ) { innerPadding ->
-        Column(modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-            .verticalScroll(rememberScrollState())
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
         ) {
-            // Study Now Button with enhanced design
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF81C784)
-                    ),
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = 4.dp
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.align(Alignment.CenterStart)
-                        ) {
-                            Text(
-                                text = "Học flashcard !",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = "Luyện tập mỗi ngày",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
-
-                        Button(
-                            onClick = { showStartSessionDialog = true },
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .height(48.dp),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color(0xFF388E3C)
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 2.dp
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Học ngay",
-                                tint = Color(0xFF388E3C)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                "Học ngay",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF388E3C)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // TabRow với hiệu ứng chuyển động mượt mà
-            TabRow(
+            // Tab Row
+            ScrollableTabRow(
                 selectedTabIndex = selectedTab,
+                containerColor = Color.White,
+                contentColor = Color(0xFF4CAF50),
+                edgePadding = 16.dp,
                 indicator = { tabPositions ->
-                    Box(
-                        Modifier
-                            .tabIndicatorOffset(tabPositions[selectedTab])
-                            .height(3.dp)
-                            .padding(horizontal = 24.dp)
-                            .fillMaxWidth()
-                            .background(
-                                color = Color(0xFF388E3C),
-                                shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
-                            )
+                    TabRowDefaults.Indicator(
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                        height = 3.dp,
+                        color = Color(0xFF4CAF50)
                     )
-                },
-                divider = {
-                    Divider(
-                        thickness = 1.dp,
-                        color = Color(0xFFDDDDDD)
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
+                }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
-                        text = {
-                            Text(
-                                title,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 12.sp
-                                ),
-                                color = if (selectedTab == index) Color(0xFF388E3C) else Color.Gray
-                            )
-                        },
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        modifier = Modifier
-                            .animateContentSize()
-                            .padding(vertical = 12.dp)
+                        text = { Text(title) }
                     )
                 }
             }
@@ -309,8 +240,8 @@ fun FlashcardScreen(navController: NavController, user_email: String) {
                 }
             )
         }
-
-        // Practice Session Dialog
+        
+        // Study Session Screen
         studySessionConfig?.let { config ->
             PracticeSessionDialog(
                 config = config,
@@ -1201,7 +1132,8 @@ fun ImprovedFlashcardGrid(flashcards: List<Pair<String, String>>) {
         contentPadding = PaddingValues(8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.height(400.dp)
+        // Bỏ modifier height cố định
+        modifier = Modifier.fillMaxSize()
     ) {
         items(flashcards.size) { index ->
             FlashcardGridItem(flashcard = flashcards[index])

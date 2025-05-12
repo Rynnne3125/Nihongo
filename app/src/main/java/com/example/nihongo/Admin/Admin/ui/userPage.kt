@@ -11,94 +11,66 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.nihongo.Admin.utils.AdminEmailSender
-import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
 import com.example.nihongo.Admin.viewmodel.AdminUserViewModel
 import com.example.nihongo.User.data.models.User
+import com.example.nihongo.utils.EmailSender
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import com.example.nihongo.Admin.utils.ImgurUploader
+import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.security.MessageDigest
 
 // Custom theme colors for Japanese language learning app
 object NihongoTheme {
-    // Màu nền
     val backgroundGray = Color(0xFFEEEEEE)   // Nền xám nhạt
     val primaryGreen = Color(0xFF4CAF50)     // Green for success/progress
     val accentRed = Color(0xFFE53935)        // Red for Japanese flag
     val backgroundWhite = Color(0xFFF5F5F5)  // White background
     val textDark = Color(0xFF212121)         // Dark text
     val secondaryLightGreen = Color(0xFFA5D6A7) // Light green for secondary elements
+    val adminPurple = Color(0xFF6538CC)     // Green for success/progress
 }
 
 // Function to hash passwords with SHA-256
@@ -314,6 +286,15 @@ fun UserCard(user: User, onClick: () -> Unit) {
                             modifier = Modifier.size(18.dp)
                         )
                     }
+                    if (user.admin) {
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Icon(
+                            Icons.Default.AdminPanelSettings,
+                            contentDescription = "Admin User",
+                            tint = NihongoTheme.adminPurple,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
                 Text(
                     text = user.email,
@@ -347,8 +328,13 @@ fun AddOrEditUserDialog(
     val imageUrlState = remember { mutableStateOf(user?.imageUrl ?: "") }
     val passwordState = remember { mutableStateOf("") } // Don't show existing password
     val vipState = remember { mutableStateOf(user?.vip ?: false) }
+    val adminState = remember { mutableStateOf(user?.admin ?: false) }
     val selectedImageUri = remember { mutableStateOf<Uri?>(null) }
     val showUrlFieldState = remember { mutableStateOf(false) }
+
+    // Track upload state
+    var isUploading by remember { mutableStateOf(false) }
+    var uploadError by remember { mutableStateOf<String?>(null) }
 
     // New state for password visibility switch
     val showPasswordField = remember { mutableStateOf(user == null) } // Show by default for new users
@@ -361,33 +347,87 @@ fun AddOrEditUserDialog(
     var showDialog by remember { mutableStateOf(false) }
     var lastSendSuccess by remember { mutableStateOf(true) }
 
+    // Context for file operations
+    val context = LocalContext.current
+
+    // Coroutine scope for async operations
+    val coroutineScope = rememberCoroutineScope()
+
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             if (user == null || selectedTabIndex == 0) {
                 Button(
                     onClick = {
-                        val newUser = user?.copy(
-                            username = usernameState.value,
-                            email = emailState.value,
-                            imageUrl = imageUrlState.value,
-                            password = if (passwordState.value.isNotEmpty()) passwordState.value else (user.password ?: ""),
-                            vip = vipState.value
-                        ) ?: User(
-                            username = usernameState.value,
-                            email = emailState.value,
-                            imageUrl = imageUrlState.value,
-                            password = passwordState.value,
-                            vip = vipState.value
-                        )
-                        onSave(newUser)
+                        if (selectedImageUri.value != null) {
+                            // Start upload process
+                            isUploading = true
+                            uploadError = null
+
+                            coroutineScope.launch {
+                                try {
+                                    // Convert URI to file
+                                    val inputStream = context.contentResolver.openInputStream(selectedImageUri.value!!)
+                                    val file = File(context.cacheDir, "temp_upload_${System.currentTimeMillis()}.jpg")
+
+                                    withContext(Dispatchers.IO) {
+                                        file.outputStream().use { outputStream ->
+                                            inputStream?.copyTo(outputStream)
+                                        }
+                                        inputStream?.close()
+                                    }
+
+                                    // Upload to Imgur
+                                    val uploader = ImgurUploader()
+                                    val uploadedUrl = uploader.uploadImage(file)
+
+                                    withContext(Dispatchers.Main) {
+                                        if (uploadedUrl != null) {
+                                            // Update imageUrl with the uploaded link
+                                            imageUrlState.value = uploadedUrl
+
+                                            // Create user object with the new image URL
+                                            saveUser(user, usernameState.value, emailState.value, uploadedUrl,
+                                                passwordState.value, vipState.value, adminState.value, onSave)
+
+                                            // Clean up temp file
+                                            file.delete()
+                                        } else {
+                                            uploadError = "Failed to upload image"
+                                        }
+                                        isUploading = false
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        uploadError = "Error: ${e.localizedMessage}"
+                                        isUploading = false
+                                    }
+                                }
+                            }
+                        } else {
+                            // No new image to upload, just save with existing URL
+                            saveUser(user, usernameState.value, emailState.value, imageUrlState.value,
+                                passwordState.value, vipState.value, adminState.value, onSave)
+                        }
                     },
+                    enabled = !isUploading,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = NihongoTheme.primaryGreen,
-                        contentColor = Color.White
+                        contentColor = Color.White,
+                        disabledContainerColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f)
                     )
                 ) {
-                    Text("Save")
+                    if (isUploading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Uploading...")
+                    } else {
+                        Text("Save")
+                    }
                 }
             }
         },
@@ -463,10 +503,22 @@ fun AddOrEditUserDialog(
                         imageUrlState = imageUrlState,
                         passwordState = passwordState,
                         vipState = vipState,
+                        adminState = adminState,
                         selectedImageUri = selectedImageUri,
                         showUrlFieldState = showUrlFieldState,
                         showPasswordField = showPasswordField
                     )
+
+                    // Show upload error if any
+                    uploadError?.let { error ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NihongoTheme.accentRed,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 } else {
                     NotifyContent(
                         user = user,
@@ -481,12 +533,42 @@ fun AddOrEditUserDialog(
                         onSendResult = {
                             lastSendSuccess = it
                             showDialog = true
-                        }
+                        },
+                        onDismiss = onDismiss
                     )
                 }
             }
         }
     )
+}
+
+// Helper function to create and save user
+private fun saveUser(
+    existingUser: User?,
+    username: String,
+    email: String,
+    imageUrl: String,
+    password: String,
+    isVip: Boolean,
+    isAdmin: Boolean,
+    onSave: (User) -> Unit
+) {
+    val newUser = existingUser?.copy(
+        username = username,
+        email = email,
+        imageUrl = imageUrl,
+        password = if (password.isNotEmpty()) password else (existingUser.password ?: ""),
+        vip = isVip,
+        admin = isAdmin
+    ) ?: User(
+        username = username,
+        email = email,
+        imageUrl = imageUrl,
+        password = password,
+        vip = isVip,
+        admin = isAdmin
+    )
+    onSave(newUser)
 }
 
 @Composable
@@ -496,6 +578,7 @@ private fun EditUserContent(
     imageUrlState: MutableState<String>,
     passwordState: MutableState<String>,
     vipState: MutableState<Boolean>,
+    adminState: MutableState<Boolean>,
     selectedImageUri: MutableState<Uri?>,
     showUrlFieldState: MutableState<Boolean>,
     showPasswordField: MutableState<Boolean>
@@ -504,7 +587,7 @@ private fun EditUserContent(
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             selectedImageUri.value = it
-            imageUrlState.value = it.toString()
+            // Don't update imageUrlState yet - we'll do that after upload
         }
     }
 
@@ -529,13 +612,32 @@ private fun EditUserContent(
                     .border(2.dp, NihongoTheme.primaryGreen, CircleShape),
                 contentScale = ContentScale.Crop
             )
+
+            // Show selected badge if an image is selected for upload
+            if (selectedImageUri.value != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset((-8).dp, (-8).dp)
+                        .size(24.dp)
+                        .background(NihongoTheme.primaryGreen, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Image Selected",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
         }
 
         TextButton(
             onClick = { showUrlFieldState.value = !showUrlFieldState.value },
             colors = ButtonDefaults.textButtonColors(contentColor = NihongoTheme.primaryGreen)
         ) {
-            Text("URL instead")
+            Text(if (showUrlFieldState.value) "Pick Image" else "URL instead")
         }
 
         if (showUrlFieldState.value) {
@@ -543,7 +645,7 @@ private fun EditUserContent(
                 value = imageUrlState.value,
                 onValueChange = {
                     imageUrlState.value = it
-                    selectedImageUri.value = null
+                    selectedImageUri.value = null // Clear any selected image when using URL
                 },
                 label = { Text("Image URL") },
                 modifier = Modifier.fillMaxWidth(),
@@ -552,6 +654,16 @@ private fun EditUserContent(
                     unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
                     cursorColor = NihongoTheme.primaryGreen
                 )
+            )
+        }
+
+        // Image selection info text
+        if (selectedImageUri.value != null) {
+            Text(
+                text = "Image selected - will be uploaded when saved",
+                style = MaterialTheme.typography.bodySmall,
+                color = NihongoTheme.primaryGreen,
+                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp, start = 4.dp)
             )
         }
 
@@ -647,6 +759,25 @@ private fun EditUserContent(
                 color = NihongoTheme.textDark
             )
         }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Checkbox(
+                checked = adminState.value,
+                onCheckedChange = { adminState.value = it },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = NihongoTheme.primaryGreen,
+                    uncheckedColor = NihongoTheme.textDark.copy(alpha = 0.6f)
+                )
+            )
+            Text(
+                "Admin Privilege",
+                color = NihongoTheme.textDark
+            )
+        }
     }
 }
 
@@ -661,7 +792,8 @@ fun NotifyContent(
     onContentTypeChange: (String) -> Unit,
     onAutoFillSelect: (String) -> Unit,
     toEmail: String,
-    onSendResult: (Boolean) -> Unit
+    onSendResult: (Boolean) -> Unit,
+    onDismiss: () -> Unit
 ) {
     val sendOptions = listOf("Notification", "Email")
     val contentOptions = listOf("Thủ công", "Auto-fill")
@@ -696,7 +828,7 @@ fun NotifyContent(
 
                 // Send Type Dropdown
                 Text(
-                    "Gửi dưới dạng",
+                    "Send as",
                     style = MaterialTheme.typography.titleMedium,
                     color = NihongoTheme.primaryGreen
                 )
@@ -751,7 +883,7 @@ fun NotifyContent(
 
                 // Content Type Dropdown
                 Text(
-                    "Nội dung gửi",
+                    "Send Content",
                     style = MaterialTheme.typography.titleMedium,
                     color = NihongoTheme.primaryGreen
                 )
@@ -809,7 +941,7 @@ fun NotifyContent(
                     )
                 } else {
                     Text(
-                        "Chọn mẫu nội dung",
+                        "Select content sample",
                         style = MaterialTheme.typography.titleMedium,
                         color = NihongoTheme.primaryGreen
                     )
@@ -852,6 +984,7 @@ fun NotifyContent(
                             onSendResult(result)
                             if (result) {
                                 Toast.makeText(context, "Đã gửi thành công!", Toast.LENGTH_SHORT).show()
+                                onDismiss()
                             } else {
                                 Toast.makeText(context, "Gửi thất bại, vui lòng thử lại", Toast.LENGTH_SHORT).show()
                             }
@@ -870,6 +1003,7 @@ fun NotifyContent(
                         )
                         val viewModel = AdminNotifyPageViewModel()
                         viewModel.sendNotificationToUser(campaign, context, user.id)
+                        onDismiss()
                     }
                 },
                 colors = ButtonDefaults.buttonColors(

@@ -3,36 +3,96 @@ package com.example.nihongo.Admin.ui
 import Campaign
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import android.util.Log
-import androidx.compose.foundation.background
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Title
+import androidx.compose.material3.Badge
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.work.*
 import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
-import com.example.nihongo.Admin.viewmodel.CampaignWorker
 import com.google.firebase.Timestamp
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
-import java.util.concurrent.TimeUnit
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel()) {
+
+    UIVisibilityController.disableDisplayTopBar()
+
     var title by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var imageUrl by remember { mutableStateOf("") }
@@ -46,6 +106,10 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
     var showDailyTimePicker by remember { mutableStateOf(false) }
     var activeTab by remember { mutableStateOf(0) }
 
+    // Edit mode states
+    var isEditMode by remember { mutableStateOf(false) }
+    var currentEditCampaignId by remember { mutableStateOf("") }
+
     val campaigns by viewModel.campaigns.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
@@ -54,6 +118,56 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
 
     val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
     val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+    // Create a scroll state that we can programmatically control
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+
+    // Define green color scheme
+    val greenColorScheme = darkColorScheme(
+        primary = Color(0xFF4CAF50),        // Main green
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFB9F6CA), // Light green for containers
+        onPrimaryContainer = Color(0xFF002200),
+        secondary = Color(0xFF8BC34A),      // Lighter green for secondary elements
+        onSecondary = Color.White,
+        secondaryContainer = Color(0xFFDCEDC8),
+        onSecondaryContainer = Color(0xFF1B5E20),
+        tertiary = Color(0xFF009688),       // Teal for tertiary elements
+        background = Color(0xFFF1F8E9),     // Light green background
+        surface = Color.White,
+        onSurface = Color(0xFF1B5E20),      // Dark green text on surface
+        error = Color(0xFFF44336)           // Red for errors
+    )
+
+    // Function to reset form fields
+    fun resetForm() {
+        title = ""
+        message = ""
+        imageUrl = ""
+        isScheduled = false
+        isDaily = false
+        scheduledDate = null
+        dailyHour = 9
+        dailyMinute = 0
+        isEditMode = false
+        currentEditCampaignId = ""
+    }
+
+    // Function to load campaign data for editing
+    fun loadCampaignForEdit(campaign: Campaign) {
+        title = campaign.title
+        message = campaign.message
+        imageUrl = campaign.imageUrl ?: ""
+        isScheduled = campaign.isScheduled
+        isDaily = campaign.isDaily
+        scheduledDate = campaign.scheduledFor?.toDate()
+        dailyHour = campaign.dailyHour
+        dailyMinute = campaign.dailyMinute
+        isEditMode = true
+        currentEditCampaignId = campaign.id
+        activeTab = 0 // Switch to create/edit tab
+    }
 
     // Time pickers
     if (showDatePicker) {
@@ -76,6 +190,7 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
             context,
             { _, hourOfDay, minute ->
                 calendar.apply {
+                    time = scheduledDate ?: Date()
                     set(Calendar.HOUR_OF_DAY, hourOfDay)
                     set(Calendar.MINUTE, minute)
                     set(Calendar.SECOND, 0)
@@ -103,249 +218,567 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
         ).show()
     }
 
-    Scaffold(
-        topBar = {
-            TabRow(
-                selectedTabIndex = activeTab,
-                modifier = Modifier.padding(top = 46.dp)
-            ) {
-                Tab(
-                    selected = activeTab == 0,
-                    onClick = { activeTab = 0 },
-                    text = { Text("Create Notification") }
-                )
-                Tab(
-                    selected = activeTab == 1,
-                    onClick = { activeTab = 1 },
-                    text = { Text("Scheduled Campaigns") }
-                )
-            }
-        }
-    ) { paddingValues ->
-        when (activeTab) {
-            0 -> {
-                // Create Notification Tab
-                Column(
-                    modifier = Modifier
-                        .padding(paddingValues)
-                        .padding(16.dp)
-                        .fillMaxSize()
+    MaterialTheme(
+        colorScheme = greenColorScheme
+    ) {
+        Scaffold(
+            topBar = {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text("Title") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = message,
-                        onValueChange = { message = it },
-                        label = { Text("Message") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = imageUrl,
-                        onValueChange = { imageUrl = it },
-                        label = { Text("Image URL (optional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Notification Type Selection
-                    Text(
-                        "Notification Type",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = !isScheduled && !isDaily,
-                            onClick = {
-                                isScheduled = false
-                                isDaily = false
-                            }
-                        )
-                        Text("Send immediately")
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = isScheduled,
-                            onClick = {
-                                isScheduled = true
-                                isDaily = false
-                                if (scheduledDate == null) {
-                                    showDatePicker = true
-                                }
-                            }
-                        )
-                        Text("Schedule for later")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        if (isScheduled) {
-                            OutlinedButton(onClick = { showDatePicker = true }) {
-                                Text(scheduledDate?.let { dateFormatter.format(it) + " " + timeFormatter.format(it) } ?: "Select date & time")
-                            }
-                        }
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = isDaily,
-                            onClick = {
-                                isDaily = true
-                                isScheduled = false
-                                showDailyTimePicker = true
-                            }
-                        )
-                        Text("Send daily")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        if (isDaily) {
-                            OutlinedButton(onClick = { showDailyTimePicker = true }) {
-                                Text("${String.format("%02d", dailyHour)}:${String.format("%02d", dailyMinute)}")
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = {
-                            val campaign = Campaign(
-                                title = title,
-                                message = message,
-                                imageUrl = if (imageUrl.isBlank()) null else imageUrl,
-                                isScheduled = isScheduled,
-                                isDaily = isDaily,
-                                scheduledFor = scheduledDate?.let { Timestamp(it) },
-                                dailyHour = dailyHour,
-                                dailyMinute = dailyMinute
+                    Column {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Notification Manager",
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.headlineMedium
                             )
+                        }
 
-                            if (isScheduled && scheduledDate != null) {
-                                // Save to Firebase first
-                                viewModel.saveCampaign(context, campaign)
-
-                                // Schedule the work
-                                val now = System.currentTimeMillis()
-                                val scheduledTime = scheduledDate!!.time
-                                val delay = scheduledTime - now
-
-                                if (delay > 0) {
-                                    val workRequest = OneTimeWorkRequestBuilder<CampaignWorker>()
-                                        .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                                        .setInputData(workDataOf("campaignId" to campaign.id))
-                                        .build()
-
-                                    WorkManager.getInstance(context)
-                                        .enqueueUniqueWork(
-                                            campaign.id,
-                                            ExistingWorkPolicy.REPLACE,
-                                            workRequest
-                                        )
-                                }
-                            } else if (isDaily) {
-                                // Save to Firebase first
-                                viewModel.saveCampaign(context, campaign)
-
-                                // Calculate initial delay to the next occurrence of the specified time
-                                val nowCalendar = Calendar.getInstance()
-                                val targetCalendar = Calendar.getInstance()
-                                targetCalendar.set(Calendar.HOUR_OF_DAY, dailyHour)
-                                targetCalendar.set(Calendar.MINUTE, dailyMinute)
-                                targetCalendar.set(Calendar.SECOND, 0)
-
-                                if (targetCalendar.before(nowCalendar)) {
-                                    // If the target time is before current time, add a day
-                                    targetCalendar.add(Calendar.DAY_OF_MONTH, 1)
-                                }
-
-                                val initialDelay = targetCalendar.timeInMillis - nowCalendar.timeInMillis
-
-                                val dailyWork = PeriodicWorkRequestBuilder<CampaignWorker>(24, TimeUnit.HOURS)
-                                    .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
-                                    .setInputData(workDataOf("campaignId" to campaign.id))
-                                    .build()
-
-                                WorkManager.getInstance(context)
-                                    .enqueueUniquePeriodicWork(
-                                        campaign.id,
-                                        ExistingPeriodicWorkPolicy.REPLACE,
-                                        dailyWork
-                                    )
-                            } else {
-                                // Send immediately
-                                viewModel.sendCampaign(campaign, context)
+                        TabRow(
+                            selectedTabIndex = activeTab,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            indicator = { tabPositions ->
+                                TabRowDefaults.Indicator(
+                                    modifier = Modifier.tabIndicatorOffset(tabPositions[activeTab]),
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
                             }
-
-                            // Clear fields after sending
-                            title = ""
-                            message = ""
-                            imageUrl = ""
-                            isScheduled = false
-                            isDaily = false
-                            scheduledDate = null
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = title.isNotBlank() && message.isNotBlank() &&
-                                (!isScheduled || scheduledDate != null)
-                    ) {
-                        if (!isScheduled && !isDaily) {
-                            Text("Send Now")
-                        } else if (isScheduled) {
-                            Text("Schedule Notification")
-                        } else {
-                            Text("Set Up Daily Notification")
+                        ) {
+                            Tab(
+                                selected = activeTab == 0,
+                                onClick = { activeTab = 0 },
+                                text = {
+                                    Text(
+                                        if (isEditMode) "Edit Notification" else "Create Notification",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (isEditMode) Icons.Default.Edit else Icons.Default.Create,
+                                        contentDescription = if (isEditMode) "Edit" else "Create"
+                                    )
+                                }
+                            )
+                            Tab(
+                                selected = activeTab == 1,
+                                onClick = {
+                                    activeTab = 1
+                                    resetForm() // Reset form when switching to list view
+                                },
+                                text = {
+                                    Text(
+                                        "Scheduled Campaigns",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.List,
+                                        contentDescription = "List"
+                                    )
+                                }
+                            )
                         }
                     }
                 }
             }
-            1 -> {
-                // Campaigns List Tab
-                if (isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .padding(paddingValues)
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        item {
-                            Text(
-                                "Scheduled Campaigns",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                modifier = Modifier.padding(vertical = 16.dp)
-                            )
-                        }
-
-                        if (campaigns.isEmpty()) {
-                            item {
-                                Box(
+        ) { paddingValues ->
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                when (activeTab) {
+                    0 -> {
+                        // Create/Edit Notification Tab
+                        Column(
+                            modifier = Modifier
+                                .padding(paddingValues)
+                                .fillMaxSize()
+                                .verticalScroll(scrollState)
+                                .padding(16.dp)
+                                // Add extra padding at the bottom to ensure content isn't covered by navigation bar
+                                .padding(bottom = 80.dp)
+                        ) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(32.dp),
-                                    contentAlignment = Alignment.Center
+                                        .padding(16.dp)
                                 ) {
-                                    Text("No scheduled campaigns")
+                                    Text(
+                                        if (isEditMode) "Edit Notification Campaign" else "Create New Notification",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    OutlinedTextField(
+                                        value = title,
+                                        onValueChange = { title = it },
+                                        label = { Text("Title") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            focusedLabelColor = MaterialTheme.colorScheme.primary
+                                        ),
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Title,
+                                                contentDescription = "Title",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    OutlinedTextField(
+                                        value = message,
+                                        onValueChange = { message = it },
+                                        label = { Text("Message") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            focusedLabelColor = MaterialTheme.colorScheme.primary
+                                        ),
+                                        minLines = 3,
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Message,
+                                                contentDescription = "Message",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    OutlinedTextField(
+                                        value = imageUrl,
+                                        onValueChange = { imageUrl = it },
+                                        label = { Text("Image URL (optional)") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            focusedLabelColor = MaterialTheme.colorScheme.primary
+                                        ),
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Image,
+                                                contentDescription = "Image URL",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    )
                                 }
                             }
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
+                                ) {
+                                    // Notification Type Selection
+                                    Text(
+                                        "Notification Type",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp)
+                                            .clickable {
+                                                isScheduled = false
+                                                isDaily = false
+                                            }
+                                    ) {
+                                        RadioButton(
+                                            selected = !isScheduled && !isDaily,
+                                            onClick = {
+                                                isScheduled = false
+                                                isDaily = false
+                                            },
+                                            colors = RadioButtonDefaults.colors(
+                                                selectedColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Send,
+                                            contentDescription = "Send immediately",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Send immediately")
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp)
+                                    ) {
+                                        RadioButton(
+                                            selected = isScheduled,
+                                            onClick = {
+                                                isScheduled = true
+                                                isDaily = false
+                                            },
+                                            colors = RadioButtonDefaults.colors(
+                                                selectedColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Schedule,
+                                            contentDescription = "Schedule for later",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Schedule for later")
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        if (isScheduled) {
+                                            OutlinedButton(
+                                                onClick = { showDatePicker = true },
+                                                border = BorderStroke(
+                                                    1.dp,
+                                                    MaterialTheme.colorScheme.primary
+                                                ),
+                                                colors = ButtonDefaults.outlinedButtonColors(
+                                                    contentColor = MaterialTheme.colorScheme.primary
+                                                )
+                                            ) {
+                                                Text(scheduledDate?.let {
+                                                    dateFormatter.format(it) + " " + timeFormatter.format(
+                                                        it
+                                                    )
+                                                } ?: "Select date & time")
+                                            }
+                                        }
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp)
+                                    ) {
+                                        RadioButton(
+                                            selected = isDaily,
+                                            onClick = {
+                                                isDaily = true
+                                                isScheduled = false
+                                            },
+                                            colors = RadioButtonDefaults.colors(
+                                                selectedColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Repeat,
+                                            contentDescription = "Send daily",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Send daily")
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        if (isDaily) {
+                                            OutlinedButton(
+                                                onClick = { showDailyTimePicker = true },
+                                                border = BorderStroke(
+                                                    1.dp,
+                                                    MaterialTheme.colorScheme.primary
+                                                ),
+                                                colors = ButtonDefaults.outlinedButtonColors(
+                                                    contentColor = MaterialTheme.colorScheme.primary
+                                                )
+                                            ) {
+                                                Text(
+                                                    "${String.format("%02d", dailyHour)}:${String.format("%02d", dailyMinute)}"
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(24.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        if (isEditMode) {
+                                            Button(
+                                                onClick = { resetForm() },
+                                                modifier = Modifier.weight(1f),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.secondary
+                                                )
+                                            ) {
+                                                Text("Cancel")
+                                            }
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                val campaign = Campaign(
+                                                    id = if (isEditMode) currentEditCampaignId else "",
+                                                    title = title,
+                                                    message = message,
+                                                    imageUrl = if (imageUrl.isBlank()) null else imageUrl,
+                                                    isScheduled = isScheduled,
+                                                    isDaily = isDaily,
+                                                    scheduledFor = scheduledDate?.let { Timestamp(it) },
+                                                    dailyHour = dailyHour,
+                                                    dailyMinute = dailyMinute
+                                                )
+
+                                                if (isEditMode) {
+                                                    viewModel.updateCampaign(campaign, context)
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Campaign updated successfully",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                } else {
+                                                    if (isScheduled && scheduledDate != null) {
+                                                        viewModel.saveCampaign(context, campaign)
+                                                        Toast.makeText(
+                                                            context,
+                                                            "Campaign scheduled successfully",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    } else if (isDaily) {
+                                                        viewModel.saveCampaign(context, campaign)
+                                                        Toast.makeText(
+                                                            context,
+                                                            "Daily campaign created successfully",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    } else {
+                                                        viewModel.sendCampaign(campaign, context)
+                                                        Toast.makeText(
+                                                            context,
+                                                            "Notification sent successfully",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    }
+                                                }
+
+                                                // Clear fields after sending or updating
+                                                resetForm()
+
+                                                // Scroll back to top after submitting
+                                                scope.launch {
+                                                    scrollState.animateScrollTo(0)
+                                                }
+                                            },
+                                            modifier = Modifier.weight(if (isEditMode) 1f else 1f),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary
+                                            ),
+                                            enabled = title.isNotBlank() && message.isNotBlank() &&
+                                                    (!isScheduled || scheduledDate != null)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = when {
+                                                        isEditMode -> Icons.Default.Save
+                                                        !isScheduled && !isDaily -> Icons.Default.Send
+                                                        isScheduled -> Icons.Default.Schedule
+                                                        else -> Icons.Default.Repeat
+                                                    },
+                                                    contentDescription = "Action icon"
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    when {
+                                                        isEditMode -> "Save Changes"
+                                                        !isScheduled && !isDaily -> "Send Now"
+                                                        isScheduled -> "Schedule Notification"
+                                                        else -> "Set Up Daily Notification"
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    1 -> {
+                        // Campaigns List Tab
+                        if (isLoading) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            }
                         } else {
-                            items(campaigns) { campaign ->
-                                CampaignItem(
-                                    campaign = campaign,
-                                    onDelete = { viewModel.deleteCampaign(campaign.id) },
-                                    onSendNow = { viewModel.sendCampaign(campaign, context) }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .padding(paddingValues)
+                                    .fillMaxSize()
+                            ) {
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        // Add padding at the bottom to prevent FAB from covering content
+                                        .padding(bottom = 80.dp)
+                                ) {
+                                    item {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 16.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Notifications,
+                                                contentDescription = "Notifications",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                "Scheduled Campaigns",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        Divider(color = MaterialTheme.colorScheme.primaryContainer)
+                                    }
+
+                                    if (campaigns.isEmpty()) {
+                                        item {
+                                            Card(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 32.dp),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = MaterialTheme.colorScheme.surface
+                                                ),
+                                                elevation = CardDefaults.cardElevation(
+                                                    defaultElevation = 2.dp
+                                                )
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(32.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.NotificationsOff,
+                                                        contentDescription = "No notifications",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(48.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                                    Text(
+                                                        "No scheduled campaigns",
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(
+                                                            alpha = 0.7f
+                                                        )
+                                                    )
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                                    Button(
+                                                        onClick = { activeTab = 0 },
+                                                        colors = ButtonDefaults.buttonColors(
+                                                            containerColor = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Add,
+                                                            contentDescription = "Create campaign"
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text("Create Campaign")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        items(campaigns) { campaign ->
+                                            CampaignItem(
+                                                campaign = campaign,
+                                                onDelete = {
+                                                    viewModel.deleteCampaign(campaign.id, context)
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Campaign deleted",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                },
+                                                onSendNow = {
+                                                    viewModel.sendCampaign(campaign, context)
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Notification sent",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                },
+                                                onEdit = { loadCampaignForEdit(campaign) }
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                    }
+                                }
+
+                                // FAB to add new campaign
+                                FloatingActionButton(
+                                    onClick = {
+                                        resetForm()
+                                        activeTab = 0
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(16.dp),
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = "Add New Campaign")
+                                }
                             }
                         }
                     }
@@ -355,20 +788,26 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CampaignItem(
     campaign: Campaign,
     onDelete: () -> Unit,
-    onSendNow: () -> Unit
+    onSendNow: () -> Unit,
+    onEdit: () -> Unit
 ) {
     val dateFormatter = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
-    val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+    var expanded by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        onClick = { expanded = !expanded }
     ) {
         Column(
             modifier = Modifier
@@ -380,33 +819,65 @@ fun CampaignItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = campaign.title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-
-                Row {
-                    IconButton(onClick = onSendNow) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "Send Now"
-                        )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    when {
+                        campaign.isDaily -> {
+                            Icon(
+                                imageVector = Icons.Default.Repeat,
+                                contentDescription = "Daily",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .padding(end = 8.dp)
+                            )
+                        }
+                        campaign.isScheduled -> {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = "Scheduled",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .padding(end = 8.dp)
+                            )
+                        }
+                        else -> {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Sent",
+                                tint = Color.Green,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .padding(end = 8.dp)
+                            )
+                        }
                     }
 
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete"
-                        )
-                    }
+                    Text(
+                        text = campaign.title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (expanded) "Show less" else "Show more",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
                 text = campaign.message,
-                maxLines = 2,
-                fontSize = 14.sp
+                maxLines = if (expanded) Int.MAX_VALUE else 2,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -415,55 +886,135 @@ fun CampaignItem(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when {
                     campaign.isDaily -> {
-                        Icon(
-                            imageVector = Icons.Default.Repeat,
-                            contentDescription = "Daily",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Daily at ${String.format("%02d", campaign.dailyHour)}:${String.format("%02d", campaign.dailyMinute)}",
-                            fontSize = 12.sp
-                        )
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ) {
+                            Text(
+                                text = "Daily at ${String.format("%02d", campaign.dailyHour)}:${String.format("%02d", campaign.dailyMinute)}",
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                     campaign.isScheduled -> {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = "Scheduled",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = campaign.scheduledFor?.toDate()?.let { dateFormatter.format(it) } ?: "Scheduled",
-                            fontSize = 12.sp
-                        )
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Text(
+                                text = campaign.scheduledFor?.toDate()?.let { dateFormatter.format(it) } ?: "Scheduled",
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                     else -> {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Sent",
-                            tint = Color.Green,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Sent",
-                            fontSize = 12.sp
-                        )
+                        Badge(
+                            containerColor = Color.Green.copy(alpha = 0.2f),
+                            contentColor = Color.Green
+                        ) {
+                            Text(
+                                text = "Sent",
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Last sent indicator if applicable
                 campaign.lastSent?.toDate()?.let { lastSentDate ->
                     Text(
                         text = "Last sent: ${dateFormatter.format(lastSentDate)}",
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
+                }
+            }
+
+            if (expanded) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Campaign image preview if available
+                campaign.imageUrl?.let { url ->
+                    if (url.isNotEmpty()) {
+                        Text(
+                            "Image URL:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            url,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onEdit,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit"
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onSendNow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.secondary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Send Now"
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onDelete,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete"
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                    }
                 }
             }
         }
