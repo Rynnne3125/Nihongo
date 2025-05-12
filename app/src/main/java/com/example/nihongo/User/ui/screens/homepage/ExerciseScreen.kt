@@ -84,7 +84,6 @@ fun ExerciseScreen(
     var isLoading by remember { mutableStateOf(true) }
     var shouldNavigateToQuiz by remember { mutableStateOf(false) }
 
-
     LaunchedEffect(sublessonId) {
         isLoading = true
         exercises = exerciseRepository.getExercisesBySubLessonId(sublessonId, lessonId)
@@ -152,6 +151,13 @@ fun ExerciseScreen(
             val videoExercise = exercises.find { it.type == ExerciseType.VIDEO }
 
             if (videoExercise != null) {
+                // Parse explanation từ Firebase hoặc sử dụng sampleExplanation nếu không có
+                val explanation = if (videoExercise.explanation.isNullOrBlank()) {
+                    sampleExplanation
+                } else {
+                    parseExplanation(videoExercise.explanation)
+                }
+
                 VideoExerciseView(
                     navController = navController,
                     userEmail = userEmail,
@@ -159,7 +165,7 @@ fun ExerciseScreen(
                     lessonId = lessonId,
                     title = videoExercise.title ?: "",
                     videoPath = videoExercise.videoUrl ?: "",
-                    explanation = sampleExplanation,
+                    explanation = explanation,
                     quiz = quizExercises,
                     innerPadding = innerPadding
                 )
@@ -461,9 +467,6 @@ fun VideoExerciseView(
     }
 }
 
-
-
-
 @Composable
 fun ExpandableExplanationCards(
     navController: NavController,
@@ -562,6 +565,20 @@ fun ExpandableExplanationCards(
     }
 }
 
+fun parseExplanation(raw: String): List<Pair<String, String>> {
+    val parts = raw.split("➤").filter { it.isNotBlank() }
+    val result = mutableListOf<Pair<String, String>>()
+
+    var i = 0
+    while (i < parts.size - 1) {
+        val title = parts[i].trim()
+        val content = parts[i + 1].trim()
+        result.add(title to content)
+        i += 2
+    }
+
+    return result
+}
 
 val sampleExplanation = listOf(
     "I. Giới thiệu các loại chữ trong tiếng Nhật" to """

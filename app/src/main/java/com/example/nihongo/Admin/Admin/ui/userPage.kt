@@ -31,10 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import com.example.nihongo.Admin.utils.AdminEmailSender
 import com.example.nihongo.Admin.viewmodel.AdminUserViewModel
 import com.example.nihongo.User.data.models.User
@@ -48,8 +46,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import com.example.nihongo.Admin.utils.ImgurUploader
 import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
 import com.google.firebase.Timestamp
@@ -61,6 +57,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 
 // Custom theme colors for Japanese language learning app
 object NihongoTheme {
@@ -80,7 +83,7 @@ fun hashPassword(password: String): String {
 }
 
 @Composable
-fun userPage(viewModel: AdminUserViewModel = viewModel()) {
+fun userPage(viewModel: AdminUserViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val users by viewModel.users.collectAsState()
     var searchText by remember { mutableStateOf("") }
     var filterVipOnly by remember { mutableStateOf(false) }
@@ -100,73 +103,78 @@ fun userPage(viewModel: AdminUserViewModel = viewModel()) {
 
     // Outer Box to stack content + FAB
     Box(modifier = Modifier.fillMaxSize().background(NihongoTheme.backgroundWhite)) {
-        Column(
+        // Wrap Column in LazyColumn for scrollability
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = 64.dp, start = 16.dp, end = 16.dp, bottom = 16.dp)
         ) {
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = { searchText = it },
-                label = { Text("Search by name or email", color = NihongoTheme.textDark) },
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NihongoTheme.primaryGreen,
-                    unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
-                    cursorColor = NihongoTheme.primaryGreen
+            item {
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = { Text("Search by name or email", color = NihongoTheme.textDark) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = NihongoTheme.primaryGreen,
+                        unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                        cursorColor = NihongoTheme.primaryGreen
+                    )
                 )
-            )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Filter options with styled checkboxes
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(NihongoTheme.secondaryLightGreen.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .padding(8.dp)
-            ) {
+                // Filter options with styled checkboxes
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(NihongoTheme.secondaryLightGreen.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .padding(8.dp)
                 ) {
-                    Checkbox(
-                        checked = filterVipOnly,
-                        onCheckedChange = { filterVipOnly = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = NihongoTheme.primaryGreen,
-                            uncheckedColor = NihongoTheme.textDark.copy(alpha = 0.6f)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Checkbox(
+                            checked = filterVipOnly,
+                            onCheckedChange = { filterVipOnly = it },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = NihongoTheme.primaryGreen,
+                                uncheckedColor = NihongoTheme.textDark.copy(alpha = 0.6f)
+                            )
                         )
-                    )
-                    Text("VIP Only", color = NihongoTheme.textDark)
+                        Text("VIP Only", color = NihongoTheme.textDark)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Checkbox(
+                            checked = filterLoggedInOnly,
+                            onCheckedChange = { filterLoggedInOnly = it },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = NihongoTheme.primaryGreen,
+                                uncheckedColor = NihongoTheme.textDark.copy(alpha = 0.6f)
+                            )
+                        )
+                        Text("Online Only", color = NihongoTheme.textDark)
+                    }
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Checkbox(
-                        checked = filterLoggedInOnly,
-                        onCheckedChange = { filterLoggedInOnly = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = NihongoTheme.primaryGreen,
-                            uncheckedColor = NihongoTheme.textDark.copy(alpha = 0.6f)
-                        )
-                    )
-                    Text("Online Only", color = NihongoTheme.textDark)
-                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
             // User List
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(filteredUsers) { user ->
-                    Log.d("UserCardDebug", "Rendering UserCard for user: ${user}")
-                    UserCard(user = user, onClick = { selectedUser = user })
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
+            items(filteredUsers) { user ->
+                UserCard(user = user, onClick = { selectedUser = user })
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+            item {
+
+                Spacer(modifier = Modifier.height(58.dp))
+
             }
         }
 
@@ -353,6 +361,11 @@ fun AddOrEditUserDialog(
     // Coroutine scope for async operations
     val coroutineScope = rememberCoroutineScope()
 
+    val activityPointsState = remember { mutableStateOf(user?.activityPoints?.toString() ?: "0") }
+    val jlptLevelState = remember { mutableStateOf(user?.jlptLevel) }
+    val studyMonthsState = remember { mutableStateOf(user?.studyMonths) }
+    val rankState = remember { mutableStateOf(user?.rank ?: "Tân binh") }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -387,8 +400,20 @@ fun AddOrEditUserDialog(
                                             imageUrlState.value = uploadedUrl
 
                                             // Create user object with the new image URL
-                                            saveUser(user, usernameState.value, emailState.value, uploadedUrl,
-                                                passwordState.value, vipState.value, adminState.value, onSave)
+                                            saveUser(
+                                                user,
+                                                usernameState.value,
+                                                emailState.value,
+                                                uploadedUrl,
+                                                passwordState.value,
+                                                vipState.value,
+                                                adminState.value,
+                                                activityPointsState.value.toIntOrNull() ?: 0,
+                                                jlptLevelState.value,
+                                                studyMonthsState.value,
+                                                rankState.value,
+                                                onSave
+                                            )
 
                                             // Clean up temp file
                                             file.delete()
@@ -406,8 +431,20 @@ fun AddOrEditUserDialog(
                             }
                         } else {
                             // No new image to upload, just save with existing URL
-                            saveUser(user, usernameState.value, emailState.value, imageUrlState.value,
-                                passwordState.value, vipState.value, adminState.value, onSave)
+                            saveUser(
+                                user,
+                                usernameState.value,
+                                emailState.value,
+                                imageUrlState.value,
+                                passwordState.value,
+                                vipState.value,
+                                adminState.value,
+                                activityPointsState.value.toIntOrNull() ?: 0,
+                                jlptLevelState.value,
+                                studyMonthsState.value,
+                                rankState.value,
+                                onSave
+                            )
                         }
                     },
                     enabled = !isUploading,
@@ -506,7 +543,11 @@ fun AddOrEditUserDialog(
                         adminState = adminState,
                         selectedImageUri = selectedImageUri,
                         showUrlFieldState = showUrlFieldState,
-                        showPasswordField = showPasswordField
+                        showPasswordField = showPasswordField,
+                        activityPointsState = activityPointsState,
+                        jlptLevelState = jlptLevelState,
+                        studyMonthsState = studyMonthsState,
+                        rankState = rankState
                     )
 
                     // Show upload error if any
@@ -551,6 +592,10 @@ private fun saveUser(
     password: String,
     isVip: Boolean,
     isAdmin: Boolean,
+    activityPoints: Int,
+    jlptLevel: Int?,
+    studyMonths: Int?,
+    rank: String,
     onSave: (User) -> Unit
 ) {
     val newUser = existingUser?.copy(
@@ -559,14 +604,22 @@ private fun saveUser(
         imageUrl = imageUrl,
         password = if (password.isNotEmpty()) password else (existingUser.password ?: ""),
         vip = isVip,
-        admin = isAdmin
+        admin = isAdmin,
+        activityPoints = activityPoints,
+        jlptLevel = jlptLevel,
+        studyMonths = studyMonths,
+        rank = rank
     ) ?: User(
         username = username,
         email = email,
         imageUrl = imageUrl,
         password = password,
         vip = isVip,
-        admin = isAdmin
+        admin = isAdmin,
+        activityPoints = activityPoints,
+        jlptLevel = jlptLevel,
+        studyMonths = studyMonths,
+        rank = rank
     )
     onSave(newUser)
 }
@@ -581,7 +634,11 @@ private fun EditUserContent(
     adminState: MutableState<Boolean>,
     selectedImageUri: MutableState<Uri?>,
     showUrlFieldState: MutableState<Boolean>,
-    showPasswordField: MutableState<Boolean>
+    showPasswordField: MutableState<Boolean>,
+    activityPointsState: MutableState<String>,
+    jlptLevelState: MutableState<Int?>,
+    studyMonthsState: MutableState<Int?>,
+    rankState: MutableState<String>,
 ) {
     val context = LocalContext.current
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -592,8 +649,22 @@ private fun EditUserContent(
     }
 
     val defaultImage = "https://ih1.redbubble.net/image.1629121092.8901/bg,f8f8f8-flat,750x,075,f-pad,750x1000,f8f8f8.jpg"
+    
+    // Password visibility toggle
+    var passwordVisible by remember { mutableStateOf(false) }
+    
+    // JLPT Level options
+    val jlptOptions = listOf("None", "N5", "N4", "N3", "N2", "N1")
+    var jlptMenuExpanded by remember { mutableStateOf(false) }
+    
+    // Study months options
+    val studyMonthsOptions = listOf("None", "1", "3", "6", "12", "18", "24", "36")
+    var studyMonthsMenuExpanded by remember { mutableStateOf(false) }
 
-    Column {
+    // Add scrolling support for the form
+    val scrollState = rememberScrollState()
+
+    Column(modifier = Modifier.verticalScroll(scrollState)) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -716,7 +787,7 @@ private fun EditUserContent(
             )
         }
 
-        // Password field only shows when switch is on
+        // Password field only shows when switch is on - now with visibility toggle
         if (showPasswordField.value) {
             OutlinedTextField(
                 value = passwordState.value,
@@ -728,7 +799,19 @@ private fun EditUserContent(
                     unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
                     cursorColor = NihongoTheme.primaryGreen
                 ),
-                visualTransformation = PasswordVisualTransformation()
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) 
+                                Icons.Default.Visibility 
+                            else 
+                                Icons.Default.VisibilityOff,
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                            tint = NihongoTheme.primaryGreen
+                        )
+                    }
+                }
             )
 
             Text(
@@ -738,6 +821,131 @@ private fun EditUserContent(
                 modifier = Modifier.padding(top = 4.dp, start = 4.dp)
             )
         }
+        
+        // JLPT Level dropdown
+        Text(
+            "JLPT Level",
+            style = MaterialTheme.typography.titleMedium,
+            color = NihongoTheme.primaryGreen,
+            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+        )
+        Box {
+            OutlinedButton(
+                onClick = { jlptMenuExpanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, NihongoTheme.primaryGreen),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = NihongoTheme.primaryGreen
+                )
+            ) {
+                Text(
+                    if (jlptLevelState.value == null) "None" 
+                    else "N${jlptLevelState.value}"
+                )
+            }
+
+            DropdownMenu(
+                expanded = jlptMenuExpanded,
+                onDismissRequest = { jlptMenuExpanded = false }
+            ) {
+                jlptOptions.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            jlptLevelState.value = when(option) {
+                                "None" -> null
+                                else -> option.substring(1).toInt()
+                            }
+                            jlptMenuExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+        
+        // Study Months dropdown
+        Text(
+            "Study Months",
+            style = MaterialTheme.typography.titleMedium,
+            color = NihongoTheme.primaryGreen,
+            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+        )
+        Box {
+            OutlinedButton(
+                onClick = { studyMonthsMenuExpanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, NihongoTheme.primaryGreen),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = NihongoTheme.primaryGreen
+                )
+            ) {
+                Text(
+                    if (studyMonthsState.value == null) "None" 
+                    else "${studyMonthsState.value} months"
+                )
+            }
+
+            DropdownMenu(
+                expanded = studyMonthsMenuExpanded,
+                onDismissRequest = { studyMonthsMenuExpanded = false }
+            ) {
+                studyMonthsOptions.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            studyMonthsState.value = when(option) {
+                                "None" -> null
+                                else -> option.toInt()
+                            }
+                            studyMonthsMenuExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+        
+        // Activity Points
+        OutlinedTextField(
+            value = activityPointsState.value,
+            onValueChange = { 
+                val filtered = it.filter { char -> char.isDigit() }
+                activityPointsState.value = filtered 
+                // Auto update rank based on points
+                rankState.value = when {
+                    filtered.toIntOrNull() ?: 0 >= 1000 -> "Bậc thầy"
+                    filtered.toIntOrNull() ?: 0 >= 750 -> "Chuyên gia"
+                    filtered.toIntOrNull() ?: 0 >= 500 -> "Cao cấp"
+                    filtered.toIntOrNull() ?: 0 >= 300 -> "Trung cấp"
+                    filtered.toIntOrNull() ?: 0 >= 150 -> "Sơ cấp"
+                    filtered.toIntOrNull() ?: 0 >= 50 -> "Người mới"
+                    else -> "Tân binh"
+                }
+            },
+            label = { Text("Activity Points") },
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = NihongoTheme.primaryGreen,
+                unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                cursorColor = NihongoTheme.primaryGreen
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+        
+        // Rank (read-only)
+        OutlinedTextField(
+            value = rankState.value,
+            onValueChange = { },
+            label = { Text("Rank") },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = NihongoTheme.primaryGreen,
+                unfocusedBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                disabledBorderColor = NihongoTheme.primaryGreen.copy(alpha = 0.5f),
+                disabledTextColor = NihongoTheme.textDark,
+                disabledLabelColor = NihongoTheme.textDark
+            ),
+            enabled = false
+        )
 
         // VIP user checkbox
         Row(
@@ -759,6 +967,8 @@ private fun EditUserContent(
                 color = NihongoTheme.textDark
             )
         }
+        
+        // Admin privilege checkbox
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier

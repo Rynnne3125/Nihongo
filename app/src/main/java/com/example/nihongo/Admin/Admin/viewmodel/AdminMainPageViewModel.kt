@@ -19,6 +19,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.coroutineScope
 
 class AdminMainPageViewModel : ViewModel() {
     // Firestore instance
@@ -61,16 +62,21 @@ class AdminMainPageViewModel : ViewModel() {
     fun loadAllData() {
         viewModelScope.launch {
             isLoading.value = true
-
-            // Load all statistics in parallel for better performance
-            launch { getMonthlyUserCounts() }
-            launch { getTopUsersByActivityPoints() }
-            launch { getMostLikedCourses() }
-            launch { getTotalCourseCount() }
-            launch { getVipMemberCount() }
-            launch { getMostEnrolledCourses() }
-
-            isLoading.value = false
+            try {
+                // Load all statistics in parallel for better performance
+                coroutineScope {
+                    launch { getMonthlyUserCounts() }
+                    launch { getTopUsersByActivityPoints() }
+                    launch { getMostLikedCourses() }
+                    launch { getTotalCourseCount() }
+                    launch { getVipMemberCount() }
+                    launch { getMostEnrolledCourses() }
+                }
+            } catch (e: Exception) {
+                Log.e("AdminViewModel", "Error loading data", e)
+            } finally {
+                isLoading.value = false
+            }
         }
     }
 
@@ -127,7 +133,7 @@ class AdminMainPageViewModel : ViewModel() {
     private suspend fun getTopUsersByActivityPoints(limit: Int = 5) {
         try {
             val users = firestore.collection("users")
-                .orderBy("activityPoints", Query.Direction.DESCENDING)
+                .orderBy("activityPoints", Query.Direction.DESCENDING) //activityPoints
                 .limit(limit.toLong())
                 .get()
                 .await()

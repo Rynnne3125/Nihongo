@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Title
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -86,6 +88,16 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.PaddingValues
+import coil.compose.AsyncImage
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,6 +121,25 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
     // Edit mode states
     var isEditMode by remember { mutableStateOf(false) }
     var currentEditCampaignId by remember { mutableStateOf("") }
+
+    // Thêm các biến trạng thái cho chọn ảnh
+    var selectedImageType by remember { mutableStateOf("url") } // "url", "default", "upload"
+    var selectedDefaultImage by remember { mutableStateOf("") }
+    var uploadedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showImagePreview by remember { mutableStateOf(false) }
+
+    // Danh sách ảnh mặc định
+    val defaultImages = listOf(
+        "https://kosei.vn/uploads/hoc-kanji-moi-ngay-tu-muc.jpg",
+        "https://japan.net.vn/images/uploads/2019/04/26/0-danh-ngon-tieng-nhat-hay.jpg",
+        "https://storage.dekiru.vn/Data/2019/07/08/tai-xuong-636981962504233046.jpg"
+    )
+
+    // Launcher để chọn ảnh từ máy
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uploadedImageUri = uri
+        showImagePreview = true
+    }
 
     val campaigns by viewModel.campaigns.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -217,6 +248,8 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
             true
         ).show()
     }
+
+
 
     MaterialTheme(
         colorScheme = greenColorScheme
@@ -372,23 +405,217 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
 
                                     Spacer(modifier = Modifier.height(12.dp))
 
-                                    OutlinedTextField(
-                                        value = imageUrl,
-                                        onValueChange = { imageUrl = it },
-                                        label = { Text("Image URL (optional)") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                            focusedLabelColor = MaterialTheme.colorScheme.primary
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 16.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
                                         ),
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Image,
-                                                contentDescription = "Image URL",
-                                                tint = MaterialTheme.colorScheme.primary
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp)
+                                        ) {
+                                            Text(
+                                                "Select notification image (Optional)",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
                                             )
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            // Lựa chọn kiểu ảnh
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        selectedImageType = "url"
+                                                        showImagePreview = false
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        containerColor = if (selectedImageType == "url") 
+                                                            MaterialTheme.colorScheme.primaryContainer 
+                                                        else 
+                                                            MaterialTheme.colorScheme.surface,
+                                                        contentColor = if (selectedImageType == "url") 
+                                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                                        else 
+                                                            MaterialTheme.colorScheme.primary
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Link,
+                                                        contentDescription = "URL",
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                }
+
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        selectedImageType = "default"
+                                                        showImagePreview = false
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        containerColor = if (selectedImageType == "default") 
+                                                            MaterialTheme.colorScheme.primaryContainer 
+                                                        else 
+                                                            MaterialTheme.colorScheme.surface,
+                                                        contentColor = if (selectedImageType == "default") 
+                                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                                        else 
+                                                            MaterialTheme.colorScheme.primary
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Image,
+                                                        contentDescription = "Default",
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                }
+
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        selectedImageType = "upload"
+                                                        showImagePreview = false
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        containerColor = if (selectedImageType == "upload") 
+                                                            MaterialTheme.colorScheme.primaryContainer 
+                                                        else 
+                                                            MaterialTheme.colorScheme.surface,
+                                                        contentColor = if (selectedImageType == "upload") 
+                                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                                        else 
+                                                            MaterialTheme.colorScheme.primary
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Upload,
+                                                        contentDescription = "Upload",
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(16.dp))
+
+                                            // Nhập URL
+                                            if (selectedImageType == "url") {
+                                                OutlinedTextField(
+                                                    value = imageUrl,
+                                                    onValueChange = {
+                                                        imageUrl = it
+                                                        showImagePreview = it.isNotBlank()
+                                                    },
+                                                    label = { Text("Image URL") },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    leadingIcon = {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Link,
+                                                            contentDescription = "URL",
+                                                            tint = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    }
+                                                )
+                                            }
+
+                                            // Chọn ảnh mặc định
+                                            if (selectedImageType == "default") {
+                                                LazyRow(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    contentPadding = PaddingValues(vertical = 8.dp)
+                                                ) {
+                                                    items(defaultImages) { img ->
+                                                        Card(
+                                                            modifier = Modifier
+                                                                .size(100.dp)
+                                                                .clickable {
+                                                                    selectedDefaultImage = img
+                                                                    showImagePreview = true
+                                                                },
+                                                            colors = CardDefaults.cardColors(
+                                                                containerColor = if (selectedDefaultImage == img) 
+                                                                    MaterialTheme.colorScheme.primaryContainer 
+                                                                else 
+                                                                    MaterialTheme.colorScheme.surface
+                                                            ),
+                                                            border = BorderStroke(
+                                                                width = if (selectedDefaultImage == img) 2.dp else 1.dp,
+                                                                color = if (selectedDefaultImage == img) 
+                                                                    MaterialTheme.colorScheme.primary 
+                                                                else 
+                                                                    MaterialTheme.colorScheme.outline
+                                                            )
+                                                        ) {
+                                                            AsyncImage(
+                                                                model = img,
+                                                                contentDescription = null,
+                                                                modifier = Modifier.fillMaxSize(),
+                                                                contentScale = ContentScale.Crop
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            // Upload từ máy
+                                            if (selectedImageType == "upload") {
+                                                OutlinedButton(
+                                                    onClick = { launcher.launch("image/*") },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        containerColor = MaterialTheme.colorScheme.surface,
+                                                        contentColor = MaterialTheme.colorScheme.primary
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Upload,
+                                                        contentDescription = "Upload",
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("Chọn ảnh từ máy")
+                                                }
+                                            }
+
+                                            // Preview ảnh
+                                            val previewUrl = when {
+                                                selectedImageType == "url" && imageUrl.isNotBlank() -> imageUrl
+                                                selectedImageType == "default" && selectedDefaultImage.isNotBlank() -> selectedDefaultImage
+                                                selectedImageType == "upload" && uploadedImageUri != null -> uploadedImageUri.toString()
+                                                else -> null
+                                            }
+                                            if (showImagePreview && previewUrl != null) {
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = MaterialTheme.colorScheme.surface
+                                                    )
+                                                ) {
+                                                    AsyncImage(
+                                                        model = previewUrl,
+                                                        contentDescription = "Preview",
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(200.dp),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                }
+                                            }
                                         }
-                                    )
+                                    }
                                 }
                             }
 
@@ -553,11 +780,18 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
 
                                         Button(
                                             onClick = {
+                                                val finalImageUrl = when {
+                                                    selectedImageType == "url" -> imageUrl
+                                                    selectedImageType == "default" -> selectedDefaultImage
+                                                    selectedImageType == "upload" && uploadedImageUri != null -> uploadedImageUri.toString()
+                                                    else -> ""
+                                                }
+
                                                 val campaign = Campaign(
                                                     id = if (isEditMode) currentEditCampaignId else "",
                                                     title = title,
                                                     message = message,
-                                                    imageUrl = if (imageUrl.isBlank()) null else imageUrl,
+                                                    imageUrl = if (finalImageUrl.isBlank()) null else finalImageUrl,
                                                     isScheduled = isScheduled,
                                                     isDaily = isDaily,
                                                     scheduledFor = scheduledDate?.let { Timestamp(it) },
