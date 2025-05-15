@@ -1212,7 +1212,7 @@ fun NotifyContent(
                             dailyMinute = 0
                         )
                         val viewModel = AdminNotifyPageViewModel()
-                        viewModel.sendNotificationToUser(campaign, context, user.id)
+                        viewModel.sendNotificationToUser(campaign, context, user.email)
                         onDismiss()
                     }
                 },

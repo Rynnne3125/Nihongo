@@ -29,7 +29,9 @@ class AlarmReceiver : BroadcastReceiver() {
             .get()
             .addOnSuccessListener { document ->
                 document.toObject(Campaign::class.java)?.let { campaign ->
-                    showNotification(context, campaign)
+                    // Use AdminNotifyPageViewModel to send notification
+                    val viewModel = AdminNotifyPageViewModel()
+                    viewModel.sendOneSignalPushNotification(campaign)
                     
                     // If it's a daily notification, schedule the next one
                     if (isDaily) {

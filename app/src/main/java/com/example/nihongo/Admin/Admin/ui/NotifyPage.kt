@@ -98,6 +98,10 @@ import coil.compose.AsyncImage
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.layout.ContentScale
+import com.example.nihongo.Admin.utils.ImgurUploader
+import java.io.File
+import android.content.ContentResolver
+import android.provider.OpenableColumns
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,16 +139,82 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
         "https://storage.dekiru.vn/Data/2019/07/08/tai-xuong-636981962504233046.jpg"
     )
 
+    // Add coroutine scope for image uploading
+    val scope = rememberCoroutineScope()
+    
+    // Upload states
+    var isUploading by remember { mutableStateOf(false) }
+    var uploadError by remember { mutableStateOf<String?>(null) }
+
+    // Initialize imgur uploader
+    val imgurUploader = remember { ImgurUploader() }
+    val context = LocalContext.current
+
+    // Helper function to get file from Uri
+    fun getFileFromUri(uri: Uri): File? {
+        val contentResolver = context.contentResolver
+        val tempFile = try {
+            // Get the file name
+            val fileName = contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                cursor.moveToFirst()
+                cursor.getString(nameIndex)
+            } ?: "temp_image_${System.currentTimeMillis()}.jpg"
+            
+            // Create temporary file
+            File.createTempFile("upload_", fileName, context.cacheDir)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        }
+        
+        try {
+            // Copy URI content to temp file
+            contentResolver.openInputStream(uri)?.use { inputStream ->
+                tempFile.outputStream().use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+            return tempFile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        }
+    }
+
     // Launcher để chọn ảnh từ máy
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uploadedImageUri = uri
-        showImagePreview = true
+        if (uri != null) {
+            showImagePreview = true
+            // Start upload when image is selected
+            isUploading = true
+            uploadError = null
+            
+            scope.launch {
+                try {
+                    getFileFromUri(uri)?.let { file ->
+                        val imgurUrl = imgurUploader.uploadImage(file)
+                        if (imgurUrl != null) {
+                            imageUrl = imgurUrl
+                        } else {
+                            uploadError = "Failed to upload image"
+                        }
+                    } ?: run {
+                        uploadError = "Error processing image file"
+                    }
+                } catch (e: Exception) {
+                    uploadError = "Error: ${e.message}"
+                } finally {
+                    isUploading = false
+                }
+            }
+        }
     }
 
     val campaigns by viewModel.campaigns.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    val context = LocalContext.current
     val calendar = Calendar.getInstance()
 
     val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
@@ -152,7 +222,6 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
 
     // Create a scroll state that we can programmatically control
     val scrollState = rememberScrollState()
-    val scope = rememberCoroutineScope()
 
     // Define green color scheme
     val greenColorScheme = darkColorScheme(
@@ -183,6 +252,12 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
         dailyMinute = 0
         isEditMode = false
         currentEditCampaignId = ""
+        // Reset image-related states
+        selectedImageType = "url"
+        selectedDefaultImage = ""
+        uploadedImageUri = null
+        showImagePreview = false
+        uploadError = null
     }
 
     // Function to load campaign data for editing
@@ -213,7 +288,11 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
             calendar.get(Calendar.YEAR),
             calendar.get(Calendar.MONTH),
             calendar.get(Calendar.DAY_OF_MONTH)
-        ).show()
+        ).apply {
+            setOnCancelListener {
+                showDatePicker = false
+            }
+        }.show()
     }
 
     if (showTimePicker) {
@@ -232,7 +311,11 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
             calendar.get(Calendar.HOUR_OF_DAY),
             calendar.get(Calendar.MINUTE),
             true
-        ).show()
+        ).apply {
+            setOnCancelListener {
+                showTimePicker = false
+            }
+        }.show()
     }
 
     if (showDailyTimePicker) {
@@ -246,10 +329,12 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
             dailyHour,
             dailyMinute,
             true
-        ).show()
+        ).apply {
+            setOnCancelListener {
+                showDailyTimePicker = false
+            }
+        }.show()
     }
-
-
 
     MaterialTheme(
         colorScheme = greenColorScheme
@@ -577,15 +662,35 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
                                                     colors = ButtonDefaults.outlinedButtonColors(
                                                         containerColor = MaterialTheme.colorScheme.surface,
                                                         contentColor = MaterialTheme.colorScheme.primary
-                                                    )
+                                                    ),
+                                                    enabled = !isUploading
                                                 ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Upload,
-                                                        contentDescription = "Upload",
-                                                        modifier = Modifier.size(20.dp)
+                                                    if (isUploading) {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(20.dp),
+                                                            color = MaterialTheme.colorScheme.primary,
+                                                            strokeWidth = 2.dp
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text("Uploading...")
+                                                    } else {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Upload,
+                                                            contentDescription = "Upload",
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text("Chọn ảnh từ máy")
+                                                    }
+                                                }
+                                                
+                                                uploadError?.let { error ->
+                                                    Text(
+                                                        text = error,
+                                                        color = MaterialTheme.colorScheme.error,
+                                                        fontSize = 12.sp,
+                                                        modifier = Modifier.padding(top = 4.dp)
                                                     )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text("Chọn ảnh từ máy")
                                                 }
                                             }
 
@@ -683,6 +788,10 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
                                             onClick = {
                                                 isScheduled = true
                                                 isDaily = false
+                                                // Reset dialog states when switching to scheduled
+                                                showDatePicker = false
+                                                showTimePicker = false
+                                                showDailyTimePicker = false
                                             },
                                             colors = RadioButtonDefaults.colors(
                                                 selectedColor = MaterialTheme.colorScheme.primary
@@ -728,6 +837,10 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
                                             onClick = {
                                                 isDaily = true
                                                 isScheduled = false
+                                                // Reset dialog states when switching to daily
+                                                showDatePicker = false
+                                                showTimePicker = false
+                                                showDailyTimePicker = false
                                             },
                                             colors = RadioButtonDefaults.colors(
                                                 selectedColor = MaterialTheme.colorScheme.primary
@@ -783,7 +896,7 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
                                                 val finalImageUrl = when {
                                                     selectedImageType == "url" -> imageUrl
                                                     selectedImageType == "default" -> selectedDefaultImage
-                                                    selectedImageType == "upload" && uploadedImageUri != null -> uploadedImageUri.toString()
+                                                    selectedImageType == "upload" && imageUrl.isNotBlank() -> imageUrl // Use the Imgur URL
                                                     else -> ""
                                                 }
 

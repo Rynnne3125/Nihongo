@@ -35,7 +35,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -142,30 +141,30 @@ fun CommunityScreen(
     }
 
     // Dialog xác nhận upload dữ liệu mẫu
-    if (showUploadDialog) {
-        AlertDialog(
-            onDismissRequest = { showUploadDialog = false },
-            title = { Text("Tải dữ liệu mẫu") },
-            text = { Text("Bạn có chắc chắn muốn tải dữ liệu mẫu lên Firestore? Điều này sẽ thêm các nhóm học tập, thảo luận và mục tiêu học tập mẫu.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        uploadSampleDataToFirestore(context)
-                        showUploadDialog = false
-                    }
-                ) {
-                    Text("Tải lên")
-                }
-            },
-            dismissButton = {
-                Button(
-                    onClick = { showUploadDialog = false }
-                ) {
-                    Text("Hủy")
-                }
-            }
-        )
-    }
+//    if (showUploadDialog) {
+//        AlertDialog(
+//            onDismissRequest = { showUploadDialog = false },
+//            title = { Text("Tải dữ liệu mẫu") },
+//            text = { Text("Bạn có chắc chắn muốn tải dữ liệu mẫu lên Firestore? Điều này sẽ thêm các nhóm học tập, thảo luận và mục tiêu học tập mẫu.") },
+//            confirmButton = {
+//                Button(
+//                    onClick = {
+//                        uploadSampleDataToFirestore(context)
+//                        showUploadDialog = false
+//                    }
+//                ) {
+//                    Text("Tải lên")
+//                }
+//            },
+//            dismissButton = {
+//                Button(
+//                    onClick = { showUploadDialog = false }
+//                ) {
+//                    Text("Hủy")
+//                }
+//            }
+//        )
+//    }
 
     // Thêm DisposableEffect để cập nhật trạng thái offline khi rời khỏi màn hình
     DisposableEffect(Unit) {
@@ -232,20 +231,20 @@ fun CommunityScreen(
             }
         },
         // Thêm FloatingActionButton để hiển thị dialog xác nhận
-        floatingActionButton = {
-            if (currentUser?.vip == true) { // Chỉ hiển thị cho người dùng VIP
-                FloatingActionButton(
-                    onClick = { showUploadDialog = true },
-                    containerColor = Color(0xFF00C853)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Upload Sample Data",
-                        tint = Color.White
-                    )
-                }
-            }
-        }
+//        floatingActionButton = {
+//            if (currentUser?.vip == true) { // Chỉ hiển thị cho người dùng VIP
+//                FloatingActionButton(
+//                    onClick = { showUploadDialog = true },
+//                    containerColor = Color(0xFF00C853)
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.Add,
+//                        contentDescription = "Upload Sample Data",
+//                        tint = Color.White
+//                    )
+//                }
+//            }
+//        }
     ) { paddingValues ->
         Column(
             modifier = Modifier

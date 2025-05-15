@@ -46,6 +46,7 @@ import coil.ImageLoader
 import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import com.example.nihongo.User.data.repository.UserRepository
+import com.onesignal.OneSignal
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -77,6 +78,10 @@ fun LoginScreen(navController: NavController, userRepo: UserRepository) {
     val isLoggedIn = remember {
         val prefs = context.getSharedPreferences("admin_session", Context.MODE_PRIVATE)
         prefs.getBoolean("isLoggedIn", false)
+    }
+    val tags = OneSignal.User.getTags()
+    tags.keys.forEach { tagKey ->
+        OneSignal.User.removeTag(tagKey)
     }
 
     LaunchedEffect(Unit) {

@@ -24,6 +24,7 @@ import com.example.nihongo.User.utils.NavigationRoutes
 import com.example.nihongo.User.utils.SessionManager
 import com.example.nihongo.ui.theme.NihongoTheme
 import com.google.firebase.messaging.FirebaseMessaging
+import com.onesignal.OneSignal
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -104,6 +105,7 @@ class MainActivity : ComponentActivity() {
                 }
                 Log.d("FCM", msg)
             }
+        OneSignal.initWithContext(this,"47f96538-4b2b-4933-999a-a9012080d4e9")
 }
 
 private fun requestNotificationPermissionIfNeeded() {

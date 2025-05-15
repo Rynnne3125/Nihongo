@@ -85,6 +85,7 @@ import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.example.nihongo.User.ui.components.TopBarIcon
+import com.onesignal.OneSignal
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -103,6 +104,7 @@ fun HomeScreen(
     val selectedItem = "home"
     var isLoading by remember { mutableStateOf(true) }
     val context = LocalContext.current
+    OneSignal.User.addTag(user_email, "true")
 
 // Calculate overall progress
     val totalLessons = userProgressList.sumOf { it.totalLessons }

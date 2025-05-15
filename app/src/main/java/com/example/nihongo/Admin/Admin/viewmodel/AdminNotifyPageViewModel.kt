@@ -25,6 +25,11 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import androidx.work.*
 import com.example.nihongo.Admin.utils.AlarmReceiver
+import com.onesignal.OneSignal
+import kotlinx.coroutines.CoroutineScope
+import java.io.OutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
 class AdminNotifyPageViewModel : ViewModel() {
     private val projectId = "nihongo-ae96a"
@@ -161,95 +166,113 @@ class AdminNotifyPageViewModel : ViewModel() {
         }
     }
 
-    private suspend fun sendFirebaseNotification(campaign: Campaign, context: Context) {
-        val token = getAccessToken(context) ?: return
-        Log.d("FCMResponse", "Using access token: $token")
-
-        val json = JSONObject().apply {
-            put("message", JSONObject().apply {
-                put("notification", JSONObject().apply {
-                    put("title", campaign.title)
-                    put("body", campaign.message)
-                    campaign.imageUrl?.let {
-                        if (it.isNotEmpty()) {
-                            put("image", it)
-                        }
-                    }
-                })
-                put("topic", "all")
-            })
-        }
-
-        val body = json.toString().toRequestBody("application/json".toMediaType())
-        val request = Request.Builder()
-            .url("https://fcm.googleapis.com/v1/projects/$projectId/messages:send")
-            .addHeader("Authorization", "Bearer $token")
-            .addHeader("Content-Type", "application/json")
-            .post(body)
-            .build()
-
-        OkHttpClient().newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                Log.e("FCMResponse", "Failed to send notification", e)
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                val responseBody = response.body?.string()
-                if (response.isSuccessful) {
-                    Log.d("FCMResponse", "Success: $responseBody")
-                } else {
-                    Log.e("FCMResponse", "Failure: $responseBody")
-                }
-            }
-        })
+    private fun sendFirebaseNotification(campaign: Campaign, context: Context) {
+        sendOneSignalPushNotification(campaign)
     }
 
-    fun sendNotificationToUser(campaign: Campaign, context: Context, token: String) {
-        viewModelScope.launch {
+
+    fun sendOneSignalPushNotification(campaign: Campaign) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val title = campaign.title
+            val message = campaign.message
+            val imageUrl = campaign.imageUrl
+
+            Log.d("PushNotification", "Preparing notification...")
+            Log.d("PushNotification", "Title: $title")
+            Log.d("PushNotification", "Message: $message")
+            Log.d("PushNotification", "Image URL: $imageUrl")
+
             try {
-                val accessToken = getAccessToken(context) ?: return@launch
-                Log.d("FCMResponse", "Using access token: $accessToken")
+                val url = URL("https://onesignal.com/api/v1/notifications")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty(
+                    "Authorization",
+                    "Basic os_v2_app_i74wkoclfnethgm2veasbagu5h5ouj2skp7eurmr3sf6xri2sjjeiyk7dniz7iequz5qntoqd7gcxij7ncxvi2ciz627g4o4g3qwccy"
+                )
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
 
-                val json = JSONObject().apply {
-                    put("message", JSONObject().apply {
-                        put("notification", JSONObject().apply {
-                            put("title", campaign.title)
-                            put("body", campaign.message)
-                            campaign.imageUrl?.let {
-                                if (it.isNotEmpty()) {
-                                    put("image", it)
-                                }
-                            }
-                        })
-                        put("topic", token) // <- send to individual topic
-                    })
+                val jsonPayload = """
+                {
+                    "app_id": "47f96538-4b2b-4933-999a-a9012080d4e9",
+                    "headings": {"en": "$title"},
+                    "contents": {"en": "$message"},
+                    "included_segments": ["All"],
+                    "big_picture": "$imageUrl"
                 }
+            """.trimIndent()
 
-                val body = json.toString().toRequestBody("application/json".toMediaType())
-                val request = Request.Builder()
-                    .url("https://fcm.googleapis.com/v1/projects/$projectId/messages:send")
-                    .addHeader("Authorization", "Bearer $accessToken")
-                    .addHeader("Content-Type", "application/json")
-                    .post(body)
-                    .build()
+                Log.d("PushNotification", "JSON Payload: $jsonPayload")
 
-                OkHttpClient().newCall(request).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {
-                        Log.e("FCMResponse", "Failed to send notification", e)
-                    }
+                val os: OutputStream = connection.outputStream
+                os.write(jsonPayload.toByteArray())
+                os.flush()
 
-                    override fun onResponse(call: Call, response: Response) {
-                        val responseBody = response.body?.string()
-                        if (response.isSuccessful) {
-                            Log.d("FCMResponse", "Success: $responseBody")
-                        } else {
-                            Log.e("FCMResponse", "Failure: $responseBody")
-                        }
-                    }
-                })
+                val responseCode = connection.responseCode
+                val responseMessage = connection.inputStream.bufferedReader().use { it.readText() }
+
+                Log.d("PushNotification", "Response Code: $responseCode")
+                Log.d("PushNotification", "Response Message: $responseMessage")
 
             } catch (e: Exception) {
-                Log.e("FCMResponse", "Error sending notification", e)
+                Log.e("PushNotification", "Error sending notification", e)
+            }
+        }
+    }
+
+
+    fun sendNotificationToUser(campaign: Campaign, context: Context, token: String) {
+        sendOneSignalPushNotificationToUser(campaign, token)
+    }
+
+    fun sendOneSignalPushNotificationToUser(campaign: Campaign, token: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val title = campaign.title
+            val message = campaign.message
+            val imageUrl = campaign.imageUrl
+
+            Log.d("PushNotification", "Preparing notification...")
+            Log.d("PushNotification", "Title: $title")
+            Log.d("PushNotification", "Message: $message")
+            Log.d("PushNotification", "Image URL: $imageUrl")
+
+            try {
+                val url = URL("https://onesignal.com/api/v1/notifications")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty(
+                    "Authorization",
+                    "Basic os_v2_app_i74wkoclfnethgm2veasbagu5h5ouj2skp7eurmr3sf6xri2sjjeiyk7dniz7iequz5qntoqd7gcxij7ncxvi2ciz627g4o4g3qwccy"
+                )
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+
+                val jsonPayload = """
+                {
+                    "app_id": "47f96538-4b2b-4933-999a-a9012080d4e9",
+                    "headings": {"en": "$title"},
+                    "contents": {"en": "$message"},
+                    "filters": [
+                        { "field": "tag", "key": "$token", "relation": "=", "value": "true" }
+                    ]
+                }
+            """.trimIndent()
+
+                Log.d("PushNotification", "JSON Payload: $jsonPayload")
+
+                val os: OutputStream = connection.outputStream
+                os.write(jsonPayload.toByteArray())
+                os.flush()
+
+                val responseCode = connection.responseCode
+                val responseMessage = connection.inputStream.bufferedReader().use { it.readText() }
+
+                Log.d("PushNotification", "Response Code: $responseCode")
+                Log.d("PushNotification", "Response Message: $responseMessage")
+
+            } catch (e: Exception) {
+                Log.e("PushNotification", "Error sending notification", e)
             }
         }
     }

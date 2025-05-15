@@ -117,5 +117,7 @@ dependencies {
     //Admin
     implementation("com.google.firebase:firebase-messaging:23.4.1")
     implementation("com.google.auth:google-auth-library-oauth2-http:1.18.0")
+    implementation("com.onesignal:OneSignal:[5.1.6, 5.1.99]")
+
 }
 
