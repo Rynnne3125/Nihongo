@@ -903,10 +903,42 @@ fun CourseLikesTab(
     courseId: String,
     courseRepository: CourseRepository,
     context: Context,
-    onDataChanged: () -> Unit // Add callback for data refresh
+    onDataChanged: () -> Unit
 ) {
+    // Thêm biến để theo dõi trạng thái dislike
+    var isDisliked by remember { mutableStateOf(false) }
     var liked by remember { mutableStateOf(isLiked) }
     val coroutineScope = rememberCoroutineScope()
+    
+    // Add a key for refreshing data
+    var refreshTrigger by remember { mutableStateOf(0) }
+
+    // Function to refresh data
+    fun refreshData() {
+        refreshTrigger += 1
+    }
+    
+    // Kiểm tra xem user đã dislike chưa
+    LaunchedEffect(currentUser) {
+        currentUser?.let { user ->
+            val dislikeDoc = courseRepository.isCoursedislikedByUser(courseId, user.id)
+            isDisliked = dislikeDoc
+        }
+    }
+    
+    // Thêm state để lưu danh sách đánh giá
+    var courseReviews by remember { mutableStateOf<List<CourseReview>>(emptyList()) }
+
+    // Lấy danh sách đánh giá khi component được tạo
+    LaunchedEffect(courseId, refreshTrigger) {
+        courseReviews = courseRepository.getCourseReviews(courseId)
+    }
+    
+    // Khi onDataChanged được gọi, cập nhật refreshTrigger
+    LaunchedEffect(Unit) {
+        // Khi component được tạo, tải dữ liệu ban đầu
+        refreshData()
+    }
     
     Column(
         modifier = Modifier
@@ -953,20 +985,28 @@ fun CourseLikesTab(
                             onClick = {
                                 if (currentUser != null) {
                                     coroutineScope.launch {
-                                        val success = if (!liked) {
+                                        val success = if (isDisliked) {
+                                            // Nếu đang dislike, bỏ dislike trước rồi mới like
+                                            courseRepository.removeDislike(courseId, currentUser.id) &&
                                             courseRepository.likeCourse(courseId, currentUser.id)
-                                        } else {
+                                        } else if (liked) {
+                                            // Nếu đang like, bỏ like (trạng thái trung lập)
                                             courseRepository.unlikeCourse(courseId, currentUser.id)
+                                        } else {
+                                            // Nếu trung lập, thêm like
+                                            courseRepository.likeCourse(courseId, currentUser.id)
                                         }
                                         
                                         if (success) {
+                                            if (isDisliked) isDisliked = false
                                             liked = !liked
                                             Toast.makeText(
                                                 context,
                                                 if (liked) "Đã thích khóa học" else "Đã bỏ thích khóa học",
                                                 Toast.LENGTH_SHORT
                                             ).show()
-                                            onDataChanged() // Refresh data after successful action
+                                            refreshData() // Refresh data after successful action
+                                            onDataChanged() // Also call the parent's callback
                                         }
                                     }
                                 } else {
@@ -1011,16 +1051,27 @@ fun CourseLikesTab(
                                 if (currentUser != null) {
                                     coroutineScope.launch {
                                         val success = if (liked) {
-                                            courseRepository.unlikeCourse(courseId, currentUser.id)
+                                            // Nếu đang like, bỏ like trước rồi mới dislike
+                                            courseRepository.unlikeCourse(courseId, currentUser.id) &&
                                             courseRepository.dislikeCourse(courseId, currentUser.id)
+                                        } else if (isDisliked) {
+                                            // Nếu đang dislike, bỏ dislike (trạng thái trung lập)
+                                            courseRepository.removeDislike(courseId, currentUser.id)
                                         } else {
+                                            // Nếu trung lập, thêm dislike
                                             courseRepository.dislikeCourse(courseId, currentUser.id)
                                         }
                                         
                                         if (success) {
-                                            liked = false
-                                            Toast.makeText(context, "Đã không thích khóa học", Toast.LENGTH_SHORT).show()
-                                            onDataChanged() // Refresh data after successful action
+                                            if (liked) liked = false
+                                            isDisliked = !isDisliked
+                                            Toast.makeText(
+                                                context,
+                                                if (isDisliked) "Đã không thích khóa học" else "Đã bỏ không thích khóa học",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            refreshData() // Refresh data after successful action
+                                            onDataChanged() // Also call the parent's callback
                                         }
                                     }
                                 } else {
@@ -1030,14 +1081,14 @@ fun CourseLikesTab(
                             modifier = Modifier
                                 .size(64.dp)
                                 .background(
-                                    color = if (!liked) Color(0xFFFBE9E7) else Color.Transparent,
+                                    color = if (isDisliked) Color(0xFFFBE9E7) else Color.Transparent,
                                     shape = CircleShape
                                 )
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ThumbDown,
                                 contentDescription = "Dislike",
-                                tint = if (!liked) Color(0xFFE64A19) else Color.Gray,
+                                tint = if (isDisliked) Color(0xFFE64A19) else Color.Gray,
                                 modifier = Modifier.size(32.dp)
                             )
                         }
@@ -1045,8 +1096,8 @@ fun CourseLikesTab(
                         Text(
                             text = "Không thích",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (!liked) Color(0xFFE64A19) else Color.Gray,
-                            fontWeight = if (!liked) FontWeight.Bold else FontWeight.Normal
+                            color = if (isDisliked) Color(0xFFE64A19) else Color.Gray,
+                            fontWeight = if (isDisliked) FontWeight.Bold else FontWeight.Normal
                         )
                         
                         Text(
@@ -1089,7 +1140,31 @@ fun CourseLikesTab(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                // Simulate rating distribution
+                // Trong CourseLikesTab, thêm state để lưu danh sách đánh giá
+                var courseReviews by remember { mutableStateOf<List<CourseReview>>(emptyList()) }
+
+                // Lấy danh sách đánh giá khi component được tạo
+                LaunchedEffect(courseId, refreshTrigger) {
+                    courseReviews = courseRepository.getCourseReviews(courseId)
+                }
+
+                // Tính toán phân bố đánh giá từ dữ liệu thực
+                val ratingDistribution = remember(courseReviews) {
+                    // Khởi tạo mảng đếm số lượng đánh giá cho mỗi mức (1-5 sao)
+                    val counts = IntArray(5) { 0 }
+                    
+                    // Đếm số lượng đánh giá cho mỗi mức
+                    courseReviews.forEach { review ->
+                        if (review.rating in 1..5) {
+                            counts[review.rating - 1]++
+                        }
+                    }
+                    
+                    // Tính phần trăm cho mỗi mức
+                    val total = courseReviews.size.toFloat().coerceAtLeast(1f)
+                    counts.map { (it / total * 100).toInt() }.reversed()
+                }
+
                 for (i in 5 downTo 1) {
                     Row(
                         modifier = Modifier
@@ -1112,14 +1187,7 @@ fun CourseLikesTab(
                         
                         Spacer(modifier = Modifier.width(8.dp))
                         
-                        // Random percentage for demo
-                        val percentage = when (i) {
-                            5 -> 65
-                            4 -> 20
-                            3 -> 10
-                            2 -> 3
-                            else -> 2
-                        }
+                        val percentage = ratingDistribution[5-i]
                         
                         LinearProgressIndicator(
                             progress = percentage / 100f,

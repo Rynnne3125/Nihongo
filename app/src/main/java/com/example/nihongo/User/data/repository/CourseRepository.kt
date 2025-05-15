@@ -220,4 +220,51 @@ class CourseRepository(
             false
         }
     }
+
+    suspend fun removeDislike(courseId: String, userId: String): Boolean {
+        return try {
+            // Tìm và xóa dislike
+            val dislikeDoc = firestore.collection("courseDislikes")
+                .whereEqualTo("courseId", courseId)
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+            
+            if (!dislikeDoc.isEmpty) {
+                // Xóa document dislike
+                firestore.collection("courseDislikes")
+                    .document(dislikeDoc.documents[0].id)
+                    .delete()
+                    .await()
+                
+                // Giảm số lượng dislike của khóa học
+                firestore.collection("courses")
+                    .document(courseId)
+                    .update("dislikes", FieldValue.increment(-1))
+                    .await()
+                
+                true
+            } else {
+                true // Không có dislike để xóa, vẫn trả về true
+            }
+        } catch (e: Exception) {
+            Log.e("CourseRepository", "Error removing dislike", e)
+            false
+        }
+    }
+
+    suspend fun isCoursedislikedByUser(courseId: String, userId: String): Boolean {
+        return try {
+            val dislikeDoc = firestore.collection("courseDislikes")
+                .whereEqualTo("courseId", courseId)
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+            
+            !dislikeDoc.isEmpty
+        } catch (e: Exception) {
+            Log.e("CourseRepository", "Error checking if course is disliked", e)
+            false
+        }
+    }
 }
