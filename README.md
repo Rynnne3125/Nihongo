@@ -1,25 +1,56 @@
-## Cài đặt Firebase Admin SDK
 
-Để ứng dụng hoạt động đúng, bạn cần tạo file credentials Firebase Admin SDK:
 
-1. Đăng nhập vào [Firebase Console](https://console.firebase.google.com/)
-2. Chọn dự án "nihongo-ae96a"
-3. Vào **Cài đặt dự án** > **Tài khoản dịch vụ**
-4. Chọn **Firebase Admin SDK** > **Tạo khóa mới**
-5. Tải xuống file JSON
-6. Đổi tên file thành `nihongo-ae96a-firebase-adminsdk-fbsvc-df1b5fe014.json`
-7. Lưu file vào thư mục `app/src/main/assets/`
+[Nihongo App]
 
-Ví dụ về cách sử dụng Firebase Admin SDK (Node.js):
-```javascript
-var admin = require("firebase-admin");
+## Giới thiệu
 
-var serviceAccount = require("path/to/serviceAccountKey.json");
+Nihongo là ứng dụng di động Android giúp người dùng học tiếng Nhật một cách hiệu quả. Ứng dụng cung cấp nhiều tính năng học tập, bao gồm khóa học có cấu trúc, flashcard, cộng đồng học tập và theo dõi tiến độ cá nhân.
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://nihongo-ae96a-default-rtdb.firebaseio.com"
-});
+## Tính năng chính
+
+- **Xác thực người dùng**: Đăng ký, đăng nhập, xác thực OTP
+- **Học tập có cấu trúc**: Khóa học, bài học, bài kiểm tra
+- **Flashcard**: Học Hiragana, Katakana, Kanji, Từ vựng
+- **Cộng đồng**: Bảng xếp hạng, nhóm chat, thảo luận, tin nhắn riêng
+- **Hồ sơ cá nhân**: Theo dõi tiến độ học tập, cập nhật thông tin
+
+## Yêu cầu hệ thống
+
+- Android 6.0 (API level 24) trở lên
+- Kết nối internet
+
+### Yêu cầu
+
+- Android Studio Iguana | 2023.2.1 trở lên
+- JDK 17
+- Kotlin 1.9+
+
+### Cài đặt môi trường phát triển
+
+1. Clone repository:
+```
+git clone https://github.com/Rynnne3125/Nihongo.git
 ```
 
-**Lưu ý quan trọng:** File credentials chứa thông tin nhạy cảm. KHÔNG commit file này lên Git repository!
+2. Mở project trong Android Studio
+
+3. Đồng bộ Gradle và cài đặt các dependencies
+
+4. Chạy ứng dụng trên thiết bị hoặc máy ảo
+
+## Kiến trúc ứng dụng
+
+Ứng dụng được xây dựng với:
+- **Jetpack Compose** - UI toolkit hiện đại
+- **Firebase** - Authentication, Firestore, Realtime Database, Storage
+- **MVVM** - Mô hình kiến trúc
+- **Coroutines** - Xử lý bất đồng bộ
+- **Navigation Component** - Điều hướng trong ứng dụng
+
+
+
+## Liên hệ
+
+Trần Thanh Phong - [https://www.facebook.com/tran.phong.361194/) - phongtt.23it@vku.udn.vn
+
+Project Link: [https://github.com/Rynnne3125/Nihongo](https://github.com/Rynnne3125)
