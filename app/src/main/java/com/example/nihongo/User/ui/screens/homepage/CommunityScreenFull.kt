@@ -47,7 +47,6 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -81,8 +80,6 @@ import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.example.nihongo.User.ui.components.TopBarIcon
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -167,18 +164,18 @@ fun CommunityScreen(
 //    }
 
     // Thêm DisposableEffect để cập nhật trạng thái offline khi rời khỏi màn hình
-    DisposableEffect(Unit) {
-        onDispose {
-            // Khi component bị hủy, cập nhật trạng thái offline
-            currentUser?.let { user ->
-                // Sử dụng CoroutineScope để thực hiện công việc bất đồng bộ
-                val scope = CoroutineScope(Dispatchers.IO)
-                scope.launch {
-                    userRepository.updateUserOnlineStatus(user.id, false)
-                }
-            }
-        }
-    }
+//    DisposableEffect(Unit) {
+//        onDispose {
+//            // Khi component bị hủy, cập nhật trạng thái offline
+//            currentUser?.let { user ->
+//                // Sử dụng CoroutineScope để thực hiện công việc bất đồng bộ
+//                val scope = CoroutineScope(Dispatchers.IO)
+//                scope.launch {
+//                    userRepository.updateUserOnlineStatus(user.id, false)
+//                }
+//            }
+//        }
+//    }
 
     Scaffold(
         containerColor = Color(0xFFEEEEEE),

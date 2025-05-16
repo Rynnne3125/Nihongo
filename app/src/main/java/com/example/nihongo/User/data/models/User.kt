@@ -17,7 +17,8 @@ data class User(
     val rank: String = "Tân binh",
     val jlptLevel: Int? = null,
     val studyMonths: Int? = null,
-    val online: Boolean = false,
+    val
+    online: Boolean = false,
     val partners: List<String> = emptyList(),
     val admin: Boolean = false
 ) {

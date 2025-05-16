@@ -41,7 +41,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -88,6 +87,7 @@ import com.example.nihongo.Admin.viewmodel.AdminMainPageViewModel
 import com.example.nihongo.User.MainActivity
 import com.example.nihongo.User.data.models.Course
 import com.example.nihongo.User.data.models.User
+import com.onesignal.OneSignal
 
 // Define custom theme colors
 val primaryGreen = Color(0xFF4CAF50)
@@ -118,6 +118,8 @@ fun MainPage(navController: NavHostController) {
         NavHost(innerNavController, startDestination = "mainPage") {
             composable("mainPage") {
                 LaunchedEffect(Unit) {
+                    OneSignal.User.addTag("admin", "true")
+                    Log.d("AdminMainPage", "Set OneSignal tag: admin=true")
                     adminViewModel.loadAllData()
                 }
                 

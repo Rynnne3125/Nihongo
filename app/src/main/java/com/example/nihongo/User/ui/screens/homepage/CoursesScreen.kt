@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
@@ -690,144 +692,145 @@ fun CourseReviewsTab(
     courseId: String,
     courseRepository: CourseRepository,
     context: Context,
-    onDataChanged: () -> Unit // Add callback for data refresh
+    onDataChanged: () -> Unit
 ) {
     var reviewText by remember { mutableStateOf(userReview?.text ?: "") }
     var rating by remember { mutableStateOf(userReview?.rating ?: 5) }
     val coroutineScope = rememberCoroutineScope()
-    
-    Column(
+
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
         // User review input section
         if (currentUser != null) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(2.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    Text(
-                        text = "Đánh giá của bạn",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Rating stars
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        for (i in 1..5) {
-                            IconButton(
-                                onClick = { rating = i },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = "Star $i",
-                                    tint = if (i <= rating) Color(0xFFFFD700) else Color.LightGray,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Review text input
-                    OutlinedTextField(
-                        value = reviewText,
-                        onValueChange = { reviewText = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Viết đánh giá của bạn...") },
-                        minLines = 3,
-                        maxLines = 5
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Submit button
-                    Button(
-                        onClick = {
-                            if (reviewText.isNotBlank()) {
-                                coroutineScope.launch {
-                                    val newReview = CourseReview(
-                                        id = userReview?.id ?: "",
-                                        userId = currentUser.id,
-                                        courseId = courseId,
-                                        text = reviewText,
-                                        rating = rating,
-                                        timestamp = System.currentTimeMillis(),
-                                        userName = currentUser.username,
-                                        userAvatar = currentUser.imageUrl
-                                    )
-                                    
-                                    val success = if (userReview == null) {
-                                        courseRepository.addCourseReview(newReview)
-                                    } else {
-                                        courseRepository.updateCourseReview(newReview)
-                                    }
-                                    
-                                    if (success) {
-                                        Toast.makeText(context, "Đánh giá đã được gửi", Toast.LENGTH_SHORT).show()
-                                        onDataChanged() // Refresh data after successful submission
-                                    } else {
-                                        Toast.makeText(context, "Có lỗi xảy ra, vui lòng thử lại", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            } else {
-                                Toast.makeText(context, "Vui lòng nhập nội dung đánh giá", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
                     ) {
                         Text(
-                            text = if (userReview == null) "Gửi đánh giá" else "Cập nhật đánh giá",
+                            text = "Đánh giá của bạn",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Rating stars
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            for (i in 1..5) {
+                                IconButton(
+                                    onClick = { rating = i },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Star $i",
+                                        tint = if (i <= rating) Color(0xFFFFD700) else Color.LightGray
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Review text field
+                        OutlinedTextField(
+                            value = reviewText,
+                            onValueChange = { reviewText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Nhập đánh giá của bạn") },
+                            minLines = 3
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Submit button
+                        Button(
+                            onClick = {
+                                if (reviewText.isNotBlank()) {
+                                    coroutineScope.launch {
+                                        val newReview = CourseReview(
+                                            id = userReview?.id ?: "",
+                                            userId = currentUser.id,
+                                            courseId = courseId,
+                                            text = reviewText,
+                                            rating = rating,
+                                            timestamp = System.currentTimeMillis(),
+                                            userName = currentUser.username,
+                                            userAvatar = currentUser.imageUrl
+                                        )
+
+                                        val success = if (userReview == null) {
+                                            courseRepository.addCourseReview(newReview)
+                                        } else {
+                                            courseRepository.updateCourseReview(newReview)
+                                        }
+
+                                        if (success) {
+                                            Toast.makeText(context, "Đánh giá đã được gửi", Toast.LENGTH_SHORT).show()
+                                            onDataChanged() // Refresh data after successful submission
+                                        } else {
+                                            Toast.makeText(context, "Có lỗi xảy ra, vui lòng thử lại", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Vui lòng nhập đánh giá", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.align(Alignment.End),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                        ) {
+                            Text("Gửi đánh giá")
+                        }
                     }
                 }
             }
         }
-        
+
         // Reviews list
-        Text(
-            text = "Đánh giá từ học viên (${reviews.size})",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
-        
+        item {
+            Text(
+                text = "Đánh giá từ học viên (${reviews.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
         if (reviews.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Chưa có đánh giá nào cho khóa học này",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.Gray,
-                    textAlign = TextAlign.Center
-                )
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Chưa có đánh giá nào cho khóa học này",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         } else {
-            LazyColumn {
-                items(reviews.sortedByDescending { it.timestamp }) { review ->
-                    ReviewItem(review)
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
-                }
+            items(reviews.sortedByDescending { it.timestamp }) { review ->
+                ReviewItem(review)
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
             }
         }
     }
@@ -909,7 +912,7 @@ fun CourseLikesTab(
     var isDisliked by remember { mutableStateOf(false) }
     var liked by remember { mutableStateOf(isLiked) }
     val coroutineScope = rememberCoroutineScope()
-    
+
     // Add a key for refreshing data
     var refreshTrigger by remember { mutableStateOf(0) }
 
@@ -917,7 +920,7 @@ fun CourseLikesTab(
     fun refreshData() {
         refreshTrigger += 1
     }
-    
+
     // Kiểm tra xem user đã dislike chưa
     LaunchedEffect(currentUser) {
         currentUser?.let { user ->
@@ -925,7 +928,12 @@ fun CourseLikesTab(
             isDisliked = dislikeDoc
         }
     }
-    
+
+    // Update liked state when isLiked prop changes
+    LaunchedEffect(isLiked) {
+        liked = isLiked
+    }
+
     // Thêm state để lưu danh sách đánh giá
     var courseReviews by remember { mutableStateOf<List<CourseReview>>(emptyList()) }
 
@@ -933,16 +941,17 @@ fun CourseLikesTab(
     LaunchedEffect(courseId, refreshTrigger) {
         courseReviews = courseRepository.getCourseReviews(courseId)
     }
-    
+
     // Khi onDataChanged được gọi, cập nhật refreshTrigger
     LaunchedEffect(Unit) {
         // Khi component được tạo, tải dữ liệu ban đầu
         refreshData()
     }
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -950,12 +959,12 @@ fun CourseLikesTab(
             CircularProgressIndicator(color = Color(0xFF4CAF50))
             return
         }
-        
-        // Like/Dislike section
+
+        // Course info
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
+                .padding(bottom = 16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(2.dp)
         ) {
@@ -966,13 +975,13 @@ fun CourseLikesTab(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Bạn thấy khóa học này thế nào?",
+                    text = "Đánh giá khóa học",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -988,7 +997,7 @@ fun CourseLikesTab(
                                         val success = if (isDisliked) {
                                             // Nếu đang dislike, bỏ dislike trước rồi mới like
                                             courseRepository.removeDislike(courseId, currentUser.id) &&
-                                            courseRepository.likeCourse(courseId, currentUser.id)
+                                                    courseRepository.likeCourse(courseId, currentUser.id)
                                         } else if (liked) {
                                             // Nếu đang like, bỏ like (trạng thái trung lập)
                                             courseRepository.unlikeCourse(courseId, currentUser.id)
@@ -996,7 +1005,7 @@ fun CourseLikesTab(
                                             // Nếu trung lập, thêm like
                                             courseRepository.likeCourse(courseId, currentUser.id)
                                         }
-                                        
+
                                         if (success) {
                                             if (isDisliked) isDisliked = false
                                             liked = !liked
@@ -1027,21 +1036,21 @@ fun CourseLikesTab(
                                 modifier = Modifier.size(32.dp)
                             )
                         }
-                        
+
                         Text(
                             text = "Thích",
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (liked) Color(0xFF4CAF50) else Color.Gray,
                             fontWeight = if (liked) FontWeight.Bold else FontWeight.Normal
                         )
-                        
+
                         Text(
                             text = "${course.likes} người thích",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray
                         )
                     }
-                    
+
                     // Dislike button
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -1053,7 +1062,7 @@ fun CourseLikesTab(
                                         val success = if (liked) {
                                             // Nếu đang like, bỏ like trước rồi mới dislike
                                             courseRepository.unlikeCourse(courseId, currentUser.id) &&
-                                            courseRepository.dislikeCourse(courseId, currentUser.id)
+                                                    courseRepository.dislikeCourse(courseId, currentUser.id)
                                         } else if (isDisliked) {
                                             // Nếu đang dislike, bỏ dislike (trạng thái trung lập)
                                             courseRepository.removeDislike(courseId, currentUser.id)
@@ -1061,7 +1070,7 @@ fun CourseLikesTab(
                                             // Nếu trung lập, thêm dislike
                                             courseRepository.dislikeCourse(courseId, currentUser.id)
                                         }
-                                        
+
                                         if (success) {
                                             if (liked) liked = false
                                             isDisliked = !isDisliked
@@ -1092,80 +1101,45 @@ fun CourseLikesTab(
                                 modifier = Modifier.size(32.dp)
                             )
                         }
-                        
+
                         Text(
                             text = "Không thích",
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (isDisliked) Color(0xFFE64A19) else Color.Gray,
                             fontWeight = if (isDisliked) FontWeight.Bold else FontWeight.Normal
                         )
-                        
+
                         Text(
-                            text = "${course.dislikes} người không thích",
+                            text = "${course.dislikes ?: 0} người không thích",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray
                         )
                     }
                 }
-            }
-        }
-        
-        // Course statistics
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(2.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "Thống kê khóa học",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Rating distribution
+
+                // Phân bố đánh giá
                 Text(
                     text = "Phân bố đánh giá",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.Start)
                 )
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
-                // Trong CourseLikesTab, thêm state để lưu danh sách đánh giá
-                var courseReviews by remember { mutableStateOf<List<CourseReview>>(emptyList()) }
 
-                // Lấy danh sách đánh giá khi component được tạo
-                LaunchedEffect(courseId, refreshTrigger) {
-                    courseReviews = courseRepository.getCourseReviews(courseId)
-                }
+                // Hiển thị phân bố đánh giá
+                val ratingDistribution = courseReviews.groupBy { it.rating }
+                    .mapValues { it.value.size }
+                    .toSortedMap(compareByDescending { it })
 
-                // Tính toán phân bố đánh giá từ dữ liệu thực
-                val ratingDistribution = remember(courseReviews) {
-                    // Khởi tạo mảng đếm số lượng đánh giá cho mỗi mức (1-5 sao)
-                    val counts = IntArray(5) { 0 }
-                    
-                    // Đếm số lượng đánh giá cho mỗi mức
-                    courseReviews.forEach { review ->
-                        if (review.rating in 1..5) {
-                            counts[review.rating - 1]++
-                        }
-                    }
-                    
-                    // Tính phần trăm cho mỗi mức
-                    val total = courseReviews.size.toFloat().coerceAtLeast(1f)
-                    counts.map { (it / total * 100).toInt() }.reversed()
-                }
+                val totalReviews = courseReviews.size.toFloat().coerceAtLeast(1f)
 
                 for (i in 5 downTo 1) {
+                    val count = ratingDistribution[i] ?: 0
+                    val percentage = (count / totalReviews) * 100
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1177,52 +1151,33 @@ fun CourseLikesTab(
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.width(16.dp)
                         )
-                        
+
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
                             tint = Color(0xFFFFD700),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier
+                                .size(16.dp)
+                                .padding(end = 8.dp)
                         )
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        val percentage = ratingDistribution[5-i]
-                        
+
                         LinearProgressIndicator(
-                            progress = percentage / 100f,
+                            progress = percentage / 100,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                            color = when (i) {
-                                5, 4 -> Color(0xFF4CAF50)
-                                3 -> Color(0xFFFFC107)
-                                else -> Color(0xFFE64A19)
-                            },
-                            trackColor = Color(0xFFE0E0E0)
+                                .height(8.dp),
+                            color = Color(0xFF4CAF50),
+                            trackColor = Color.LightGray
                         )
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
+
                         Text(
-                            text = "$percentage%",
+                            text = "$count",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray,
-                            modifier = Modifier.width(40.dp),
+                            modifier = Modifier.width(24.dp),
                             textAlign = TextAlign.End
                         )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Đánh giá trung bình: ${course.rating}/5",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
             }
         }
     }

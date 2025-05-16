@@ -1,6 +1,7 @@
 package com.example.nihongo.User.ui.screens.homepage
 
 
+import Campaign
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -88,6 +89,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
 import com.example.nihongo.User.data.models.Course
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.models.UserProgress
@@ -96,6 +98,7 @@ import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.example.nihongo.User.utils.CloudinaryConfig
 import com.example.nihongo.User.utils.NavigationRoutes
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
@@ -105,6 +108,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1286,9 +1290,72 @@ fun ProfileScreen(
                                 )
                                 
                                 try {
-                                    FirebaseFirestore.getInstance().collection("vipRequests")
+                                    // Lưu yêu cầu VIP vào Firestore
+                                    val docRef = FirebaseFirestore.getInstance().collection("vipRequests")
                                         .add(vipRequest)
                                         .await()
+                                    
+                                    // Lấy danh sách tài khoản admin
+                                    val adminSnapshot = FirebaseFirestore.getInstance().collection("users")
+                                        .whereEqualTo("admin", true)
+                                        .get()
+                                        .await()
+                                    
+                                    // Gửi thông báo cho tất cả admin
+                                    adminSnapshot.documents.forEach { adminDoc ->
+                                        val adminEmail = adminDoc.getString("email")
+                                        if (adminEmail != null) {
+                                            // Tạo thông báo cho admin
+                                            val notificationTitle = "Yêu cầu nâng cấp VIP mới"
+                                            val notificationMessage = "Người dùng ${user.username} đã gửi yêu cầu nâng cấp VIP.\n" +
+                                                    "Phương thức: $selectedPaymentMethod\n" +
+                                                    "Số tiền: 100.000 VNĐ\n" +
+                                                    "Mã tham chiếu: $paymentReference\n" +
+                                                    "Vui lòng kiểm tra và xác nhận thanh toán."
+                                            
+                                            // Tạo đối tượng Campaign để gửi thông báo
+                                            val campaign = Campaign(
+                                                id = UUID.randomUUID().toString(),
+                                                title = notificationTitle,
+                                                message = notificationMessage,
+                                                imageUrl = null,
+                                                createdAt = Timestamp.now(),
+                                                isScheduled = false,
+                                                scheduledFor = null,
+                                                isDaily = false,
+                                                dailyHour = 0,
+                                                dailyMinute = 0
+                                            )
+                                            
+                                            // Gửi thông báo đến admin
+                                            try {
+                                                val notifyViewModel = AdminNotifyPageViewModel()
+                                                
+                                                // Sử dụng phương thức mới để gửi thông báo chỉ đến admin
+                                                notifyViewModel.sendAdminOnlyNotification(campaign)
+                                                
+                                                // Lưu thông báo vào collection notifications
+                                                val notification = hashMapOf(
+                                                    "userId" to adminDoc.id,
+                                                    "title" to notificationTitle,
+                                                    "message" to notificationMessage,
+                                                    "timestamp" to FieldValue.serverTimestamp(),
+                                                    "read" to false,
+                                                    "type" to "vip_request",
+                                                    "referenceId" to docRef.id
+                                                )
+                                                
+                                                FirebaseFirestore.getInstance().collection("notifications")
+                                                    .add(notification)
+                                                    .await()
+                                                
+                                                Log.d("ProfileScreen", "Notification sent to admin: $adminEmail")
+                                                
+                                            } catch (e: Exception) {
+                                                Log.e("ProfileScreen", "Failed to send notification to admin: $adminEmail", e)
+                                            }
+                                        }
+                                    }
                                     
                                     withContext(Dispatchers.Main) {
                                         isProcessingPayment = false

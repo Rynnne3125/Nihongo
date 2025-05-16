@@ -44,8 +44,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
@@ -57,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
@@ -65,18 +66,23 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.nihongo.User.data.models.Course
+import com.example.nihongo.User.data.models.CourseReview
 import com.example.nihongo.User.data.models.Lesson
 import com.example.nihongo.User.data.models.SubLesson
 import com.example.nihongo.User.data.models.UnitItem
+import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.models.UserProgress
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
+import com.example.nihongo.User.ui.screens.homepage.CourseLikesTab
+import com.example.nihongo.User.ui.screens.homepage.CourseReviewsTab
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -96,21 +102,49 @@ fun LessonsScreen(
     val expandedLessons = remember { mutableStateMapOf<String, Boolean>() }
     val expandedUnits = remember { mutableStateMapOf<String, Boolean>() }
     val selectedItem = "courses"
+    val coroutineScope = rememberCoroutineScope()
+    
+    // Add states for reviews and likes
+    var reviews by remember { mutableStateOf<List<CourseReview>>(emptyList()) }
+    var userReview by remember { mutableStateOf<CourseReview?>(null) }
+    var isLiked by remember { mutableStateOf(false) }
+    var isDisliked by remember { mutableStateOf(false) }
+    var currentUser by remember { mutableStateOf<User?>(null) }
+    
+    // Add refresh trigger
+    var refreshTrigger by remember { mutableStateOf(0) }
+    
+    // Function to refresh data
+    fun refreshData() {
+        refreshTrigger += 1
+    }
     
     // Thêm tabs và selectedTab
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Bài học", "Tiến độ", "Tài liệu")
+    val tabs = listOf("Bài học", "Tiến độ", "Tài liệu", "Đánh giá", "Thích/Không thích")
     
     // Fetch data
-    LaunchedEffect(courseId) {
+    LaunchedEffect(courseId, refreshTrigger) {
         course.value = courseRepository.getCourseById(courseId)
         lessons.value = lessonRepository.getLessonsByCourseId(courseId)
         
         // Lấy tiến độ của người dùng
         val user = userRepository.getUserByEmail(userEmail)
+        currentUser = user
+        
         user?.let {
             userProgress.value = userRepository.getUserProgressForCourse(it.id, courseId)
+            
+            // Kiểm tra xem user đã thích khóa học chưa
+            isLiked = courseRepository.isCourseLikedByUser(courseId, it.id)
+            isDisliked = courseRepository.isCoursedislikedByUser(courseId, it.id)
+            
+            // Lấy đánh giá của người dùng hiện tại
+            userReview = courseRepository.getUserReviewForCourse(courseId, it.id)
         }
+        
+        // Lấy tất cả đánh giá của khóa học
+        reviews = courseRepository.getCourseReviews(courseId)
     }
     
     Scaffold(
@@ -146,24 +180,31 @@ fun LessonsScreen(
             // Course header
             CourseHeader(course.value)
             
-            // Tabs
-            TabRow(
+            // Replace TabRow with ScrollableTabRow
+            ScrollableTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = Color.White,
-                contentColor = Color(0xFF4CAF50),
+                edgePadding = 16.dp,
                 indicator = { tabPositions ->
                     TabRowDefaults.Indicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
                         height = 3.dp,
                         color = Color(0xFF4CAF50)
                     )
-                }
+                },
+                containerColor = Color.White,
+                contentColor = Color(0xFF4CAF50)
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title) }
+                        text = { 
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                            ) 
+                        }
                     )
                 }
             }
@@ -185,6 +226,26 @@ fun LessonsScreen(
                     ProgressTab(progressList, lessons.value)
                 }
                 2 -> MaterialsTab(course.value, navController, userEmail)
+                3 -> {
+                    CourseReviewsTab(
+                        reviews = reviews,
+                        userReview = userReview,
+                        currentUser = currentUser,
+                        courseId = courseId,
+                        courseRepository = courseRepository,
+                        context = LocalContext.current
+                    ) { refreshData() }
+                }
+                4 -> {
+                    CourseLikesTab(
+                        course = course.value,
+                        isLiked = isLiked,
+                        currentUser = currentUser,
+                        courseId = courseId,
+                        courseRepository = courseRepository,
+                        context = LocalContext.current
+                    ) { refreshData() }
+                }
             }
         }
     }

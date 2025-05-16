@@ -1,6 +1,7 @@
 package com.example.nihongo.Admin
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.nihongo.Admin.viewmodel.AdminUserViewModel
+import com.onesignal.OneSignal
 
 @Composable
 fun AdminLoginScreen(navController: NavController) {
@@ -99,7 +101,9 @@ fun AdminLoginScreen(navController: NavController) {
                     if (success) {
                         val sharedPref = context.getSharedPreferences("admin_session", Context.MODE_PRIVATE)
                         sharedPref.edit().putBoolean("isLoggedIn", true).apply()
-
+                    // Thiết lập tag "admin" = "true" cho OneSignal
+                        OneSignal.User.addTag("admin", "true")
+                        Log.d("AdminLogin", "Set OneSignal tag: admin=true")
                         navController.navigate("MainPage") {
                             popUpTo("admin_login") { inclusive = true }
                         }

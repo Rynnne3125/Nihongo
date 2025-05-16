@@ -5,28 +5,19 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.nihongo.Admin.utils.AlarmReceiver
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
-import java.io.IOException
 import java.io.InputStream
-import java.util.*
-import java.util.concurrent.TimeUnit
-import androidx.work.*
-import com.example.nihongo.Admin.utils.AlarmReceiver
-import com.onesignal.OneSignal
-import kotlinx.coroutines.CoroutineScope
 import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -276,7 +267,60 @@ class AdminNotifyPageViewModel : ViewModel() {
             }
         }
     }
+    fun sendAdminOnlyNotification(campaign: Campaign) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val title = campaign.title
+            val message = campaign.message
+            val imageUrl = campaign.imageUrl
 
+            Log.d("PushNotification", "Preparing admin-only notification...")
+            Log.d("PushNotification", "Title: $title")
+            Log.d("PushNotification", "Message: $message")
+
+            try {
+                val url = URL("https://onesignal.com/api/v1/notifications")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty(
+                    "Authorization",
+                    "Basic os_v2_app_i74wkoclfnethgm2veasbagu5h5ouj2skp7eurmr3sf6xri2sjjeiyk7dniz7iequz5qntoqd7gcxij7ncxvi2ciz627g4o4g3qwccy"
+                )
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+
+                // Sử dụng cấu trúc JSON đơn giản giống như sendOneSignalPushNotificationToUser
+                val jsonPayload = """
+                {
+                    "app_id": "47f96538-4b2b-4933-999a-a9012080d4e9",
+                    "headings": {"en": "$title"},
+                    "contents": {"en": "$message"},
+                    "filters": [
+                        {"field": "tag", "key": "admin", "relation": "=", "value": "true"}
+                    ]
+                }
+            """.trimIndent()
+
+                Log.d("PushNotification", "JSON Payload: $jsonPayload")
+
+                val os: OutputStream = connection.outputStream
+                os.write(jsonPayload.toByteArray())
+                os.flush()
+
+                val responseCode = connection.responseCode
+
+                if (responseCode >= 200 && responseCode < 300) {
+                    val responseMessage = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("PushNotification", "Success Response: $responseMessage")
+                } else {
+                    val errorMessage = connection.errorStream.bufferedReader().use { it.readText() }
+                    Log.e("PushNotification", "Error Response: $errorMessage")
+                }
+
+            } catch (e: Exception) {
+                Log.e("PushNotification", "Error sending notification", e)
+            }
+        }
+    }
     private suspend fun getAccessToken(context: Context): String? {
         return try {
             withContext(Dispatchers.IO) {
