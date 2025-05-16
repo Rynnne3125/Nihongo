@@ -64,6 +64,7 @@ import com.example.nihongo.R
 import com.example.nihongo.User.data.models.Course
 import coil.compose.rememberImagePainter
 import coil.request.ImageRequest
+import com.example.nihongo.Admin.utils.CatboxUploader
 import com.example.nihongo.Admin.utils.ImgurUploader
 import kotlinx.coroutines.launch
 import java.io.File
@@ -748,8 +749,7 @@ fun AddCourseDialog(
                                                 }
 
                                                 // Upload to Imgur
-                                                val uploader = ImgurUploader()
-                                                val link = uploader.uploadImage(file)
+                                                val link = CatboxUploader.uploadVideo(file!!)
                                                 link ?: defaultImage
                                             } catch (e: Exception) {
                                                 Log.e("ImgurUpload", "Error: ${e.message}")

@@ -148,6 +148,7 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
 
     // Initialize imgur uploader
     val imgurUploader = remember { ImgurUploader() }
+    val catboxUploader =  com.example.nihongo.Admin.utils.CatboxUploader
     val context = LocalContext.current
 
     // Helper function to get file from Uri
@@ -194,9 +195,10 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
             scope.launch {
                 try {
                     getFileFromUri(uri)?.let { file ->
-                        val imgurUrl = imgurUploader.uploadImage(file)
-                        if (imgurUrl != null) {
-                            imageUrl = imgurUrl
+//                        val imgurUrl = imgurUploader.uploadImage(file)
+                        val catboxUrl = catboxUploader.uploadVideo(file)
+                        if (catboxUrl != null) {
+                            imageUrl = catboxUrl
                         } else {
                             uploadError = "Failed to upload image"
                         }
@@ -821,7 +823,7 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
                                                     dateFormatter.format(it) + " " + timeFormatter.format(
                                                         it
                                                     )
-                                                } ?: "Select date & time")
+                                                } ?: "date & time")
                                             }
                                         }
                                     }
@@ -896,7 +898,7 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
                                                 val finalImageUrl = when {
                                                     selectedImageType == "url" -> imageUrl
                                                     selectedImageType == "default" -> selectedDefaultImage
-                                                    selectedImageType == "upload" && imageUrl.isNotBlank() -> imageUrl // Use the Imgur URL
+                                                    selectedImageType == "upload" && imageUrl.isNotBlank() -> imageUrl
                                                     else -> ""
                                                 }
 

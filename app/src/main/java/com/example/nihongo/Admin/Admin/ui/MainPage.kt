@@ -160,13 +160,15 @@ fun MainPage(navController: NavHostController) {
 @Composable
 fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewModel, navController: NavHostController) {
     val isLoading by viewModel.isLoading
-
     val monthlyUserCount by viewModel.monthlyUserCount.collectAsState()
     val topUsers by viewModel.topUsers.collectAsState()
     val topCourses by viewModel.topCourses.collectAsState()
     val totalCourseCount by viewModel.totalCourseCount.collectAsState()
     val vipMemberCount by viewModel.vipMemberCount.collectAsState()
     val mostEnrolledCourses by viewModel.mostEnrolledCourses.collectAsState()
+    
+    // Add search state
+    var searchQuery by remember { mutableStateOf("") }
 
     LazyColumn(
         modifier = modifier
@@ -176,117 +178,289 @@ fun AdminDashboard(modifier: Modifier = Modifier, viewModel: AdminMainPageViewMo
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            SearchBar()
-        }
-
-        item {
-            DashboardHeader(totalCourseCount, vipMemberCount)
-        }
-
-        item {
-            Text(
-                "Monthly User Growth",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = darkGreen
+            SearchBar(
+                onSearchQueryChange = { query ->
+                    searchQuery = query
+                }
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            MonthlyUserChart(monthlyUserCount)
         }
 
-        item {
-            Text(
-                "Top 5 Active Users",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = darkGreen
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            TopUsersSection(topUsers)
-        }
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        try {
-                            Log.d("AdminDashboard", "Navigating to vipRequestPage")
-                            navController.navigate("vipRequestPage")
-                        } catch (e: Exception) {
-                            Log.e("AdminDashboard", "Navigation error: ${e.message}", e)
-                        }
-                    },
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Row(
+        // Only show content based on search query
+        if (searchQuery.isEmpty()) {
+            // Show all content when no search
+            item {
+                DashboardHeader(totalCourseCount, vipMemberCount)
+            }
+
+            item {
+                Text(
+                    "Monthly User Growth",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = darkGreen
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                MonthlyUserChart(monthlyUserCount)
+            }
+
+            item {
+                Text(
+                    "Top 5 Active Users",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = darkGreen
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                TopUsersSection(topUsers)
+            }
+
+            item {
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .clickable {
+                            try {
+                                Log.d("AdminDashboard", "Navigating to vipRequestPage")
+                                navController.navigate("vipRequestPage")
+                            } catch (e: Exception) {
+                                Log.e("AdminDashboard", "Navigation error: ${e.message}", e)
+                            }
+                        },
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        tint = Color(0xFFFFC107),
-                        modifier = Modifier.size(24.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Quản lý yêu cầu VIP",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(24.dp)
                         )
-                        Text(
-                            "Xem và phê duyệt các yêu cầu nâng cấp VIP",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Quản lý yêu cầu VIP",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Xem và phê duyệt các yêu cầu nâng cấp VIP",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = Color.Gray
                         )
                     }
+                }
+            }
 
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = Color.Gray
+            item {
+                Text(
+                    "Most Liked Courses",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = darkGreen
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                TopCoursesSection(topCourses)
+            }
+
+            item {
+                Text(
+                    "Most Enrolled Courses",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = darkGreen
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                MostEnrolledCoursesSection(mostEnrolledCourses)
+            }
+        } else {
+            // Show relevant content based on search
+            val query = searchQuery.lowercase()
+            
+            // Check for user-related content
+            if (query.contains("user") || query.contains("member")) {
+                // Show Monthly User Growth
+                item {
+                    Text(
+                        "Monthly User Growth",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = darkGreen
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MonthlyUserChart(monthlyUserCount)
+                }
+
+                // Show Active Users
+                item {
+                    Text(
+                        "Top 5 Active Users",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = darkGreen
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TopUsersSection(topUsers)
+                }
+
+                // Show VIP Members if query contains "vip"
+                if (query.contains("vip")) {
+                    item {
+                        DashboardHeader(totalCourseCount, vipMemberCount)
+                    }
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    try {
+                                        navController.navigate("vipRequestPage")
+                                    } catch (e: Exception) {
+                                        Log.e("AdminDashboard", "Navigation error: ${e.message}", e)
+                                    }
+                                },
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFC107),
+                                    modifier = Modifier.size(24.dp)
+                                )
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "Quản lý yêu cầu VIP",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Xem và phê duyệt các yêu cầu nâng cấp VIP",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
+                                    )
+                                }
+
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = Color.Gray
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check for course-related content
+            if (query.contains("course") || query.contains("enroll") || query.contains("like")) {
+                // Show Most Liked Courses
+                if (query.contains("like") || query.contains("course")) {
+                    item {
+                        Text(
+                            "Most Liked Courses",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = darkGreen
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TopCoursesSection(topCourses)
+                    }
+                }
+
+                // Show Most Enrolled Courses
+                if (query.contains("enroll") || query.contains("course")) {
+                    item {
+                        Text(
+                            "Most Enrolled Courses",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = darkGreen
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        MostEnrolledCoursesSection(mostEnrolledCourses)
+                    }
+                }
+            }
+
+            // Show VIP-related content
+            if (query.contains("vip")) {
+                item {
+                    DashboardHeader(totalCourseCount, vipMemberCount)
+                }
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                try {
+                                    navController.navigate("vipRequestPage")
+                                } catch (e: Exception) {
+                                    Log.e("AdminDashboard", "Navigation error: ${e.message}", e)
+                                }
+                            },
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                tint = Color(0xFFFFC107),
+                                modifier = Modifier.size(24.dp)
+                            )
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Quản lý yêu cầu VIP",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    "Xem và phê duyệt các yêu cầu nâng cấp VIP",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray
+                                )
+                            }
+
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = Color.Gray
+                            )
+                        }
+                    }
                 }
             }
         }
-        item {
-            Text(
-                "Most Liked Courses",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = darkGreen
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            TopCoursesSection(topCourses)
-        }
-
-        item {
-            Text(
-                "Most Enrolled Courses",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = darkGreen
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            MostEnrolledCoursesSection(mostEnrolledCourses)
-        }
     }
-
-//    if (isLoading) {
-//        Box(
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .background(Color.Black.copy(alpha = 0.5f)),
-//            contentAlignment = Alignment.Center
-//        ) {
-//            CircularProgressIndicator(color = primaryGreen)
-//        }
-//    }
 }
 
 @Composable
@@ -856,9 +1030,12 @@ fun TopBar(navController: NavHostController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchBar() {
-    // Store TextField value
+fun SearchBar(
+    onSearchQueryChange: (String) -> Unit
+) {
     var text by remember { mutableStateOf("") }
+    var showResults by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     // Animation for TextField color
     val textFieldColor by animateColorAsState(
@@ -866,25 +1043,34 @@ fun SearchBar() {
         animationSpec = tween(durationMillis = 500)
     )
 
-    TextField(
-        value = text,
-        onValueChange = { newText -> text = newText },
-        placeholder = { Text("Search...", color = Color.Gray) },
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
-            .padding(bottom = 8.dp),
-        leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Search Icon", tint = primaryGreen)
-        },
-        shape = RoundedCornerShape(12.dp),
-        colors = TextFieldDefaults.textFieldColors(
-            containerColor = textFieldColor,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            cursorColor = primaryGreen
+            .padding(bottom = 8.dp)
+    ) {
+        TextField(
+            value = text,
+            onValueChange = { 
+                text = it
+                showResults = it.isNotEmpty()
+                onSearchQueryChange(it)
+            },
+            placeholder = { Text("Search...", color = Color.Gray) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp),
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = "Search Icon", tint = primaryGreen)
+            },
+            shape = RoundedCornerShape(12.dp),
+            colors = TextFieldDefaults.textFieldColors(
+                containerColor = textFieldColor,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                cursorColor = primaryGreen
+            )
         )
-    )
+    }
 }
 
 @Composable

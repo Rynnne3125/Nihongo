@@ -1203,8 +1203,7 @@ fun ExerciseDialog(
                                     
                                     // IMAGE UPLOAD
                                     if (isPracticeType && imageInputType == 2 && imageFile != null) {
-                                        val uploader = ImgurUploader()
-                                        finalImageUrl = uploader.uploadImage(imageFile!!) ?: ""
+                                        finalImageUrl = CatboxUploader.uploadVideo(imageFile!!) ?: ""
                                     }
                                     
                                     // VIDEO UPLOAD

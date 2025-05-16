@@ -64,6 +64,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import com.example.nihongo.Admin.utils.CatboxUploader
 
 // Custom theme colors for Japanese language learning app
 object NihongoTheme {
@@ -391,8 +392,7 @@ fun AddOrEditUserDialog(
                                     }
 
                                     // Upload to Imgur
-                                    val uploader = ImgurUploader()
-                                    val uploadedUrl = uploader.uploadImage(file)
+                                    val uploadedUrl = CatboxUploader.uploadVideo(file!!)
 
                                     withContext(Dispatchers.Main) {
                                         if (uploadedUrl != null) {

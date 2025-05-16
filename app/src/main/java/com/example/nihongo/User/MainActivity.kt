@@ -48,6 +48,10 @@ class MainActivity : ComponentActivity() {
             CoroutineScope(Dispatchers.IO).launch {
                 // Cập nhật trạng thái online của người dùng
                 userRepo.updateUserOnlineStatus(loggedInUser.id, true)
+                
+                // Thiết lập tag user_email cho OneSignal
+                OneSignal.User.addTag(loggedInUser.email, "true")
+                Log.d("OneSignal", "Set user_email tag in MainActivity: ${loggedInUser.email}")
             }
             "home/${loggedInUser.email}"
         } else {
@@ -130,4 +134,6 @@ private val requestPermissionLauncher =
         }
     }
 }
+
+
 

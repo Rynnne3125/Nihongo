@@ -49,11 +49,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
 import com.example.nihongo.User.data.models.PrivateChatMessage
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
@@ -333,6 +335,42 @@ fun PrivateChatScreen(
                                         // Cộng điểm năng động cho người dùng
                                         val updatedUser = currentUser!!.addActivityPoints(1)
                                         userRepository.updateUser(updatedUser)
+                                        
+                                        // Gửi thông báo đến người nhận
+                                        if (partnerUser != null) {
+                                            try {
+                                                val notifyViewModel = AdminNotifyPageViewModel()
+                                                val notificationTitle = "Tin nhắn mới từ ${currentUser!!.username}"
+                                                val notificationMessage = sentText
+                                                
+                                                // Sử dụng email của đối tác thay vì ID
+                                                notifyViewModel.sendNotificationToSpecificUser(
+                                                    notificationTitle,
+                                                    notificationMessage,
+                                                    partnerUser!!.email
+                                                )
+                                                
+                                                Log.d("PrivateChat", "Notification sent to: ${partnerUser!!.username}")
+                                                
+                                                // Lưu thông báo vào collection notifications
+                                                val notification = hashMapOf(
+                                                    "userId" to partnerUserId,
+                                                    "title" to notificationTitle,
+                                                    "message" to notificationMessage,
+                                                    "timestamp" to FieldValue.serverTimestamp(),
+                                                    "read" to false,
+                                                    "type" to "private_message",
+                                                    "referenceId" to docRef.id,
+                                                    "senderId" to currentUser!!.id
+                                                )
+                                                
+                                                FirebaseFirestore.getInstance().collection("notifications")
+                                                    .add(notification)
+                                                    .await()
+                                            } catch (e: Exception) {
+                                                Log.e("PrivateChat", "Failed to send notification", e)
+                                            }
+                                        }
                                     } catch (e: Exception) {
                                         Log.e("PrivateChat", "Error sending message", e)
                                         // Hiển thị thông báo lỗi
@@ -433,3 +471,7 @@ fun PrivateMessageItem(message: PrivateChatMessage, isCurrentUser: Boolean) {
         }
     }
 }
+
+
+
+

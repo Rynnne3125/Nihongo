@@ -321,6 +321,102 @@ class AdminNotifyPageViewModel : ViewModel() {
             }
         }
     }
+    // Phương thức gửi thông báo đến một người dùng cụ thể bằng userId
+    fun sendNotificationToSpecificUser(title: String, message: String, userEmail: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            Log.d("PushNotification", "Preparing notification to user email: $userEmail")
+            Log.d("PushNotification", "Title: $title")
+            Log.d("PushNotification", "Message: $message")
+
+            try {
+                val url = URL("https://onesignal.com/api/v1/notifications")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty(
+                    "Authorization",
+                    "Basic os_v2_app_i74wkoclfnethgm2veasbagu5h5ouj2skp7eurmr3sf6xri2sjjeiyk7dniz7iequz5qntoqd7gcxij7ncxvi2ciz627g4o4g3qwccy"
+                )
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+
+                val jsonPayload = """
+                {
+                    "app_id": "47f96538-4b2b-4933-999a-a9012080d4e9",
+                    "headings": {"en": "$title"},
+                    "contents": {"en": "$message"},
+                    "filters": [
+                        {"field": "tag", "key": "$userEmail", "relation": "=", "value": "true"}
+                    ]
+                }
+            """.trimIndent()
+            
+                Log.d("PushNotification", "JSON Payload: $jsonPayload")
+            
+                // Gửi request
+                val outputStream = connection.outputStream
+                outputStream.write(jsonPayload.toByteArray())
+                outputStream.close()
+
+                val responseCode = connection.responseCode
+                Log.d("PushNotification", "Response Code: $responseCode")
+            } catch (e: Exception) {
+                Log.e("PushNotification", "Error sending notification", e)
+            }
+        }
+    }
+
+    // Phương thức gửi thông báo cho nhóm chat - gửi đến tất cả trừ người gửi
+    fun sendGroupChatNotification(title: String, message: String, senderEmail: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            Log.d("PushNotification", "Preparing group notification to all users except sender: $senderEmail")
+            Log.d("PushNotification", "Title: $title")
+            Log.d("PushNotification", "Message: $message")
+
+            try {
+                val url = URL("https://onesignal.com/api/v1/notifications")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty(
+                    "Authorization",
+                    "Basic os_v2_app_i74wkoclfnethgm2veasbagu5h5ouj2skp7eurmr3sf6xri2sjjeiyk7dniz7iequz5qntoqd7gcxij7ncxvi2ciz627g4o4g3qwccy"
+                )
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+
+                // Gửi đến tất cả người dùng nhưng loại trừ người gửi
+                val jsonPayload = """
+                {
+                    "app_id": "47f96538-4b2b-4933-999a-a9012080d4e9",
+                    "headings": {"en": "$title"},
+                    "contents": {"en": "$message"},
+                    "included_segments": ["All"],
+                    "filters": [
+                        {"field": "tag", "key": "$senderEmail", "relation": "!=", "value": "true"}
+                    ]
+                }
+                """.trimIndent()
+
+                Log.d("PushNotification", "JSON Payload: $jsonPayload")
+
+                val os: OutputStream = connection.outputStream
+                os.write(jsonPayload.toByteArray())
+                os.flush()
+
+                val responseCode = connection.responseCode
+                
+                if (responseCode >= 200 && responseCode < 300) {
+                    val responseMessage = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("PushNotification", "Success Response: $responseMessage")
+                } else {
+                    val errorMessage = connection.errorStream.bufferedReader().use { it.readText() }
+                    Log.e("PushNotification", "Error Response: $errorMessage")
+                }
+
+            } catch (e: Exception) {
+                Log.e("PushNotification", "Error sending group notification", e)
+            }
+        }
+    }
     private suspend fun getAccessToken(context: Context): String? {
         return try {
             withContext(Dispatchers.IO) {

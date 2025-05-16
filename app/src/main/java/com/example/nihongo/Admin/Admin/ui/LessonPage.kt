@@ -906,7 +906,8 @@ fun LessonDialog(
                     value = lessonTitle,
                     onValueChange = onLessonTitleChange,
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    placeholder = { Text("New Lesson...") }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -926,7 +927,8 @@ fun LessonDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp),
-                    minLines = 3
+                    minLines = 3,
+                    placeholder = { Text("Lesson overview...") }
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -942,7 +944,16 @@ fun LessonDialog(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    Button(onClick = onConfirm) {
+                    Button(
+                        onClick = {
+                            // Set default values if fields are empty
+                            val finalTitle = if (lessonTitle.isBlank()) "New Lesson" else lessonTitle
+                            val finalOverview = if (lessonOverview.isBlank()) "Lesson overview..." else lessonOverview
+                            onLessonTitleChange(finalTitle)
+                            onLessonOverviewChange(finalOverview)
+                            onConfirm()
+                        }
+                    ) {
                         Text("Save")
                     }
                 }

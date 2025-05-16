@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
 import com.example.nihongo.User.data.models.Discussion
 import com.example.nihongo.User.data.models.DiscussionMessage
 import com.example.nihongo.User.data.models.GroupChatMessage
@@ -79,6 +80,7 @@ import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.example.nihongo.User.ui.components.TopBarIcon
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -227,7 +229,7 @@ fun CommunityScreen(
                 }
             }
         },
-        // Thêm FloatingActionButton để hiển thị dialog xác nhận
+         //Thêm FloatingActionButton để hiển thị dialog xác nhận
 //        floatingActionButton = {
 //            if (currentUser?.vip == true) { // Chỉ hiển thị cho người dùng VIP
 //                FloatingActionButton(
@@ -409,8 +411,19 @@ fun StudyBuddiesTab(
                             try {
                                 // Cập nhật danh sách đối tác của người dùng hiện tại
                                 currentUser?.let { user ->
+                                    // 1. Cập nhật người dùng hiện tại
                                     val updatedUser = user.addPartner(selectedPartnerId)
                                     userRepository.updateUser(updatedUser)
+                                    
+                                    // 2. Cập nhật đối tác (thêm người dùng hiện tại vào danh sách partners của đối tác)
+                                    val partner = userRepository.getUserById(selectedPartnerId)
+                                    partner?.let { partnerUser ->
+                                        val updatedPartner = partnerUser.addPartner(user.id)
+                                        userRepository.updateUser(updatedPartner)
+                                        
+                                        // 3. Gửi thông báo cho đối tác
+                                        sendPartnerConnectionNotification(user, partnerUser)
+                                    }
                                     
                                     // Cập nhật UI
                                     currentUser = updatedUser
@@ -611,6 +624,46 @@ fun StudyBuddiesTab(
         }
     }
 }
+// Thêm hàm gửi thông báo kết nối đối tác
+private suspend fun sendPartnerConnectionNotification(currentUser: User, partner: User) {
+    try {
+        val firestore = FirebaseFirestore.getInstance()
+
+        // Tạo thông báo trong Firestore
+        val notification = hashMapOf(
+            "userId" to partner.id,
+            "title" to "Kết nối đối tác học tập mới",
+            "message" to "${currentUser.username} đã kết nối với bạn làm đối tác học tập",
+            "timestamp" to FieldValue.serverTimestamp(),
+            "read" to false,
+            "type" to "partner_connection",
+            "referenceId" to currentUser.id,
+            "senderId" to currentUser.id
+        )
+
+        // Lưu thông báo vào Firestore
+        firestore.collection("notifications")
+            .add(notification)
+            .await()
+
+        // Gửi thông báo push qua OneSignal (nếu có)
+        try {
+            val notifyViewModel = AdminNotifyPageViewModel()
+            notifyViewModel.sendNotificationToSpecificUser(
+                "Kết nối đối tác học tập mới",
+                "${currentUser.username} đã kết nối với bạn làm đối tác học tập",
+                partner.email
+            )
+
+            Log.d("PartnerConnection", "Notification sent to: ${partner.username}")
+        } catch (e: Exception) {
+            Log.e("PartnerConnection", "Failed to send push notification", e)
+        }
+    } catch (e: Exception) {
+        Log.e("PartnerConnection", "Error creating notification", e)
+    }
+}
+
 
 @Composable
 fun DiscussionTab(
@@ -1678,208 +1731,237 @@ private fun clearExistingData(firestore: FirebaseFirestore, context: Context, on
 
 // Hàm thêm dữ liệu mẫu mới
 private fun addSampleData(firestore: FirebaseFirestore, context: Context) {
-    // 1. Tạo dữ liệu mẫu cho Study Groups
-    val sampleStudyGroups = listOf(
-        StudyGroup(
-            id = "",
-            title = "N5 初心者",
-            description = "N5レベルの基本的な文法と語彙を学びましょう。",
-            memberCount = 15,
-            createdBy = "system",
-            createdAt = System.currentTimeMillis(),
-            imageUrl = "https://example.com/images/n5_group.jpg"
-        ),
-        StudyGroup(
-            id = "",
-            title = "会話練習",
-            description = "日常会話を練習するグループです。初心者歓迎！",
-            memberCount = 12,
-            createdBy = "system",
-            createdAt = System.currentTimeMillis(),
-            imageUrl = "https://example.com/images/conversation_group.jpg"
-        ),
-        StudyGroup(
-            id = "",
-            title = "漢字マスター",
-            description = "一緒に漢字を勉強しましょう。N4-N2レベル。",
-            memberCount = 8,
-            createdBy = "system",
-            createdAt = System.currentTimeMillis(),
-            imageUrl = "https://example.com/images/kanji_group.jpg"
-        ),
-        StudyGroup(
-            id = "",
-            title = "JLPT N3 対策",
-            description = "JLPT N3試験の準備をしているメンバーのグループです。",
-            memberCount = 10,
-            createdBy = "system",
-            createdAt = System.currentTimeMillis(),
-            imageUrl = "https://example.com/images/n3_group.jpg"
-        ),
-        StudyGroup(
-            id = "",
-            title = "アニメで日本語",
-            description = "アニメを通じて日本語を学ぶグループです。楽しく学びましょう！",
-            memberCount = 20,
-            createdBy = "system",
-            createdAt = System.currentTimeMillis(),
-            imageUrl = "https://example.com/images/anime_group.jpg"
-        )
-    )
-    
-    // 2. Tạo dữ liệu mẫu cho Discussions
-    val sampleDiscussions = listOf(
-        Discussion(
-            id = "",
-            title = "文法について質問",
-            content = "「て形」と「た形」の違いは何ですか？初心者ですが、この違いがよく分かりません。例文があれば助かります。",
-            authorId = "system",
-            authorName = "Tanaka",
-            authorImageUrl = "https://example.com/images/tanaka.jpg",
-            commentCount = 7,
-            createdAt = System.currentTimeMillis() - 86400000, // 1 day ago
-            tags = listOf("文法", "初心者", "質問")
-        ),
-        Discussion(
-            id = "",
-            title = "おすすめの勉強法",
-            content = "皆さんはどうやって単語を覚えていますか？アプリ、フラッシュカード、それとも他の方法？アドバイスをお願いします。",
-            authorId = "system",
-            authorName = "Yamada",
-            authorImageUrl = "https://example.com/images/yamada.jpg",
-            commentCount = 12,
-            createdAt = System.currentTimeMillis() - 172800000, // 2 days ago
-            tags = listOf("勉強法", "単語", "アドバイス")
-        ),
-        Discussion(
-            id = "",
-            title = "JLPT N5 試験",
-            content = "12月のJLPT試験に向けて一緒に勉強しませんか？オンラインで勉強会を開きたいと思います。興味のある方はコメントしてください。",
-            authorId = "system",
-            authorName = "Suzuki",
-            authorImageUrl = "https://example.com/images/suzuki.jpg",
-            commentCount = 15,
-            createdAt = System.currentTimeMillis() - 259200000, // 3 days ago
-            tags = listOf("JLPT", "N5", "勉強会")
-        ),
-        Discussion(
-            id = "",
-            title = "アニメで日本語",
-            content = "おすすめの初心者向けアニメはありますか？字幕付きで日本語を勉強したいです。簡単な日本語を使っているアニメが理想です。",
-            authorId = "system",
-            authorName = "Sato",
-            authorImageUrl = "https://example.com/images/sato.jpg",
-            commentCount = 9,
-            createdAt = System.currentTimeMillis() - 345600000, // 4 days ago
-            tags = listOf("アニメ", "初心者", "リスニング")
-        ),
-        Discussion(
-            id = "",
-            title = "発音の練習",
-            content = "「つ」と「す」の発音が難しいです。アドバイスください！特に「つ」の発音のコツを知りたいです。",
-            authorId = "system",
-            authorName = "Kato",
-            authorImageUrl = "https://example.com/images/kato.jpg",
-            commentCount = 6,
-            createdAt = System.currentTimeMillis() - 432000000, // 5 days ago
-            tags = listOf("発音", "練習", "アドバイス")
-        )
-    )
-    
-    // 3. Tạo dữ liệu mẫu cho Learning Goals (cần user ID)
-    fun createSampleLearningGoals(userId: String) {
-        val sampleLearningGoals = listOf(
-            LearningGoal(
-                id = "",
-                title = "毎日の学習",
-                description = "今週は5/7日達成しました",
-                target = 7,
-                current = 5,
-                type = "daily",
-                startDate = System.currentTimeMillis() - 604800000, // 1 week ago
-                endDate = System.currentTimeMillis() + 604800000 // 1 week from now
-            ),
-            LearningGoal(
-                id = "",
-                title = "新しい単語",
-                description = "今週は40/100語学びました",
-                target = 100,
-                current = 40,
-                type = "vocabulary",
-                startDate = System.currentTimeMillis() - 604800000,
-                endDate = System.currentTimeMillis() + 604800000
-            ),
-            LearningGoal(
-                id = "",
-                title = "文法のマスター",
-                description = "N5文法の3/10項目を完了しました",
-                target = 10,
-                current = 3,
-                type = "grammar",
-                startDate = System.currentTimeMillis() - 604800000,
-                endDate = System.currentTimeMillis() + 1209600000 // 2 weeks from now
+    // Lấy danh sách tất cả người dùng
+    firestore.collection("users").get()
+        .addOnSuccessListener { usersSnapshot ->
+            val userIds = usersSnapshot.documents.map { it.id }
+            // 1. Tạo dữ liệu mẫu cho Study Groups
+            val sampleStudyGroups = listOf(
+                StudyGroup(
+                    id = "",
+                    title = "N5 初心者",
+                    description = "N5レベルの基本的な文法と語彙を学びましょう。",
+                    memberCount = 15,
+                    createdBy = "system",
+                    createdAt = System.currentTimeMillis(),
+                    imageUrl = "https://example.com/images/n5_group.jpg",
+                    members = userIds  // Thêm tất cả người dùng vào nhóm
+                ),
+                StudyGroup(
+                    id = "",
+                    title = "会話練習",
+                    description = "日常会話を練習するグループです。初心者歓迎！",
+                    memberCount = 12,
+                    createdBy = "system",
+                    createdAt = System.currentTimeMillis(),
+                    imageUrl = "https://example.com/images/conversation_group.jpg",
+                    members = userIds  // Thêm tất cả người dùng vào nhóm
+                ),
+                StudyGroup(
+                    id = "",
+                    title = "漢字マスター",
+                    description = "一緒に漢字を勉強しましょう。N4-N2レベル。",
+                    memberCount = 8,
+                    createdBy = "system",
+                    createdAt = System.currentTimeMillis(),
+                    imageUrl = "https://example.com/images/kanji_group.jpg",
+                    members = userIds  // Thêm tất cả người dùng vào nhóm
+                ),
+                StudyGroup(
+                    id = "",
+                    title = "JLPT N3 対策",
+                    description = "JLPT N3試験の準備をしているメンバーのグループです。",
+                    memberCount = 10,
+                    createdBy = "system",
+                    createdAt = System.currentTimeMillis(),
+                    imageUrl = "https://example.com/images/n3_group.jpg",
+                    members = userIds  // Thêm tất cả người dùng vào nhóm
+                ),
+                StudyGroup(
+                    id = "",
+                    title = "アニメで日本語",
+                    description = "アニメを通じて日本語を学ぶグループです。楽しく学びましょう！",
+                    memberCount = 20,
+                    createdBy = "system",
+                    createdAt = System.currentTimeMillis(),
+                    imageUrl = "https://example.com/images/anime_group.jpg",
+                    members = userIds  // Thêm tất cả người dùng vào nhóm
+                )
             )
-        )
-        
-        // Upload learning goals
-        val batch = firestore.batch()
-        sampleLearningGoals.forEach { goal ->
-            val goalRef = firestore.collection("users")
-                .document(userId)
-                .collection("learningGoals")
-                .document()
-            batch.set(goalRef, goal)
-        }
-        
-        batch.commit()
-            .addOnSuccessListener {
-                Log.d("Firestore", "Learning goals added for user $userId")
-                Toast.makeText(context, "Learning goals added successfully", Toast.LENGTH_SHORT).show()
+
+            // 2. Tạo dữ liệu mẫu cho Discussions
+            val sampleDiscussions = listOf(
+                Discussion(
+                    id = "",
+                    title = "文法について質問",
+                    content = "「て形」と「た形」の違いは何ですか？初心者ですが、この違いがよく分かりません。例文があれば助かります。",
+                    authorId = "system",
+                    authorName = "Tanaka",
+                    authorImageUrl = "https://example.com/images/tanaka.jpg",
+                    commentCount = 7,
+                    createdAt = System.currentTimeMillis() - 86400000, // 1 day ago
+                    tags = listOf("文法", "初心者", "質問")
+                ),
+                Discussion(
+                    id = "",
+                    title = "おすすめの勉強法",
+                    content = "皆さんはどうやって単語を覚えていますか？アプリ、フラッシュカード、それとも他の方法？アドバイスをお願いします。",
+                    authorId = "system",
+                    authorName = "Yamada",
+                    authorImageUrl = "https://example.com/images/yamada.jpg",
+                    commentCount = 12,
+                    createdAt = System.currentTimeMillis() - 172800000, // 2 days ago
+                    tags = listOf("勉強法", "単語", "アドバイス")
+                ),
+                Discussion(
+                    id = "",
+                    title = "JLPT N5 試験",
+                    content = "12月のJLPT試験に向けて一緒に勉強しませんか？オンラインで勉強会を開きたいと思います。興味のある方はコメントしてください。",
+                    authorId = "system",
+                    authorName = "Suzuki",
+                    authorImageUrl = "https://example.com/images/suzuki.jpg",
+                    commentCount = 15,
+                    createdAt = System.currentTimeMillis() - 259200000, // 3 days ago
+                    tags = listOf("JLPT", "N5", "勉強会")
+                ),
+                Discussion(
+                    id = "",
+                    title = "アニメで日本語",
+                    content = "おすすめの初心者向けアニメはありますか？字幕付きで日本語を勉強したいです。簡単な日本語を使っているアニメが理想です。",
+                    authorId = "system",
+                    authorName = "Sato",
+                    authorImageUrl = "https://example.com/images/sato.jpg",
+                    commentCount = 9,
+                    createdAt = System.currentTimeMillis() - 345600000, // 4 days ago
+                    tags = listOf("アニメ", "初心者", "リスニング")
+                ),
+                Discussion(
+                    id = "",
+                    title = "発音の練習",
+                    content = "「つ」と「す」の発音が難しいです。アドバイスください！特に「つ」の発音のコツを知りたいです。",
+                    authorId = "system",
+                    authorName = "Kato",
+                    authorImageUrl = "https://example.com/images/kato.jpg",
+                    commentCount = 6,
+                    createdAt = System.currentTimeMillis() - 432000000, // 5 days ago
+                    tags = listOf("発音", "練習", "アドバイス")
+                )
+            )
+
+            // 3. Tạo dữ liệu mẫu cho Learning Goals (cần user ID)
+            fun createSampleLearningGoals(userId: String) {
+                val sampleLearningGoals = listOf(
+                    LearningGoal(
+                        id = "",
+                        title = "毎日の学習",
+                        description = "今週は5/7日達成しました",
+                        target = 7,
+                        current = 5,
+                        type = "daily",
+                        startDate = System.currentTimeMillis() - 604800000, // 1 week ago
+                        endDate = System.currentTimeMillis() + 604800000 // 1 week from now
+                    ),
+                    LearningGoal(
+                        id = "",
+                        title = "新しい単語",
+                        description = "今週は40/100語学びました",
+                        target = 100,
+                        current = 40,
+                        type = "vocabulary",
+                        startDate = System.currentTimeMillis() - 604800000,
+                        endDate = System.currentTimeMillis() + 604800000
+                    ),
+                    LearningGoal(
+                        id = "",
+                        title = "文法のマスター",
+                        description = "N5文法の3/10項目を完了しました",
+                        target = 10,
+                        current = 3,
+                        type = "grammar",
+                        startDate = System.currentTimeMillis() - 604800000,
+                        endDate = System.currentTimeMillis() + 1209600000 // 2 weeks from now
+                    )
+                )
+
+                // Upload learning goals
+                val batch = firestore.batch()
+                sampleLearningGoals.forEach { goal ->
+                    val goalRef = firestore.collection("users")
+                        .document(userId)
+                        .collection("learningGoals")
+                        .document()
+                    batch.set(goalRef, goal)
+                }
+
+                batch.commit()
+                    .addOnSuccessListener {
+                        Log.d("Firestore", "Learning goals added for user $userId")
+                        Toast.makeText(
+                            context,
+                            "Learning goals added successfully",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("Firestore", "Error adding learning goals", e)
+                        Toast.makeText(
+                            context,
+                            "Failed to add learning goals: ${e.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
             }
-            .addOnFailureListener { e ->
-                Log.e("Firestore", "Error adding learning goals", e)
-                Toast.makeText(context, "Failed to add learning goals: ${e.message}", Toast.LENGTH_SHORT).show()
+
+            // Upload study groups
+            val studyGroupsBatch = firestore.batch()
+            sampleStudyGroups.forEach { group ->
+                val groupRef = firestore.collection("studyGroups").document()
+                studyGroupsBatch.set(groupRef, group)
             }
-    }
-    
-    // Upload study groups
-    val studyGroupsBatch = firestore.batch()
-    sampleStudyGroups.forEach { group ->
-        val groupRef = firestore.collection("studyGroups").document()
-        studyGroupsBatch.set(groupRef, group)
-    }
 
-    studyGroupsBatch.commit()
-        .addOnSuccessListener {
-            Log.d("Firestore", "Study groups added successfully")
-            Toast.makeText(context, "Study groups added successfully", Toast.LENGTH_SHORT).show()
-        }
-        .addOnFailureListener { e ->
-            Log.e("Firestore", "Error adding study groups", e)
-            Toast.makeText(context, "Failed to add study groups: ${e.message}", Toast.LENGTH_SHORT).show()
+            studyGroupsBatch.commit()
+                .addOnSuccessListener {
+                    Log.d("Firestore", "Study groups added successfully")
+                    Toast.makeText(context, "Study groups added successfully", Toast.LENGTH_SHORT)
+                        .show()
+                }
+                .addOnFailureListener { e ->
+                    Log.e("Firestore", "Error adding study groups", e)
+                    Toast.makeText(
+                        context,
+                        "Failed to add study groups: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+            // Upload discussions
+            val discussionsBatch = firestore.batch()
+            sampleDiscussions.forEach { discussion ->
+                val discussionRef = firestore.collection("discussions").document()
+                discussionsBatch.set(discussionRef, discussion)
+            }
+
+            discussionsBatch.commit()
+                .addOnSuccessListener {
+                    Log.d("Firestore", "Discussions added successfully")
+                    Toast.makeText(context, "Discussions added successfully", Toast.LENGTH_SHORT)
+                        .show()
+                }
+                .addOnFailureListener { e ->
+                    Log.e("Firestore", "Error adding discussions", e)
+                    Toast.makeText(
+                        context,
+                        "Failed to add discussions: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+            // Để thêm learning goals, cần có user ID
+            // Ví dụ: Nếu có user hiện tại, thêm learning goals cho user đó
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            currentUser?.uid?.let { userId ->
+                createSampleLearningGoals(userId)
+            }
         }
 
-    // Upload discussions
-    val discussionsBatch = firestore.batch()
-    sampleDiscussions.forEach { discussion ->
-        val discussionRef = firestore.collection("discussions").document()
-        discussionsBatch.set(discussionRef, discussion)
-    }
-
-    discussionsBatch.commit()
-        .addOnSuccessListener {
-            Log.d("Firestore", "Discussions added successfully")
-            Toast.makeText(context, "Discussions added successfully", Toast.LENGTH_SHORT).show()
-        }
-        .addOnFailureListener { e ->
-            Log.e("Firestore", "Error adding discussions", e)
-            Toast.makeText(context, "Failed to add discussions: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-
-    // Để thêm learning goals, cần có user ID
-    // Ví dụ: Nếu có user hiện tại, thêm learning goals cho user đó
-    val currentUser = FirebaseAuth.getInstance().currentUser
-    currentUser?.uid?.let { userId ->
-        createSampleLearningGoals(userId)
-    }
 }

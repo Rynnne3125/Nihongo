@@ -1,7 +1,17 @@
 package com.example.nihongo.User.ui.screens.chat
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -9,8 +19,26 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,21 +49,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
 import com.example.nihongo.User.data.models.GroupChatMessage
 import com.example.nihongo.User.data.models.StudyGroup
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
-import java.util.*
-import com.google.firebase.firestore.ListenerRegistration
-import android.util.Log
-import android.widget.Toast
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -277,6 +304,52 @@ fun GroupChatScreen(
                                         // Cộng điểm năng động cho người dùng
                                         val updatedUser = currentUser!!.addActivityPoints(2)
                                         userRepository.updateUser(updatedUser)
+                                        
+                                        // Gửi thông báo đến tất cả người dùng trừ người gửi
+                                        try {
+                                            val notifyViewModel = AdminNotifyPageViewModel()
+                                            val notificationTitle = "Tin nhắn mới trong ${studyGroup!!.title}"
+                                            val notificationMessage = "${currentUser!!.username}: $sentText"
+
+                                            // Sử dụng hàm mới để gửi thông báo nhóm đến tất cả trừ người gửi
+                                            notifyViewModel.sendGroupChatNotification(
+                                                notificationTitle,
+                                                notificationMessage,
+                                                currentUser!!.email
+                                            )
+
+                                            Log.d("GroupChat", "Notification sent to all users except sender")
+
+                                            // Lưu thông báo vào collection notifications cho từng thành viên
+                                            // Lấy tất cả người dùng từ Firestore
+                                            val usersSnapshot = firestore.collection("users")
+                                                .whereNotEqualTo("id", currentUser!!.id)
+                                                .get()
+                                                .await()
+                                            
+                                            val otherUsers = usersSnapshot.documents.mapNotNull { doc ->
+                                                doc.id
+                                            }
+                                            
+                                            otherUsers.forEach { userId ->
+                                                val notification = hashMapOf(
+                                                    "userId" to userId,
+                                                    "title" to notificationTitle,
+                                                    "message" to notificationMessage,
+                                                    "timestamp" to FieldValue.serverTimestamp(),
+                                                    "read" to false,
+                                                    "type" to "group_message",
+                                                    "referenceId" to groupId,
+                                                    "senderId" to currentUser!!.id
+                                                )
+
+                                                FirebaseFirestore.getInstance().collection("notifications")
+                                                    .add(notification)
+                                                    .await()
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("GroupChat", "Failed to send notifications", e)
+                                        }
                                     } catch (e: Exception) {
                                         Log.e("GroupChat", "Error sending message", e)
                                         // Hiển thị thông báo lỗi
@@ -377,4 +450,8 @@ fun MessageItem(message: GroupChatMessage, isCurrentUser: Boolean) {
         }
     }
 }
+
+
+
+
 
