@@ -45,6 +45,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 @Composable
 fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
@@ -134,6 +135,7 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
 
                         val createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
                         val user = User(
+                            id = UUID.randomUUID().toString(),
                             username = username,
                             email = email,
                             password = password,
@@ -141,7 +143,10 @@ fun RegisterScreen(navController: NavController, userRepo: UserRepository) {
                             vip = false
                         )
 
+                        Log.d("RegisterScreen", "Creating user: id=${user.id}, username=${user.username}, email=${user.email}")
+
                         val success = userRepo.registerUser(user)
+                        Log.d("RegisterScreen", "Registration result: $success")
 
                         message = if (success) {
                             isSendingOtp = true

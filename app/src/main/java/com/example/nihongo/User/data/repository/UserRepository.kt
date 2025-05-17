@@ -18,15 +18,42 @@ class UserRepository(
 
     // ===== USER AUTH =====
     suspend fun registerUser(user: User): Boolean {
-        val existing = getUserByUsername(user.username)
-        return if (existing == null) {
+        try {
+            Log.d("UserRepository", "Starting registration for username: ${user.username}, email: ${user.email}")
+            
+            // Check for existing username
+            val existingUsername = getUserByUsername(user.username)
+            if (existingUsername != null) {
+                Log.d("UserRepository", "Registration failed: Username already exists")
+                return false
+            }
+            
+            // Check for existing email
+            val existingEmail = getUserByEmail(user.email)
+            if (existingEmail != null) {
+                Log.d("UserRepository", "Registration failed: Email already exists")
+                return false
+            }
+            
+            // Check if user ID is valid
+            if (user.id.isBlank()) {
+                Log.e("UserRepository", "Registration failed: User ID is blank")
+                return false
+            }
+            
+            // Proceed with registration
             val hashedUser = user.copy(password = hashPassword(user.password))
+            Log.d("UserRepository", "Saving user with ID: ${hashedUser.id}")
+            
             usersCollection.document(hashedUser.id).set(hashedUser).await()
             currentUser = hashedUser
             sessionManager?.createLoginSession(hashedUser)
-            true
-        } else {
-            false
+            
+            Log.d("UserRepository", "Registration successful for user: ${user.username}")
+            return true
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Registration error", e)
+            return false
         }
     }
 
