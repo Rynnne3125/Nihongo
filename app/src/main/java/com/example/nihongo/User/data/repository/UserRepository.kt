@@ -147,7 +147,8 @@ class UserRepository(
         userId: String,
         courseId: String,
         exerciseId: String,
-        passed: Boolean
+        passed: Boolean,
+        subLessonId: String? = null
     ) {
         try {
             val progressRef = firestore.collection("user_progress")
@@ -162,6 +163,7 @@ class UserRepository(
 
                 val updatedCompletedExercises = userProgress.completedExercises.toMutableList()
                 val updatedPassedExercises = userProgress.passedExercises.toMutableList()
+                val updatedCompletedSubLessons = userProgress.completedSubLessons?.toMutableList() ?: mutableListOf()
 
                 if (!updatedCompletedExercises.contains(exerciseId)) {
                     updatedCompletedExercises.add(exerciseId)
@@ -171,21 +173,24 @@ class UserRepository(
                     updatedPassedExercises.add(exerciseId)
                 }
 
+                // Thêm subLessonId vào completedSubLessons nếu được cung cấp và chưa có trong danh sách
+                if (subLessonId != null && !updatedCompletedSubLessons.contains(subLessonId)) {
+                    updatedCompletedSubLessons.add(subLessonId)
+                    Log.d("UserProgress", "Added subLessonId $subLessonId to completedSubLessons")
+                }
+
                 val updatedProgress = userProgress.copy(
                     completedExercises = updatedCompletedExercises,
                     passedExercises = updatedPassedExercises,
+                    completedSubLessons = updatedCompletedSubLessons,
                     lastUpdated = System.currentTimeMillis()
                 )
 
                 progressRef.set(updatedProgress).await()
-                Log.d("UserProgress", "User exercise progress updated")
-
-            } else {
-                Log.e("UserProgress", "Progress not found for this course")
+                Log.d("UserProgress", "User exercise progress updated with completedSubLessons: ${updatedCompletedSubLessons.size}")
             }
-
         } catch (e: Exception) {
-            Log.e("UserProgress", "Error updating progress", e)
+            Log.e("UserProgress", "Error updating user progress", e)
         }
     }
 

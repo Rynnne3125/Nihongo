@@ -661,6 +661,7 @@ fun CourseInfoTab(
                                     completedLessons = emptyList(),
                                     completedExercises = emptyList(),
                                     passedExercises = emptyList(),
+                                    completedSubLessons = emptyList(),
                                     totalLessons = lessons.size,
                                     progress = 0.0f,
                                     lastUpdated = System.currentTimeMillis(),

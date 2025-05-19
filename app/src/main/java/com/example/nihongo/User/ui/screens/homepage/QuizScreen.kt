@@ -27,10 +27,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -162,7 +165,8 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
                         userId = it.id,
                         courseId = courseId,
                         exerciseId = currentExercise?.id ?: "",
-                        passed = true
+                        passed = true,
+                        subLessonId = currentExercise?.subLessonId // Thêm subLessonId
                     )
                 }
 
@@ -503,6 +507,8 @@ fun QuestionCard(
     onWordSelected: (String) -> Unit,
     onWordRemoved: (Int) -> Unit
 ) {
+    val scrollState = rememberScrollState()
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -512,6 +518,7 @@ fun QuestionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(scrollState)  // Thêm scroll cho toàn bộ nội dung
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -552,41 +559,40 @@ fun QuestionCard(
                             contentScale = ContentScale.Crop
                         )
                     }
-
+                    
                     Spacer(modifier = Modifier.width(16.dp))
-
+                    
                     // Japanese text
-                    Column(
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        Text(
-                            text = kana,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
-                        )
+                    Column {
+                        if (kana.isNotEmpty()) {
+                            Text(
+                                text = kana,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1B5E20)
+                            )
+                        }
                         
-                        Spacer(modifier = Modifier.height(4.dp))
-                        
-                        Text(
-                            text = romaji,
-                            fontSize = 16.sp,
-                            color = Color.Gray,
-                            fontStyle = FontStyle.Italic
-                        )
+                        if (romaji.isNotEmpty()) {
+                            Text(
+                                text = romaji,
+                                fontSize = 16.sp,
+                                fontStyle = FontStyle.Italic,
+                                color = Color.Gray
+                            )
+                        }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Selected words section
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Selected words area
             Text(
-                text = "Câu trả lời của bạn",
+                text = "Câu trả lời của bạn:",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.DarkGray,
+                color = Color(0xFF1B5E20),
                 modifier = Modifier.align(Alignment.Start)
             )
             
@@ -629,20 +635,27 @@ fun QuestionCard(
                                     text = word,
                                     color = Color(0xFF2E7D32)
                                 )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Remove",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = Color(0xFF2E7D32)
+                                )
                             }
                         }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Options section
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Available options
             Text(
-                text = "Chọn từ để tạo câu",
+                text = "Các từ có sẵn:",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.DarkGray,
+                color = Color(0xFF1B5E20),
                 modifier = Modifier.align(Alignment.Start)
             )
             
@@ -675,6 +688,9 @@ fun QuestionCard(
                     }
                 }
             }
+            
+            // Thêm khoảng trống ở cuối để đảm bảo nội dung không bị cắt
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

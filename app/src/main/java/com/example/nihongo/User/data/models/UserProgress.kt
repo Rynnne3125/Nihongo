@@ -8,6 +8,7 @@ data class UserProgress(
     val completedLessons: List<String> = emptyList(),
     val completedExercises: List<String> = emptyList(),
     val passedExercises: List<String> = emptyList(),
+    val completedSubLessons: List<String> = emptyList(),
     val currentLessonId: String? = null,
     val totalLessons: Int = 0,
     val totalExercises: Int = 0,

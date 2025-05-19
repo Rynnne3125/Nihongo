@@ -52,6 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,9 +66,12 @@ import androidx.navigation.NavController
 import com.example.nihongo.User.data.models.Exercise
 import com.example.nihongo.User.data.models.ExerciseType
 import com.example.nihongo.User.data.repository.ExerciseRepository
+import com.example.nihongo.User.data.repository.UserRepository
 import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.SimpleExoPlayer
 import com.google.android.exoplayer2.ui.PlayerView
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +87,8 @@ fun ExerciseScreen(
     var quizExercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var shouldNavigateToQuiz by remember { mutableStateOf(false) }
+    val userRepository = UserRepository() // Thêm UserRepository
+    val coroutineScope = rememberCoroutineScope() // Thêm coroutineScope
 
     LaunchedEffect(sublessonId) {
         isLoading = true
@@ -109,6 +115,21 @@ fun ExerciseScreen(
         if (!hasVideo) {
             Log.d("ExerciseScreen", "No video found, should navigate to quiz")
             shouldNavigateToQuiz = true
+        } else {
+            // Nếu có VIDEO, đánh dấu subLesson này là đã hoàn thành
+            coroutineScope.launch {
+                val user = userRepository.getUserByEmail(userEmail)
+                user?.let {
+                    Log.d("ExerciseScreen", "Marking subLesson $sublessonId as completed for user ${it.id}")
+                    userRepository.updateUserProgress(
+                        userId = it.id,
+                        courseId = courseId,
+                        exerciseId = exercises.first { it.type == ExerciseType.VIDEO }.id ?: "",
+                        passed = true,
+                        subLessonId = sublessonId
+                    )
+                }
+            }
         }
     }
 
@@ -201,6 +222,11 @@ fun VideoExerciseView(
     quiz: List<Exercise>,
     innerPadding: PaddingValues
 ) {
+    // Thêm biến để theo dõi trạng thái xem video
+    var videoStarted by remember { mutableStateOf(false) }
+    val userRepository = UserRepository()
+    val coroutineScope = rememberCoroutineScope()
+    
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -292,6 +318,16 @@ fun VideoExerciseView(
                                     setMediaItem(mediaItem)
                                     prepare()
                                     playWhenReady = false
+                                    
+                                    // Thêm listener để theo dõi khi video bắt đầu phát
+                                    addListener(object : Player.Listener {
+                                        override fun onPlaybackStateChanged(state: Int) {
+                                            if (state == Player.STATE_READY && !videoStarted) {
+                                                videoStarted = true
+                                                // Không cần cập nhật ở đây vì đã cập nhật trong LaunchedEffect
+                                            }
+                                        }
+                                    })
                                 }
                                 PlayerView(context).apply { 
                                     this.player = player
