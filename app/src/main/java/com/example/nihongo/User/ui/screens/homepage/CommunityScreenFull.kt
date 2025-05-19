@@ -56,6 +56,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -474,60 +475,78 @@ fun StudyBuddiesTab(
         }
         
         // Hiển thị người dùng đang online
-        item {
-            // Lọc người dùng đang online (trừ người dùng hiện tại)
+        item { 
+            // Lọc người dùng đang online (trừ người dùng hiện tại) 
             val onlineUsers = users.filter { it.online && it.id != currentUser?.id }
             
-            if (onlineUsers.isEmpty()) {
-                Text(
-                    "Không có người dùng nào đang hoạt động",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            } else {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(onlineUsers) { user ->
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.clickable {
-                                navController.navigate("private_chat/${user.id}/$userEmail")
-                            }
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.LightGray),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                AsyncImage(
-                                    model = user.imageUrl,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                // Online indicator
-                                Box(
-                                    modifier = Modifier
-                                        .size(15.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF00C853))
-                                        .align(Alignment.BottomEnd)
-                                        .border(2.dp, Color.White, CircleShape)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = user.username,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+            if (onlineUsers.isEmpty()) { 
+                Text( 
+                    "Không có người dùng nào đang hoạt động", 
+                    style = MaterialTheme.typography.bodyMedium, 
+                    color = Color.Gray, 
+                    modifier = Modifier.padding(vertical = 8.dp) 
+                ) 
+            } else { 
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
+                    items(onlineUsers) { user -> 
+                        // Kiểm tra xem user có phải là partner của currentUser không
+                        val isPartner = currentUser?.partners?.contains(user.id) == true
+                        
+                        Column( 
+                            horizontalAlignment = Alignment.CenterHorizontally, 
+                            modifier = Modifier.clickable(enabled = isPartner) { 
+                                if (isPartner) {
+                                    navController.navigate("private_chat/${user.id}/$userEmail") 
+                                }
+                            } 
+                        ) { 
+                            Box( 
+                                modifier = Modifier 
+                                    .size(60.dp) 
+                                    .clip(CircleShape) 
+                                    .background(Color.LightGray)
+                                    // Làm mờ avatar nếu không phải partner
+                                    .alpha(if (isPartner) 1f else 0.6f), 
+                                contentAlignment = Alignment.Center 
+                            ) { 
+                                AsyncImage( 
+                                    model = user.imageUrl, 
+                                    contentDescription = null, 
+                                    contentScale = ContentScale.Crop, 
+                                    modifier = Modifier.fillMaxSize() 
+                                ) 
+                                // Online indicator 
+                                Box( 
+                                    modifier = Modifier 
+                                        .size(15.dp) 
+                                        .clip(CircleShape) 
+                                        .background(Color(0xFF00C853)) 
+                                        .align(Alignment.BottomEnd) 
+                                        .border(2.dp, Color.White, CircleShape) 
+                                ) 
+                            } 
+                            Spacer(modifier = Modifier.height(4.dp)) 
+                            Text( 
+                                text = user.username, 
+                                style = MaterialTheme.typography.bodySmall, 
+                                maxLines = 1, 
+                                overflow = TextOverflow.Ellipsis,
+                                // Làm mờ tên nếu không phải partner
+                                color = if (isPartner) Color.Unspecified else Color.Gray
                             )
-                        }
-                    }
-                }
-            }
+                            // Hiển thị thông báo nếu không phải partner
+                            if (!isPartner) {
+                                Text(
+                                    text = "Chưa kết nối",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        } 
+                    } 
+                } 
+            } 
         }
 
         // Study groups from Firestore

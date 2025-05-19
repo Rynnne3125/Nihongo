@@ -86,13 +86,28 @@ fun ExerciseScreen(
 
     LaunchedEffect(sublessonId) {
         isLoading = true
+        Log.d("ExerciseScreen", "Loading exercises for sublessonId: $sublessonId, lessonId: $lessonId")
+        
         exercises = exerciseRepository.getExercisesBySubLessonId(sublessonId, lessonId)
+        Log.d("ExerciseScreen", "Loaded ${exercises.size} exercises for sublessonId: $sublessonId")
+        
         quizExercises = exerciseRepository.getPracticeExercisesExcludingFirstSubLesson(lessonId)
+        Log.d("ExerciseScreen", "Loaded ${quizExercises.size} quiz exercises for lessonId: $lessonId")
+        
+        // Log each quiz exercise to check if exercises for lessons 13 and 14 are included
+        quizExercises.forEachIndexed { index, exercise ->
+            Log.d("ExerciseScreen", "Quiz Exercise $index: id=${exercise.id}, subLessonId=${exercise.subLessonId}, " +
+                    "type=${exercise.type}, question=${exercise.question}")
+        }
+        
         isLoading = false
 
         // Nếu không có VIDEO thì trigger navigation
         val hasVideo = exercises.any { it.type == ExerciseType.VIDEO }
+        Log.d("ExerciseScreen", "Has video: $hasVideo")
+        
         if (!hasVideo) {
+            Log.d("ExerciseScreen", "No video found, should navigate to quiz")
             shouldNavigateToQuiz = true
         }
     }

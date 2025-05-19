@@ -1,6 +1,7 @@
 package com.example.nihongo.User.ui.screens.homepage
 
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOutBack
@@ -88,9 +89,26 @@ import kotlin.random.Random
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: String, lessonId: String, navController: NavController) {
+    // Add logging at the start of the function
+    Log.d("QuizScreen", "Starting QuizScreen with lessonId: $lessonId, courseId: $courseId")
+    Log.d("QuizScreen", "Received ${quizExercises.size} quiz exercises")
+    
+    // Log each exercise to check if exercises for lessons 13 and 14 are included
+    quizExercises.forEachIndexed { index, exercise ->
+        Log.d("QuizScreen", "Exercise $index: id=${exercise.id}, subLessonId=${exercise.subLessonId}, " +
+                "type=${exercise.type}, question=${exercise.question}")
+    }
+    
     var currentIndex by remember { mutableStateOf(0) }
     val currentExercise = quizExercises.getOrNull(currentIndex)
     val correctAnswer = currentExercise?.answer ?: ""
+    
+    // Log the current exercise
+    LaunchedEffect(currentIndex) {
+        Log.d("QuizScreen", "Current exercise index: $currentIndex")
+        Log.d("QuizScreen", "Current exercise: ${currentExercise?.id}, subLessonId: ${currentExercise?.subLessonId}")
+        Log.d("QuizScreen", "Correct answer: $correctAnswer")
+    }
 
     var selectedWords by remember { mutableStateOf(listOf<String>()) }
     var result by remember { mutableStateOf<String?>(null) }
@@ -113,11 +131,79 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
     // Load user profile when composable is launched
     LaunchedEffect(userEmail) {
         scope.launch {
+            Log.d("QuizScreen", "Loading user profile for email: $userEmail")
             user = userProgressRepository.getUserByEmail(userEmail)
+            Log.d("QuizScreen", "User loaded: ${user?.id}, ${user?.username}")
+            
             userProgressList = user?.let {
-                listOfNotNull(userProgressRepository.getUserProgressForCourse(it.id, courseId))
+                val progress = userProgressRepository.getUserProgressForCourse(it.id, courseId)
+                Log.d("QuizScreen", "User progress loaded for course $courseId: ${progress != null}")
+                listOfNotNull(progress)
             } ?: emptyList()
+            
+            Log.d("QuizScreen", "User progress list size: ${userProgressList.size}")
         }
+    }
+
+    // Add button click logging
+    val onCheckAnswerClick: () -> Unit = {
+        val answer = selectedWords.joinToString(" ")
+        Log.d("QuizScreen", "Checking answer: '$answer' against correct answer: '$correctAnswer'")
+        
+        if (answer == correctAnswer) {
+            result = "Đúng rồi!"
+            Log.d("QuizScreen", "Answer is correct!")
+            
+            scope.launch {
+                // Update user progress
+                user?.let {
+                    Log.d("QuizScreen", "Updating user progress for userId: ${it.id}, exerciseId: ${currentExercise?.id}")
+                    userProgressRepository.updateUserProgress(
+                        userId = it.id,
+                        courseId = courseId,
+                        exerciseId = currentExercise?.id ?: "",
+                        passed = true
+                    )
+                }
+
+                // If it's the last question, mark the lesson as completed
+                if (currentIndex == quizExercises.lastIndex) {
+                    Log.d("QuizScreen", "This is the last question. Marking lesson as completed.")
+                    user?.let {
+                        val userProgressForCourse = userProgressList.firstOrNull { progress ->
+                            progress.courseId == courseId
+                        }
+
+                        userProgressForCourse?.let { userProgress ->
+                            val totalLessons = userProgress.totalLessons
+                            Log.d("QuizScreen", "Marking lesson $lessonId as completed. Total lessons: $totalLessons")
+                            
+                            userProgressRepository.markLessonAsCompleted(
+                                userId = it.id,
+                                courseId = courseId,
+                                lessonId = lessonId,
+                                totalLessons = totalLessons
+                            )
+                        }
+                    }
+                }
+            }
+            showConfetti = true
+        } else {
+            result = "Sai rồi!"
+            Log.d("QuizScreen", "Answer is incorrect!")
+            
+            scope.launch {
+                repeat(3) {
+                    shakeOffset = 12f
+                    delay(50)
+                    shakeOffset = -12f
+                    delay(50)
+                }
+                shakeOffset = 0f
+            }
+        }
+        isAnswerChecked = true
     }
 
     Scaffold(
@@ -131,7 +217,10 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { 
+                        Log.d("QuizScreen", "Back button clicked, navigating back")
+                        navController.popBackStack() 
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -340,54 +429,8 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
                         if (!isAnswerChecked) {
                             Button(
                                 onClick = {
-                                    val answer = selectedWords.joinToString(" ")
-                                    if (answer == correctAnswer) {
-                                        result = "Đúng rồi!"
-                                        scope.launch {
-                                            // Update user progress
-                                            user?.let {
-                                                userProgressRepository.updateUserProgress(
-                                                    userId = it.id,
-                                                    courseId = courseId,
-                                                    exerciseId = currentExercise?.id ?: "",
-                                                    passed = true
-                                                )
-                                            }
-
-                                            // If it's the last question, mark the lesson as completed
-                                            if (currentIndex == quizExercises.lastIndex) {
-                                                user?.let {
-                                                    val userProgressForCourse = userProgressList.firstOrNull { progress ->
-                                                        progress.courseId == courseId
-                                                    }
-
-                                                    userProgressForCourse?.let { userProgress ->
-                                                        val totalLessons = userProgress.totalLessons
-                                                        
-                                                        userProgressRepository.markLessonAsCompleted(
-                                                            userId = it.id,
-                                                            courseId = courseId,
-                                                            lessonId = lessonId,
-                                                            totalLessons = totalLessons
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        showConfetti = true
-                                    } else {
-                                        result = "Sai rồi!"
-                                        scope.launch {
-                                            repeat(3) {
-                                                shakeOffset = 12f
-                                                delay(50)
-                                                shakeOffset = -12f
-                                                delay(50)
-                                            }
-                                            shakeOffset = 0f
-                                        }
-                                    }
-                                    isAnswerChecked = true
+                                    Log.d("QuizScreen", "Check answer button clicked")
+                                    onCheckAnswerClick()
                                 },
                                 enabled = selectedWords.isNotEmpty(),
                                 colors = ButtonDefaults.buttonColors(
@@ -408,11 +451,13 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
                             Button(
                                 onClick = {
                                     if (currentIndex < quizExercises.lastIndex) {
+                                        Log.d("QuizScreen", "Moving to next question, index: ${currentIndex + 1}")
                                         currentIndex++
                                         selectedWords = listOf()
                                         result = null
                                         isAnswerChecked = false
                                     } else {
+                                        Log.d("QuizScreen", "Quiz completed, navigating to lessons screen")
                                         navController.navigate("lessons/${courseId}/$userEmail")
                                     }
                                 },

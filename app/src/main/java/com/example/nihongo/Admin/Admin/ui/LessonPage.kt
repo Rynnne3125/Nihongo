@@ -319,8 +319,8 @@ fun ContentLessonPage(
             if (showLessonDialog) {
                 LessonDialog(
                     title = if (isEditMode) "Edit Lesson" else "Add Lesson",
-                    lessonTitle = "",
-                    lessonOverview = "",
+                    lessonTitle = tempLessonTitle,  // Use the temporary state variable
+                    lessonOverview = tempLessonOverview,  // Use the temporary state variable
                     lessonStep = tempLessonStep,
                     onLessonTitleChange = { tempLessonTitle = it },
                     onLessonOverviewChange = { tempLessonOverview = it },

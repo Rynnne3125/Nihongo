@@ -77,6 +77,12 @@ class CourseRepository(
             // Cập nhật rating trung bình của khóa học
             updateCourseRating(review.courseId)
             
+            // Cập nhật số lượng reviews trong Course
+            firestore.collection("courses")
+                .document(review.courseId)
+                .update("reviews", FieldValue.increment(1))
+                .await()
+            
             true
         } catch (e: Exception) {
             Log.e("CourseRepository", "Error adding course review", e)

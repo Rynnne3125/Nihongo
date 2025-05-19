@@ -5,6 +5,7 @@ import com.example.nihongo.User.data.models.ExerciseType
 import com.example.nihongo.User.data.models.Lesson
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import android.util.Log
 
 class ExerciseRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
@@ -27,6 +28,8 @@ class ExerciseRepository(
     }
     suspend fun getPracticeExercisesExcludingFirstSubLesson(lessonId: String): List<Exercise> {
         return try {
+            Log.d("ExerciseRepo", "Getting practice exercises for lessonId: $lessonId")
+            
             // 1. Lấy tất cả các units cho lessonId
             val unitsSnapshot = firestore.collection("lessons")
                 .document(lessonId)
@@ -35,12 +38,15 @@ class ExerciseRepository(
 
             // 2. Lấy subLessons từ units
             val units = unitsSnapshot.toObject(Lesson::class.java)?.units ?: emptyList()
-
+            Log.d("ExerciseRepo", "Found ${units.size} units for lessonId: $lessonId")
+            
             // 3. Lọc ra các subLessonId không kết thúc bằng "-1"
             val filteredSubLessonIds = units
                 .flatMap { it.subLessons }
                 .filterNot { it.id.endsWith("-1") }
                 .map { it.id }
+            
+            Log.d("ExerciseRepo", "Filtered subLessonIds: $filteredSubLessonIds")
 
             // 4. Lấy tất cả exercises thuộc các subLessonId đã lọc
             val exercisesSnapshot = firestore.collection("lessons")
@@ -48,17 +54,35 @@ class ExerciseRepository(
                 .collection("exercises")
                 .get()
                 .await()
-
-            exercisesSnapshot.documents
-                .mapNotNull { doc ->
-                    // Trả về Exercise và sử dụng documentId tự động từ Firestore
-                    doc.toObject(Exercise::class.java)?.apply {
-                        id = doc.id // Lấy documentId và gán vào field id
+            
+            Log.d("ExerciseRepo", "Found ${exercisesSnapshot.documents.size} exercises in total")
+            
+            // 5. Lọc và chuyển đổi các exercises
+            val exercises = exercisesSnapshot.documents.mapNotNull { doc ->
+                try {
+                    val exercise = doc.toObject(Exercise::class.java)?.copy(id = doc.id)
+                    
+                    // Log each exercise
+                    Log.d("ExerciseRepo", "Exercise: id=${exercise?.id}, subLessonId=${exercise?.subLessonId}, " +
+                            "type=${exercise?.type}")
+                    
+                    // Chỉ lấy các exercises có subLessonId nằm trong danh sách đã lọc
+                    if (exercise != null && filteredSubLessonIds.contains(exercise.subLessonId)) {
+                        exercise
+                    } else {
+                        Log.d("ExerciseRepo", "Skipping exercise with subLessonId: ${exercise?.subLessonId}")
+                        null
                     }
+                } catch (e: Exception) {
+                    Log.e("ExerciseRepo", "Error converting exercise document: ${e.message}")
+                    null
                 }
-                .filter { it.subLessonId in filteredSubLessonIds && it.type == ExerciseType.PRACTICE }
-
+            }
+            
+            Log.d("ExerciseRepo", "Returning ${exercises.size} filtered exercises")
+            exercises
         } catch (e: Exception) {
+            Log.e("ExerciseRepo", "Error getting practice exercises: ${e.message}")
             emptyList()
         }
     }
