@@ -213,6 +213,7 @@ fun ProfileScreen(
                 ) {
                     Text(
                         "Choose a new profile picture from your gallery",
+                        color = Color.Black,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
@@ -228,7 +229,10 @@ fun ProfileScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Image, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Choose from Gallery")
+                            Text(
+                                "Choose from Gallery",
+                                color = Color.Black
+                            )
                         }
                     }
                 }
@@ -236,7 +240,10 @@ fun ProfileScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showImagePickerOptions = false }) {
-                    Text("Cancel")
+                    Text(
+                        "Cancel",
+                        color = Color.Black
+                    )
                 }
             }
         )
@@ -247,7 +254,10 @@ fun ProfileScreen(
         AlertDialog(
             onDismissRequest = { showSignOutDialog = false },
             title = { Text("Sign Out") },
-            text = { Text("Are you sure you want to sign out?") },
+            text = { Text(
+                "Are you sure you want to sign out?",
+                color = Color.Black
+            ) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -273,14 +283,20 @@ fun ProfileScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("Sign Out")
+                    Text(
+                        "Sign Out",
+                        color = Color.Black
+                    )
                 }
             },
             dismissButton = {
                 Button(
                     onClick = { showSignOutDialog = false }
                 ) {
-                    Text("Cancel")
+                    Text(
+                        "Cancel",
+                        color = Color.Black
+                    )
                 }
             }
         )
@@ -293,9 +309,17 @@ fun ProfileScreen(
                 title = {
                     currentUser?.let {
                         Column {
-                            Text("👋 こんにちわ ${it.username} さん", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "👋 こんにちわ ${it.username} さん",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.Black
+                            )
                             if (it.vip) {
-                                Text("⭐ VIP です!", style = MaterialTheme.typography.labelMedium, color = Color(0xFFFFC107))
+                                Text(
+                                    "⭐ VIP です!",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color(0xFFFFC107)
+                                )
                             }
                         }
                     }
@@ -720,7 +744,10 @@ fun ProfileScreen(
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                                 ) {
-                                    Text("Browse Courses")
+                                    Text(
+                                        "Browse Courses",
+                                        color = Color.Black
+                                    )
                                 }
                             }
                         }
@@ -793,7 +820,10 @@ fun ProfileScreen(
                                         modifier = Modifier.align(Alignment.End),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                                     ) {
-                                        Text("Continue")
+                                        Text(
+                                            "Continue",
+                                            color = Color.Black
+                                        )
                                     }
                                 }
                             }
@@ -810,7 +840,10 @@ fun ProfileScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Sign Out")
+                        Text(
+                            "Sign Out",
+                            color = Color.Black
+                        )
                     }
                     
                     // Add VIP Registration Button for standard users

@@ -42,7 +42,7 @@ git clone https://github.com/Rynnne3125/Nihongo.git
 
 Ứng dụng được xây dựng với:
 - **Jetpack Compose** - UI toolkit hiện đại
-- **Firebase** - Authentication, Firestore, Realtime Database, Storage
+- **Firebase** -  Firestore, Realtime Database, Storage
 - **MVVM** - Mô hình kiến trúc
 - **Coroutines** - Xử lý bất đồng bộ
 - **Navigation Component** - Điều hướng trong ứng dụng

@@ -139,7 +139,7 @@ fun CoursesScreen(
                         TextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Tìm khóa học") },
+                            placeholder = { Text("Tìm khóa học", color = Color.Gray) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 2.dp),
@@ -166,7 +166,7 @@ fun CoursesScreen(
                                     }
                                 }
                             },
-                            textStyle = MaterialTheme.typography.bodyMedium
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.Black)
                         )
                     }
                 },
@@ -241,7 +241,7 @@ fun CoursesScreen(
                         text = {
                             Text(
                                 text = title,
-                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (selectedTab == index) Color.Black else Color.Gray,
                                 fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
                             )
                         }
@@ -258,7 +258,8 @@ fun CoursesScreen(
                 // Section title
                 Text(
                     text = tabs[selectedTab],
-                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.Black,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -465,7 +466,7 @@ fun CourseDetailScreen(
                         text = {
                             Text(
                                 text = title,
-                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (selectedTab == index) Color.Black else Color.Gray,
                                 fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
                             )
                         }
@@ -553,7 +554,8 @@ fun CourseInfoTab(
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = course.title,
-                style = MaterialTheme.typography.headlineSmall,
+                color = Color.Black,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             
@@ -561,8 +563,8 @@ fun CourseInfoTab(
             
             Text(
                 text = course.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.DarkGray
+                color = Color.Gray,
+                style = MaterialTheme.typography.bodySmall
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -1211,5 +1213,3 @@ fun StatItem(icon: ImageVector, value: String, label: String) {
         )
     }
 }
-
-

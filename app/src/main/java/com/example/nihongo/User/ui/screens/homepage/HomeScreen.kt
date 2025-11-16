@@ -393,6 +393,7 @@ fun HomeScreen(
                             "Tiến độ của bạn",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
+                            color = Color.Black, // Explicitly set to black
                             modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
                         )
                     }
@@ -439,6 +440,7 @@ fun HomeScreen(
                         "Công cụ học tập",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        color = Color.Black,
                         modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
                     )
                 }
@@ -521,6 +523,7 @@ fun HomeScreen(
                         "Tất cả khóa học",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        color = Color.Black, // Explicitly set to black
                         modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
                     )
                 }
@@ -553,6 +556,7 @@ fun HomeScreen(
                         "Khóa học đề xuất",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        color = Color.Black, // Explicitly set to black
                         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                     )
                 }

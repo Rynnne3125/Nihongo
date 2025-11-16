@@ -1,5 +1,5 @@
 [versions]
-agp = "8.7.3"
+agp = "8.13.0"
 kotlin = "2.0.0"  # 👉 Chuẩn hóa cho Kotlin 2.x
 
 coreKtx = "1.15.0"

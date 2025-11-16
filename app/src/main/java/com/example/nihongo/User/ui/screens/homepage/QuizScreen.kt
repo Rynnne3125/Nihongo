@@ -361,9 +361,11 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
                             
                             Text(
                                 text = result ?: "",
-                                fontSize = 24.sp,
+                                color = if (result == "Đúng rồi!") Color(0xFF4CAF50) else if (result == "Sai rồi!") Color.Red else Color.Black,
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = if (result == "Đúng rồi!") Color(0xFF2E7D32) else Color.Red
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
                             )
                             
                             Spacer(modifier = Modifier.height(16.dp))
@@ -633,7 +635,9 @@ fun QuestionCard(
                             ) {
                                 Text(
                                     text = word,
-                                    color = Color(0xFF2E7D32)
+                                    color = Color.Black,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
