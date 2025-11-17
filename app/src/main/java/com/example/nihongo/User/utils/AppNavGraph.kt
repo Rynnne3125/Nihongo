@@ -1,6 +1,8 @@
 package com.example.nihongo.User.utils
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
@@ -13,6 +15,7 @@ import com.example.nihongo.Admin.ui.CoursePage
 import com.example.nihongo.Admin.ui.MainPage
 import com.example.nihongo.Admin.ui.VipRequestPage
 import com.example.nihongo.User.data.models.Exercise
+import com.example.nihongo.User.data.repository.AIRepository
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.ExerciseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
@@ -39,6 +42,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
@@ -46,6 +50,7 @@ fun AppNavGraph(
     courseRepo: CourseRepository,
     lessonRepo: LessonRepository,
     exerciseRepo: ExerciseRepository,
+    aiRepo : AIRepository,
     startDestination: String = NavigationRoutes.LOGIN
 ) {
     NavHost(navController = navController, startDestination = startDestination) {
@@ -206,7 +211,8 @@ fun AppNavGraph(
                 navController = navController,
                 groupId = groupId,
                 userEmail = userEmail,
-                userRepository = userRepo
+                userRepository = userRepo,
+                aiRepository = aiRepo
             )
         }
 

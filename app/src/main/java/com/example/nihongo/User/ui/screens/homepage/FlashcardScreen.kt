@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -99,6 +100,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun FlashcardScreen(navController: NavController, user_email: String, initialTab: String? = null) {
     val tabs = listOf("Hiragana", "Katakana", "Kanji", "Từ vựng")
+    val context = LocalContext.current
     
     // Xác định tab ban đầu dựa trên tham số
     val initialTabIndex = when (initialTab) {
@@ -114,6 +116,11 @@ fun FlashcardScreen(navController: NavController, user_email: String, initialTab
     var showStartSessionDialog by remember { mutableStateOf(false) }
     var studySessionConfig by remember { mutableStateOf<StudySessionConfig?>(null) }
     
+    // Tap-to-Explain states
+    var showTapToExplain by remember { mutableStateOf(false) }
+    var selectedWord by remember { mutableStateOf("") }
+    var selectedContext by remember { mutableStateOf("") }
+
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
         topBar = {
@@ -208,10 +215,34 @@ fun FlashcardScreen(navController: NavController, user_email: String, initialTab
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) { targetState ->
                 when (targetState) {
-                    0 -> HiraganaFlashcard()
-                    1 -> KatakanaFlashcard()
-                    2 -> KanjiFlashcard()
-                    3 -> VocabularyFlashcard()
+                    0 -> HiraganaFlashcard(
+                        onWordTapped = { word, context ->
+                            selectedWord = word
+                            selectedContext = context
+                            showTapToExplain = true
+                        }
+                    )
+                    1 -> KatakanaFlashcard(
+                        onWordTapped = { word, context ->
+                            selectedWord = word
+                            selectedContext = context
+                            showTapToExplain = true
+                        }
+                    )
+                    2 -> KanjiFlashcard(
+                        onWordTapped = { word, context ->
+                            selectedWord = word
+                            selectedContext = context
+                            showTapToExplain = true
+                        }
+                    )
+                    3 -> VocabularyFlashcard(
+                        onWordTapped = { word, context ->
+                            selectedWord = word
+                            selectedContext = context
+                            showTapToExplain = true
+                        }
+                    )
                     else -> Unit
                 }
             }
@@ -1034,7 +1065,7 @@ fun FlippableCard(
 }
 
 @Composable
-fun HiraganaFlashcard() {
+fun HiraganaFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
     var flashcards by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -1052,12 +1083,12 @@ fun HiraganaFlashcard() {
             Text("Không tìm thấy thẻ Hiragana")
         }
     } else {
-        ImprovedFlashcardGrid(flashcards)
+        ImprovedFlashcardGrid(flashcards, onWordTapped)
     }
 }
 
 @Composable
-fun KatakanaFlashcard() {
+fun KatakanaFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
     var flashcards by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -1075,12 +1106,12 @@ fun KatakanaFlashcard() {
             Text("Không tìm thấy thẻ Katakana")
         }
     } else {
-        ImprovedFlashcardGrid(flashcards)
+        ImprovedFlashcardGrid(flashcards, onWordTapped)
     }
 }
 
 @Composable
-fun KanjiFlashcard() {
+fun KanjiFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
     var flashcards by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -1098,12 +1129,12 @@ fun KanjiFlashcard() {
             Text("Không tìm thấy thẻ Kanji")
         }
     } else {
-        ImprovedFlashcardGrid(flashcards)
+        ImprovedFlashcardGrid(flashcards, onWordTapped)
     }
 }
 
 @Composable
-fun VocabularyFlashcard() {
+fun VocabularyFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
     var flashcards by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -1121,12 +1152,15 @@ fun VocabularyFlashcard() {
             Text("Không tìm thấy thẻ Từ vựng")
         }
     } else {
-        ImprovedFlashcardGrid(flashcards)
+        ImprovedFlashcardGrid(flashcards, onWordTapped)
     }
 }
 
 @Composable
-fun ImprovedFlashcardGrid(flashcards: List<Pair<String, String>>) {
+fun ImprovedFlashcardGrid(
+    flashcards: List<Pair<String, String>>,
+    onWordTapped: ((String, String) -> Unit)? = null
+) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         contentPadding = PaddingValues(8.dp),
@@ -1136,13 +1170,19 @@ fun ImprovedFlashcardGrid(flashcards: List<Pair<String, String>>) {
         modifier = Modifier.fillMaxSize()
     ) {
         items(flashcards.size) { index ->
-            FlashcardGridItem(flashcard = flashcards[index])
+            FlashcardGridItem(
+                flashcard = flashcards[index],
+                onWordTapped = onWordTapped
+            )
         }
     }
 }
 
 @Composable
-fun FlashcardGridItem(flashcard: Pair<String, String>) {
+fun FlashcardGridItem(
+    flashcard: Pair<String, String>,
+    onWordTapped: ((String, String) -> Unit)? = null
+) {
     var isFlipped by remember { mutableStateOf(false) }
 
     Card(
@@ -1159,16 +1199,20 @@ fun FlashcardGridItem(flashcard: Pair<String, String>) {
             contentAlignment = Alignment.Center
         ) {
             if (isFlipped) {
-                // Hiển thị định nghĩa
+                // Hiển thị định nghĩa - có thể tap để giải thích
                 Text(
                     text = flashcard.second,
                     textAlign = TextAlign.Center,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(8.dp)
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .clickable {
+                            onWordTapped?.invoke(flashcard.second, flashcard.first)
+                        }
                 )
             } else {
-                // Hiển thị thuật ngữ
+                // Hiển thị thuật ngữ - có thể tap để giải thích
                 Text(
                     text = flashcard.first,
                     textAlign = TextAlign.Center,
@@ -1178,7 +1222,11 @@ fun FlashcardGridItem(flashcard: Pair<String, String>) {
                         else -> 16.sp
                     },
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(8.dp)
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .clickable {
+                            onWordTapped?.invoke(flashcard.first, flashcard.second)
+                        }
                 )
             }
         }

@@ -298,10 +298,10 @@ fun PrivateChatScreen(
                         onValueChange = { messageText = it },
                         placeholder = { Text("Nhập tin nhắn...") },
                         modifier = Modifier.weight(1f),
-                        colors = TextFieldDefaults.textFieldColors(
-                            containerColor = Color.White,
+                        colors = TextFieldDefaults.colors(
                             focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent
                         ),
                         singleLine = true
                     )

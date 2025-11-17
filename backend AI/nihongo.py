@@ -1,236 +1,243 @@
+# backend.py
+import os
+import time
+import logging
+import traceback
+
+# ==============================
+# Gemini API
+# ==============================
+from google import genai
+GEMINI_API_KEY = "AIzaSyCiVYxP_eiKFfrF_lH1l1vqCqUwhL0uzd0"   # <<< THAY API KEY CỦA BẠN
+GEMINI_MODEL = "gemini-2.0-flash"
+
+client = genai.Client(api_key=GEMINI_API_KEY)
+
+# ==============================
+# Flask + CORS
+# ==============================
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
-import requests
-import cloudinary
-import cloudinary.uploader
-import base64
-import google.generativeai as genai
-import json
-from datetime import datetime
-from dotenv import load_dotenv
-import edge_tts
-import asyncio
-import re
 
-# Load environment variables
-load_dotenv()
+# ==============================
+# ChromaDB
+# ==============================
+import chromadb
+from chromadb.config import Settings
 
-# === Assistant imports ===
-try:
-    # Import core dependencies
-    import pygame
-    ASSISTANT_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️ Assistant dependencies not available: {e}")
-    ASSISTANT_AVAILABLE = False
+# ==============================
+# Embedding model (local)
+# ==============================
+from sentence_transformers import SentenceTransformer
 
-# Initialize Flask app
+# ==============================
+# Config
+# ==============================
+BACKEND_PORT = 3125
+CHROMA_PATH = "./chroma_db"
+MODEL_NAME = GEMINI_MODEL     # giữ nguyên biến để code cũ không lỗi
+
+os.makedirs(CHROMA_PATH, exist_ok=True)
+
+MAX_MESSAGE_LENGTH = 1000
+HISTORY_LIMIT = 10
+
+# ==============================
+# Flask init
+# ==============================
 app = Flask(__name__)
 CORS(app)
 
-# === Configuration ===
-# Cloudinary configuration (Giữ nguyên để upload ảnh/tài liệu học tập)
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", "ddjrbkhpx"),
-    api_key=os.getenv("CLOUDINARY_API_KEY", "534297453884984"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET", "23OLY_AqI11rISnQ5EHl66OHahU")
+logging.basicConfig(
+    filename="usage.log",
+    level=logging.INFO,
+    format="%(asctime)s | %(message)s"
 )
 
-# Gemini AI configuration
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyBGWplwpUQUIUZ9QAg3dPMj5poFeNr1qu8")
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-2.0-flash")
+# ==============================
+# Sessions cache
+# ==============================
+user_sessions = {}
 
-# === Memory Management ===
-conversation_memory = {
-    'context': [], # Lưu lịch sử chat
-    'current_level': 'N5' # Mặc định trình độ
-}
+# ==============================
+# ChromaDB init
+# ==============================
+chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_PATH))
+collection = chroma_client.get_or_create_collection(name="nihongo_lessons")
 
-def clean_text(text):
-    return re.sub(r"[*_`>#+-]", "", text).strip()
+# ==============================
+# Embeddings
+# ==============================
+embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
-# === Edge TTS: Hỗ trợ cả Tiếng Nhật và Tiếng Việt ===
-async def generate_audio_base64(text, lang="ja"):
-    """
-    Tạo file âm thanh base64.
-    lang='ja': Giọng Nhật (Nanami) - Dùng để đọc từ vựng/câu mẫu
-    lang='vi': Giọng Việt (HoaiMy) - Dùng để giải thích
-    """
-    voice = "ja-JP-NanamiNeural" if lang == "ja" else "vi-VN-HoaiMyNeural"
+def embed_text(texts):
+    if not texts:
+        return []
+    vectors = embedding_model.encode(texts)
+    return [v.tolist() for v in vectors]
 
-    from io import BytesIO
-    mp3_fp = BytesIO()
-    communicate = edge_tts.Communicate(text, voice)
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            mp3_fp.write(chunk["data"])
-    mp3_fp.seek(0)
-    audio_base64 = base64.b64encode(mp3_fp.read()).decode('utf-8')
-    return audio_base64
-
-# === AI Logic cho Tiếng Nhật ===
-
-def analyze_japanese_content(text_content):
-    """
-    Phân tích đoạn văn bản tiếng Nhật để tách từ vựng, kanji và ngữ pháp.
-    Dùng cho tính năng: Chụp ảnh/Upload PDF -> Tạo bài học tự động.
-    """
+def query_docs(query_emb, k=3):
     try:
-        prompt = f"""
-        Bạn là trợ lý học tiếng Nhật chuyên nghiệp (Sensei). 
-        Hãy phân tích đoạn văn bản tiếng Nhật sau đây:
-        
-        "{text_content}"
-        
-        Hãy trả về kết quả dưới dạng JSON format chuẩn với cấu trúc sau:
-        {{
-            "summary_vi": "Tóm tắt nội dung bằng tiếng Việt",
-            "vocabulary": [
-                {{"word": "tiếng nhật", "reading": "hiragana/romaji", "meaning": "nghĩa tiếng việt"}}
-            ],
-            "kanji": [
-                {{"character": "Hán tự", "onyomi": "âm on", "kunyomi": "âm kun", "meaning": "nghĩa Hán Việt"}}
-            ],
-            "grammar_points": [
-                {{"structure": "Cấu trúc ngữ pháp", "explanation": "Giải thích ngắn gọn", "example": "Ví dụ trong bài"}}
-            ]
-        }}
-        Chỉ trả về JSON, không thêm text dẫn dắt.
-        """
+        result = collection.query(query_embeddings=[query_emb], n_results=k)
+        return result.get("documents", [[]])[0]
+    except:
+        return []
 
-        response = gemini_model.generate_content(prompt)
-        response_text = response.text.strip()
-
-        # Clean json formatting if exists
-        if "```json" in response_text:
-            start = response_text.find("```json") + 7
-            end = response_text.find("```", start)
-            response_text = response_text[start:end].strip()
-
-        return json.loads(response_text)
-    except Exception as e:
-        print(f"Error analyzing Japanese: {e}")
-        return None
-
-def get_sensei_reply(user_text):
+# ==============================
+# Gemini Chat Wrapper
+# ==============================
+def call_gemini(model, messages):
     """
-    Chatbot đóng vai Sensei, giải thích thắc mắc hoặc luyện hội thoại.
+    messages = [
+        { "role": "system", "content": "..." },
+        { "role": "user", "content": "..." }
+    ]
     """
+    # Convert messages → 1 string (Gemini không dùng list roles giống OpenAI)
+    final_prompt = ""
+
+    for m in messages:
+        if m["role"] == "system":
+            final_prompt += f"System: {m['content']}\n"
+        elif m["role"] == "user":
+            final_prompt += f"User: {m['content']}\n"
+        else:
+            final_prompt += f"Assistant: {m['content']}\n"
+
+    final_prompt += "\nAssistant:"
+
+    response = client.models.generate_content(
+        model=model,
+        contents=final_prompt
+    )
+
+    # Lấy text (Gemini SDK chuẩn)
+    return response.text
+
+
+# ==============================
+# Add Knowledge (RAG)
+# ==============================
+@app.post("/api/add_knowledge")
+def add_knowledge():
     try:
-        # Lấy lịch sử chat gần nhất
-        recent_context = "\n".join(conversation_memory['context'][-5:])
+        data = request.json or {}
+        docs = data.get("docs", [])
 
-        prompt = f"""
-        Bạn là Nihongo Sensei - một trợ lý AI giúp người Việt học tiếng Nhật.
-        
-        NGUYÊN TẮC:
-        1. Nếu người dùng hỏi về ngữ pháp/từ vựng: Giải thích chi tiết bằng tiếng Việt, đưa ra ví dụ (có Furigana hoặc Romaji).
-        2. Nếu người dùng chào hoặc chat bằng tiếng Nhật: Hãy đóng vai người bản xứ để luyện hội thoại (Kaiwa).
-        3. Luôn thân thiện, khuyến khích người học.
-        4. Nếu câu tiếng Nhật của người dùng sai, hãy nhẹ nhàng sửa lại (Correction).
+        if not docs:
+            return jsonify({"msg": "⚠️ Không có dữ liệu để thêm."}), 400
 
-        Lịch sử chat:
-        {recent_context}
+        embeds = embed_text(docs)
+        ids = [f"doc_{int(time.time())}_{i}" for i in range(len(docs))]
 
-        Người dùng: "{user_text}"
-        
-        Trả lời:
-        """
+        collection.add(documents=docs, embeddings=embeds, ids=ids)
+        chroma_client.persist()
 
-        response = gemini_model.generate_content(prompt)
-        reply = response.text.strip()
+        return jsonify({"msg": f"✅ Đã thêm {len(docs)} đoạn kiến thức."})
 
-        # Lưu vào bộ nhớ
-        conversation_memory['context'].append(f"User: {user_text}")
-        conversation_memory['context'].append(f"Sensei: {reply}")
-
-        return reply
     except Exception as e:
-        return "Sensei đang bận chút, em thử lại sau nhé! (Lỗi kết nối AI)"
+        logging.error(traceback.format_exc())
+        return jsonify({"msg": f"⚠️ Lỗi: {str(e)}"}), 500
 
-# === Routes ===
 
-@app.route('/', methods=['GET'])
-def root():
-    return jsonify({
-        'message': 'Nihongo App AI Server',
-        'status': 'running',
-        'features': ['chat', 'analyze_text', 'tts']
-    })
-
-@app.route('/chat', methods=['POST'])
+# ==============================
+# CHAT API
+# ==============================
+@app.post("/api/chat")
 def chat():
-    """Endpoint chat với AI Sensei"""
+    start = time.time()
+
     try:
-        data = request.get_json()
-        user_text = data.get('message', '')
+        data = request.json or {}
+        user_message = (data.get("message") or "").strip()
+        user_id = (data.get("user_id") or "guest").strip()
 
-        if not user_text:
-            return jsonify({'error': 'No message provided'}), 400
+        if not user_message:
+            return jsonify({"reply": "⚠️ Bạn chưa nhập câu hỏi."})
 
-        # 1. Lấy phản hồi từ Gemini
-        reply = get_sensei_reply(user_text)
+        if len(user_message) > MAX_MESSAGE_LENGTH:
+            return jsonify({"reply": f"⚠️ Tối đa {MAX_MESSAGE_LENGTH} ký tự."})
 
-        # 2. Tạo audio (Mặc định giọng Việt để giải thích,
-        # logic phức tạp hơn có thể detect ngôn ngữ để switch giọng)
-        audio_base64 = None
 
-        # Đơn giản hóa: Nếu phản hồi chứa nhiều ký tự Kana/Kanji -> đọc tiếng Nhật, ngược lại đọc tiếng Việt
-        jp_char_count = len(re.findall(r'[\u3040-\u30ff\u4e00-\u9faf]', reply))
-        lang_mode = "ja" if jp_char_count > len(reply) * 0.3 else "vi"
+        # Load history
+        history = user_sessions.get(user_id, [])
 
+        # RAG Query
+        q_emb = embed_text([user_message])[0]
+        docs = query_docs(q_emb)
+        context = "\n".join(docs) if docs else ""
+
+        # Build messages
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Bạn là giáo viên người Việt dạy tiếng Nhật. "
+                    "Trả lời dễ hiểu, có ví dụ tiếng Nhật + nghĩa tiếng Việt."
+                )
+            }
+        ]
+
+        messages.extend(history[-HISTORY_LIMIT:])
+
+        if context:
+            final_user_prompt = f"Ngữ cảnh:\n{context}\n\nCâu hỏi: {user_message}"
+        else:
+            final_user_prompt = user_message
+
+        messages.append({"role": "user", "content": final_user_prompt})
+
+        # Gemini API call
         try:
-            audio_base64 = asyncio.run(generate_audio_base64(clean_text(reply), lang=lang_mode))
+            reply = call_gemini(MODEL_NAME, messages)
         except Exception as e:
-            print(f"Audio gen failed: {e}")
+            logging.error(traceback.format_exc())
+            reply = f"⚠️ AI Error: {str(e)}"
+
+        # Save session
+        history.append({"role": "user", "content": user_message})
+        history.append({"role": "assistant", "content": reply})
+        user_sessions[user_id] = history[-HISTORY_LIMIT:]
+
+        # Auto-learn
+        try:
+            qa = f"Hỏi: {user_message}\nĐáp: {reply}"
+            collection.add(
+                documents=[qa],
+                embeddings=embed_text([qa]),
+                ids=[f"qa_{int(time.time())}"]
+            )
+            chroma_client.persist()
+        except:
+            logging.error("auto-learn error")
+
+        elapsed = time.time() - start
 
         return jsonify({
-            'reply': reply,
-            'audio': audio_base64,
-            'lang_detected': lang_mode
+            "reply": reply,
+            "context": context,
+            "usage_time": f"{elapsed:.2f}s"
         })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/analyze', methods=['POST'])
-def analyze_text():
-    """
-    Endpoint quan trọng: Nhận văn bản (từ OCR trên Android gửi lên)
-    và trả về phân tích từ vựng/ngữ pháp để tạo bài học tức thì.
-    """
-    try:
-        data = request.get_json()
-        japanese_text = data.get('text', '')
-
-        if not japanese_text:
-            return jsonify({'error': 'No text provided'}), 400
-
-        analysis_result = analyze_japanese_content(japanese_text)
-
-        if not analysis_result:
-            return jsonify({'error': 'Could not analyze text'}), 500
-
-        return jsonify(analysis_result)
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logging.error(traceback.format_exc())
+        return jsonify({"reply": f"⚠️ Lỗi server: {str(e)}"}), 500
 
-@app.route('/tts', methods=['POST'])
-def text_to_speech():
-    """Endpoint chuyên biệt để đọc mẫu câu tiếng Nhật"""
-    try:
-        data = request.get_json()
-        text = data.get('text', '')
-        lang = data.get('lang', 'ja') # Mặc định là tiếng Nhật
 
-        audio = asyncio.run(generate_audio_base64(text, lang))
-        return jsonify({'audio': audio})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# ==============================
+# Usage Logs
+# ==============================
+@app.get("/api/usage")
+def get_usage():
+    if not os.path.exists("usage.log"):
+        return jsonify({"usage_log": []})
+    with open("usage.log", "r", encoding="utf-8") as f:
+        return jsonify({"usage_log": f.readlines()[-200:]})
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5001))
-    print("🇯🇵 Nihongo AI Server Starting...")
-    app.run(host='0.0.0.0', port=port, debug=True)
+
+# ==============================
+# Run app
+# ==============================
+if __name__ == "__main__":
+    print(f"⚡ Backend running at http://0.0.0.0:{BACKEND_PORT}")
+    app.run(host="0.0.0.0", port=BACKEND_PORT, debug=True)

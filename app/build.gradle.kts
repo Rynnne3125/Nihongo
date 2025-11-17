@@ -63,6 +63,8 @@ dependencies {
     implementation(libs.room.ktx)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.firebase.auth.ktx)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui.text)
     kapt(libs.room.compiler)
 
     // Firestore (chỉ Firestore, không Auth)
@@ -75,7 +77,8 @@ dependencies {
     // Compose UI
     implementation(platform(libs.androidx.compose.bom))
     implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
+    // Example for build.gradle.kts
+    implementation("androidx.compose.material3:material3:1.2.1") // Use a recent version
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")

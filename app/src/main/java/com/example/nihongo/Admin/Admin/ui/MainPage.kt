@@ -1063,11 +1063,12 @@ fun SearchBar(
                 Icon(Icons.Default.Search, contentDescription = "Search Icon", tint = primaryGreen)
             },
             shape = RoundedCornerShape(12.dp),
-            colors = TextFieldDefaults.textFieldColors(
-                containerColor = textFieldColor,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                cursorColor = primaryGreen
+            colors = TextFieldDefaults.colors(
+                unfocusedIndicatorColor       = Color.Transparent
+            ,     focusedIndicatorColor         = Color.Transparent
+                , unfocusedContainerColor       = textFieldColor
+                , focusedContainerColor         = textFieldColor
+                , cursorColor                   = primaryGreen
             )
         )
     }

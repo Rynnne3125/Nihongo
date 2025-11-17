@@ -1,8 +1,10 @@
 package com.example.nihongo.User.ui.screens.homepage
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,36 +17,50 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Comment
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,8 +77,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,6 +95,10 @@ import com.example.nihongo.User.data.models.LearningGoal
 import com.example.nihongo.User.data.models.PrivateChatMessage
 import com.example.nihongo.User.data.models.StudyGroup
 import com.example.nihongo.User.data.models.User
+import com.example.nihongo.User.data.repository.AIRepository
+import com.example.nihongo.User.data.repository.AITip
+import com.example.nihongo.User.data.repository.GroupChallenge
+import com.example.nihongo.User.data.repository.UserRecommendation
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.example.nihongo.User.ui.components.TopBarIcon
@@ -90,14 +112,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityScreen(
     navController: NavController,
     userRepository: UserRepository,
     userEmail: String,
-    initialTab: Int = 0
-) {
+    initialTab: Int = 0,
+    ) {
     var currentUser by remember { mutableStateOf<User?>(null) }
     var allUsers by remember { mutableStateOf<List<User>>(emptyList()) }
     var discussions by remember { mutableStateOf<List<Discussion>>(emptyList()) }
@@ -107,16 +130,29 @@ fun CommunityScreen(
     var latestGroupMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(true) }
     val selectedItem = "community"
-    
+
     // Định nghĩa tabs
-    val tabs = listOf("Cộng đồng", "Thảo luận", "Bảng xếp hạng")
-    
+    val tabs = listOf("Cộng đồng", "Thảo luận", "Bảng xếp hạng", "AI Assistant")
+
     // Sử dụng initialTab làm giá trị khởi tạo cho selectedTab
     var selectedTab by remember { mutableStateOf(initialTab) }
-    
+
     // Thêm state để kiểm soát hiển thị dialog xác nhận
     var showUploadDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    val aiRepository = remember { AIRepository() }
+    var smartRecommendations by remember { mutableStateOf<List<UserRecommendation>>(emptyList()) }
+    var groupChallenges by remember { mutableStateOf<Map<String, List<GroupChallenge>>>(emptyMap()) }
+    var dailyTips by remember { mutableStateOf<Map<String, AITip>>(emptyMap()) }
+    var showAIChatDialog by remember { mutableStateOf(false) }
+    var selectedGroupForAI by remember { mutableStateOf<String?>(null) }
+    var aiChatMessages by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) } // sender to message
+    var aiChatInput by remember { mutableStateOf("") }
+    var isAIResponding by remember { mutableStateOf(false) }
+    var showRecommendationsDialog by remember { mutableStateOf(false) }
+    var showChallengesDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(userEmail) {
         // Lấy dữ liệu người dùng
@@ -133,10 +169,44 @@ fun CommunityScreen(
         if (currentUser != null) {
             learningGoals = getLearningGoalsFromFirestore(currentUser!!.id)
         }
-        
+
         // Cập nhật trạng thái online của người dùng hiện tại
         currentUser?.let { user ->
             userRepository.updateUserOnlineStatus(user.id, true)
+
+            // === Load AI Data ===
+            coroutineScope.launch {
+                try {
+                    // 1. Get smart recommendations
+                    smartRecommendations = aiRepository.getAIPartnerRecommendations(user, limit = 10)
+                    Log.d("CommunityScreen", "Loaded ${smartRecommendations.size} AI recommendations")
+
+                    // 2. Load challenges and tips for each group
+                    studyGroups.forEach { group ->
+                        // Load challenges
+                        val challenges = aiRepository.getActiveChallengesForGroup(group.id)
+                        groupChallenges = groupChallenges + (group.id to challenges)
+
+                        // Generate daily tip if not exists
+                        val userLevel = currentUser?.jlptLevel?.let { "N$it" } ?: "N5"
+                        Log.d("CommunityScreen", "Calling generateDailyTipForGroup() for group ${group.id}, level = $userLevel")
+
+                        val tip = aiRepository.generateDailyTipForGroup(
+                            group.id,
+                            userLevel,
+                            group.description // <-- thêm description
+                        )
+                        Log.d("CommunityScreen", "Tip result for group ${group.id}: $tip")
+                        if (tip != null) {
+                            dailyTips = dailyTips + (group.id to tip)
+                        }
+
+                        Log.d("CommunityScreen", "Group ${group.id}: ${challenges.size} challenges, tip: ${tip != null}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("CommunityScreen", "Error loading AI data", e)
+                }
+            }
         }
     }
 
@@ -209,6 +279,14 @@ fun CommunityScreen(
                     TopBarIcon(selectedItem = selectedItem)
                 },
                 actions = {
+                    // AI Assistant Button
+                    IconButton(onClick = { selectedTab = 3 }) {
+                        Icon(
+                            Icons.Default.Psychology,
+                            contentDescription = "AI Assistant",
+                            tint = if (selectedTab == 3) Color(0xFF00C853) else Color.Gray
+                        )
+                    }
                     IconButton(onClick = {
                         navController.navigate("profile/$userEmail")
                     }) {
@@ -230,7 +308,7 @@ fun CommunityScreen(
                 }
             }
         },
-         //Thêm FloatingActionButton để hiển thị dialog xác nhận
+        //Thêm FloatingActionButton để hiển thị dialog xác nhận
 //        floatingActionButton = {
 //            if (currentUser?.vip == true) { // Chỉ hiển thị cho người dùng VIP
 //                FloatingActionButton(
@@ -282,115 +360,118 @@ fun CommunityScreen(
 
             // Content based on selected tab
             when (selectedTab) {
-                0 -> StudyBuddiesTab(allUsers, navController, userEmail, studyGroups, userRepository)
+                0 -> StudyBuddiesTabEnhanced(
+                    allUsers,
+                    navController,
+                    userEmail,
+                    studyGroups,
+                    userRepository,
+                    smartRecommendations,
+                    groupChallenges,
+                    dailyTips,
+                    onShowRecommendations = { showRecommendationsDialog = true },
+                    onShowChallenges = { showChallengesDialog = true }
+                )
                 1 -> DiscussionTab(discussions, navController, userEmail)
                 2 -> LeaderboardTab(allUsers, learningGoals)
+                3 -> AIPersonalChatTab(
+                    currentUser = currentUser,
+                    aiRepository = aiRepository
+                )
             }
         }
     }
+
+    // === Smart Recommendations Dialog ===
+    if (showRecommendationsDialog) {
+        SmartRecommendationsDialog(
+            recommendations = smartRecommendations,
+            currentUser = currentUser,
+            onConnect = { userId ->
+                coroutineScope.launch {
+                    currentUser?.let { user ->
+                        val updatedUser = user.addPartner(userId)
+                        userRepository.updateUser(updatedUser)
+
+                        val partner = userRepository.getUserById(userId)
+                        partner?.let { partnerUser ->
+                            val updatedPartner = partnerUser.addPartner(user.id)
+                            userRepository.updateUser(updatedPartner)
+                            sendPartnerConnectionNotification(user, partnerUser)
+                        }
+                        currentUser = updatedUser
+
+                        Toast.makeText(context, "Đã kết nối thành công!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onDismiss = { showRecommendationsDialog = false }
+        )
+    }
+
+    // === Group Challenges Dialog ===
+    if (showChallengesDialog) {
+        GroupChallengesDialog(
+            challenges = groupChallenges,
+            studyGroups = studyGroups,
+            currentUser = currentUser,
+            onJoinChallenge = { challengeId ->
+                Toast.makeText(context, "Đã tham gia thử thách!", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showChallengesDialog = false }
+        )
+    }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun StudyBuddiesTab(
+fun StudyBuddiesTabEnhanced(
     users: List<User>,
     navController: NavController,
     userEmail: String,
     studyGroups: List<StudyGroup>,
-    userRepository: UserRepository
+    userRepository: UserRepository,
+    smartRecommendations: List<UserRecommendation>,
+    groupChallenges: Map<String, List<GroupChallenge>>,
+    dailyTips: Map<String, AITip>,
+    onShowRecommendations: () -> Unit,
+    onShowChallenges: () -> Unit
 ) {
-    // Thêm state để lưu trữ tin nhắn mới nhất cho mỗi nhóm và người dùng
     val latestGroupMessages = remember { mutableStateMapOf<String, String>() }
     val latestPrivateMessages = remember { mutableStateMapOf<String, String>() }
     val coroutineScope = rememberCoroutineScope()
     val firestore = FirebaseFirestore.getInstance()
     val context = LocalContext.current
-    
-    // Lấy thông tin người dùng hiện tại
     var currentUser by remember { mutableStateOf<User?>(null) }
-    
-    // Thêm state để hiển thị dialog xác nhận kết nối
     var showPartnerDialog by remember { mutableStateOf(false) }
     var selectedPartnerId by remember { mutableStateOf("") }
     var selectedPartnerName by remember { mutableStateOf("") }
-    
-    // Thêm state để theo dõi việc tải tin nhắn
     var messagesLoaded by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(userEmail, studyGroups) {
         if (!messagesLoaded) {
             currentUser = userRepository.getUserByEmail(userEmail)
-            
-            // Tải tin nhắn nhóm và tin nhắn riêng tư
             coroutineScope.launch {
                 try {
-                    // Lấy tất cả tin nhắn nhóm
-                    val allMessagesSnapshot = firestore.collection("groupMessages")
-                        .get()
-                        .await()
-                    
-                    Log.d("CommunityScreen", "Fetched ${allMessagesSnapshot.size()} total group messages")
-                    
-                    // Lọc và xử lý tin nhắn cho từng nhóm
+                    val allMessagesSnapshot = firestore.collection("groupMessages").get().await()
                     studyGroups.forEach { group ->
                         val groupMessages = allMessagesSnapshot.documents
-                            .mapNotNull { doc -> 
-                                val message = doc.toObject(GroupChatMessage::class.java)
-                                if (message?.groupId == group.id) message else null
-                            }
+                            .mapNotNull { doc -> doc.toObject(GroupChatMessage::class.java)?.takeIf { it.groupId == group.id } }
                             .sortedByDescending { it.timestamp?.seconds ?: 0 }
-                        
-                        Log.d("CommunityScreen", "Found ${groupMessages.size} messages for group ${group.id}")
-                        
                         if (groupMessages.isNotEmpty()) {
-                            val latestMessage = groupMessages.first()
-                            latestGroupMessages[group.id] = "${latestMessage.senderName}: ${latestMessage.content}"
-                            Log.d("CommunityScreen", "Latest message for group ${group.id}: ${latestMessage.content}")
+                            latestGroupMessages[group.id] = "${groupMessages.first().senderName}: ${groupMessages.first().content}"
                         }
                     }
-                    
-                    // Lấy tin nhắn riêng tư
+                    val privateMessagesSnapshot = firestore.collection("privateMessages").get().await()
                     currentUser?.partners?.forEach { partnerId ->
-                        try {
-                            // Tạo chatId từ userId và partnerId (đảm bảo thứ tự nhất quán)
-                            val chatId = if (currentUser!!.id < partnerId) 
-                                "${currentUser!!.id}_$partnerId" 
-                            else 
-                                "${partnerId}_${currentUser!!.id}"
-                            
-                            Log.d("CommunityScreen", "Fetching messages for chat: $chatId")
-                            
-                            // Lấy tất cả tin nhắn riêng tư
-                            val privateMessagesSnapshot = firestore.collection("privateMessages")
-                                .get()
-                                .await()
-                            
-                            // Lọc tin nhắn theo chatId
-                            val chatMessages = privateMessagesSnapshot.documents
-                                .mapNotNull { doc ->
-                                    val message = doc.toObject(PrivateChatMessage::class.java)
-                                    if (message?.chatId == chatId) message else null
-                                }
-                                .sortedByDescending { it.timestamp?.seconds ?: 0 }
-                            
-                            Log.d("CommunityScreen", "Found ${chatMessages.size} messages for chat $chatId")
-                            
-                            if (chatMessages.isNotEmpty()) {
-                                val latestMessage = chatMessages.first()
-                                latestPrivateMessages[partnerId] = latestMessage.content
-                                Log.d("CommunityScreen", "Partner $partnerId: ${latestMessage.content}")
-                            }
-                        } catch (e: Exception) {
-                            Log.e("CommunityScreen", "Error loading messages for partner $partnerId", e)
+                        val chatId = if (currentUser!!.id < partnerId) "${currentUser!!.id}_$partnerId" else "${partnerId}_${currentUser!!.id}"
+                        val chatMessages = privateMessagesSnapshot.documents
+                            .mapNotNull { doc -> doc.toObject(PrivateChatMessage::class.java)?.takeIf { it.chatId == chatId } }
+                            .sortedByDescending { it.timestamp?.seconds ?: 0 }
+                        if (chatMessages.isNotEmpty()) {
+                            latestPrivateMessages[partnerId] = chatMessages.first().content
                         }
                     }
-                    
-                    // In log để debug
-                    Log.d("CommunityScreen", "Loaded ${latestGroupMessages.size} group messages")
-                    Log.d("CommunityScreen", "Loaded ${latestPrivateMessages.size} private messages")
-                    latestPrivateMessages.forEach { (partnerId, message) ->
-                        Log.d("CommunityScreen", "Partner $partnerId: $message")
-                    }
-                    
                     messagesLoaded = true
                 } catch (e: Exception) {
                     Log.e("CommunityScreen", "Error loading messages", e)
@@ -398,8 +479,7 @@ fun StudyBuddiesTab(
             }
         }
     }
-    
-    // Dialog xác nhận kết nối
+
     if (showPartnerDialog) {
         AlertDialog(
             onDismissRequest = { showPartnerDialog = false },
@@ -410,131 +490,116 @@ fun StudyBuddiesTab(
                     onClick = {
                         coroutineScope.launch {
                             try {
-                                // Cập nhật danh sách đối tác của người dùng hiện tại
                                 currentUser?.let { user ->
-                                    // 1. Cập nhật người dùng hiện tại
                                     val updatedUser = user.addPartner(selectedPartnerId)
                                     userRepository.updateUser(updatedUser)
-                                    
-                                    // 2. Cập nhật đối tác (thêm người dùng hiện tại vào danh sách partners của đối tác)
                                     val partner = userRepository.getUserById(selectedPartnerId)
                                     partner?.let { partnerUser ->
                                         val updatedPartner = partnerUser.addPartner(user.id)
                                         userRepository.updateUser(updatedPartner)
-                                        
-                                        // 3. Gửi thông báo cho đối tác
                                         sendPartnerConnectionNotification(user, partnerUser)
                                     }
-                                    
-                                    // Cập nhật UI
                                     currentUser = updatedUser
-                                    
-                                    // Hiển thị thông báo thành công
-                                    Toast.makeText(
-                                        context,
-                                        "Đã kết nối với $selectedPartnerName",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    Toast.makeText(context, "Đã kết nối với $selectedPartnerName", Toast.LENGTH_SHORT).show()
                                 }
                             } catch (e: Exception) {
-                                // Hiển thị thông báo lỗi
-                                Toast.makeText(
-                                    context,
-                                    "Lỗi: ${e.message}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(context, "Lỗi: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                             showPartnerDialog = false
                         }
                     }
-                ) {
-                    Text("Kết nối")
-                }
+                ) { Text("Kết nối") }
             },
             dismissButton = {
-                Button(
-                    onClick = { showPartnerDialog = false }
-                ) {
-                    Text("Hủy")
-                }
+                Button(onClick = { showPartnerDialog = false }) { Text("Hủy") }
             }
         )
     }
-    
+
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item { Spacer(modifier = Modifier.height(12.dp)) }
+
+        if (smartRecommendations.isNotEmpty()) {
+            item {
+                AIRecommendationCard(
+                    recommendationCount = smartRecommendations.size,
+                    topRecommendation = smartRecommendations.firstOrNull(),
+                    onClick = onShowRecommendations
+                )
+            }
+        }
+
+        val totalChallenges = groupChallenges.values.flatten().size
+        if (totalChallenges > 0) {
+            item {
+                ActiveChallengesCard(
+                    challengeCount = totalChallenges,
+                    onClick = onShowChallenges
+                )
+            }
+        }
         item {
             Spacer(modifier = Modifier.height(12.dp))
             Text("Đang hoạt động", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
             RealTimeClock()
             Spacer(modifier = Modifier.height(8.dp))
         }
-        
-        // Hiển thị người dùng đang online
-        item { 
-            // Lọc người dùng đang online (trừ người dùng hiện tại) 
+
+        item {
             val onlineUsers = users.filter { it.online && it.id != currentUser?.id }
-            
-            if (onlineUsers.isEmpty()) { 
-                Text( 
-                    "Không có người dùng nào đang hoạt động", 
-                    style = MaterialTheme.typography.bodyMedium, 
-                    color = Color.Gray, 
-                    modifier = Modifier.padding(vertical = 8.dp) 
-                ) 
-            } else { 
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
-                    items(onlineUsers) { user -> 
-                        // Kiểm tra xem user có phải là partner của currentUser không
+            if (onlineUsers.isEmpty()) {
+                Text(
+                    "Không có người dùng nào đang hoạt động",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(onlineUsers) { user ->
                         val isPartner = currentUser?.partners?.contains(user.id) == true
-                        
-                        Column( 
-                            horizontalAlignment = Alignment.CenterHorizontally, 
-                            modifier = Modifier.clickable(enabled = isPartner) { 
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable(enabled = isPartner) {
                                 if (isPartner) {
-                                    navController.navigate("private_chat/${user.id}/$userEmail") 
+                                    navController.navigate("private_chat/${user.id}/$userEmail")
                                 }
-                            } 
-                        ) { 
-                            Box( 
-                                modifier = Modifier 
-                                    .size(60.dp) 
-                                    .clip(CircleShape) 
+                            }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .clip(CircleShape)
                                     .background(Color.LightGray)
-                                    // Làm mờ avatar nếu không phải partner
-                                    .alpha(if (isPartner) 1f else 0.6f), 
-                                contentAlignment = Alignment.Center 
-                            ) { 
-                                AsyncImage( 
-                                    model = user.imageUrl, 
-                                    contentDescription = null, 
-                                    contentScale = ContentScale.Crop, 
-                                    modifier = Modifier.fillMaxSize() 
-                                ) 
-                                // Online indicator 
-                                Box( 
-                                    modifier = Modifier 
-                                        .size(15.dp) 
-                                        .clip(CircleShape) 
-                                        .background(Color(0xFF00C853)) 
-                                        .align(Alignment.BottomEnd) 
-                                        .border(2.dp, Color.White, CircleShape) 
-                                ) 
-                            } 
-                            Spacer(modifier = Modifier.height(4.dp)) 
-                            Text( 
-                                text = user.username, 
-                                style = MaterialTheme.typography.bodySmall, 
-                                maxLines = 1, 
+                                    .alpha(if (isPartner) 1f else 0.6f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AsyncImage(
+                                    model = user.imageUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(15.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF00C853))
+                                        .align(Alignment.BottomEnd)
+                                        .border(2.dp, Color.White, CircleShape)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = user.username,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                // Làm mờ tên nếu không phải partner
                                 color = if (isPartner) Color.Unspecified else Color.Gray
                             )
-                            // Hiển thị thông báo nếu không phải partner
                             if (!isPartner) {
                                 Text(
                                     text = "Chưa kết nối",
@@ -543,13 +608,12 @@ fun StudyBuddiesTab(
                                     color = Color.Gray
                                 )
                             }
-                        } 
-                    } 
-                } 
-            } 
+                        }
+                    }
+                }
+            }
         }
 
-        // Study groups from Firestore
         if (studyGroups.isNotEmpty()) {
             item {
                 Text(
@@ -559,14 +623,12 @@ fun StudyBuddiesTab(
                     modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                 )
             }
-            
             items(studyGroups) { group ->
-                StudyGroupCard(
-                    title = group.title,
-                    members = "${group.memberCount} thành viên",
-                    description = group.description,
+                EnhancedStudyGroupCard(
+                    group = group,
+                    dailyTip = dailyTips[group.id],
+                    challenges = groupChallenges[group.id] ?: emptyList(),
                     onClick = {
-                        // Điều hướng đến màn hình chat nhóm
                         navController.navigate("group_chat/${group.id}/$userEmail")
                     },
                     latestMessage = latestGroupMessages[group.id]
@@ -580,7 +642,6 @@ fun StudyBuddiesTab(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Hiển thị đối tác học tập hiện tại nếu có
         if (currentUser?.partners?.isNotEmpty() == true) {
             item {
                 Text(
@@ -591,21 +652,18 @@ fun StudyBuddiesTab(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
             val partnerIds = currentUser?.partners ?: emptyList()
             val partners = users.filter { it.id in partnerIds }
-            
             items(partners) { partner ->
                 StudyPartnerCard(
                     user = partner,
                     currentUser = currentUser,
                     navController = navController,
                     userEmail = userEmail,
-                    onPartnerRequest = { /* Đã là đối tác */ },
+                    onPartnerRequest = { },
                     latestMessage = latestPrivateMessages[partner.id]
                 )
             }
-            
             item {
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 Text(
@@ -617,12 +675,9 @@ fun StudyBuddiesTab(
             }
         }
 
-        // Hiển thị người dùng khác (không phải đối tác)
-        val nonPartners = users.filter { 
-            it.id != currentUser?.id && 
-            it.id !in (currentUser?.partners ?: emptyList())
+        val nonPartners = users.filter {
+            it.id != currentUser?.id && it.id !in (currentUser?.partners ?: emptyList())
         }
-        
         items(nonPartners) { user ->
             StudyPartnerCard(
                 user = user,
@@ -634,13 +689,10 @@ fun StudyBuddiesTab(
                     selectedPartnerName = user.username
                     showPartnerDialog = true
                 },
-                latestMessage = null // Không hiển thị tin nhắn cho người dùng chưa kết nối
+                latestMessage = null
             )
         }
-
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 // Thêm hàm gửi thông báo kết nối đối tác
@@ -683,6 +735,143 @@ private suspend fun sendPartnerConnectionNotification(currentUser: User, partner
     }
 }
 
+@Composable
+fun AIRecommendationCard(
+    recommendationCount: Int,
+    topRecommendation: UserRecommendation?,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFE8F5E9)
+        ),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        color = Color(0xFF4CAF50),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Gợi ý kết nối thông minh",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2E7D32)
+                )
+
+                topRecommendation?.let {
+                    Text(
+                        text = "${it.username} - ${it.matchScore}% phù hợp",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF558B2F)
+                    )
+                }
+
+                Text(
+                    text = "$recommendationCount người phù hợp với bạn",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = null,
+                tint = Color(0xFF4CAF50)
+            )
+        }
+    }
+}
+
+// === Active Challenges Card ===
+@Composable
+fun ActiveChallengesCard(
+    challengeCount: Int,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFF3E0)
+        ),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        color = Color(0xFFFF9800),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Thử thách đang diễn ra",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE65100)
+                )
+
+                Text(
+                    text = "$challengeCount thử thách đang chờ bạn",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = null,
+                tint = Color(0xFFFF9800)
+            )
+        }
+    }
+}
 
 @Composable
 fun DiscussionTab(
@@ -694,11 +883,11 @@ fun DiscussionTab(
     val userRepository = remember { UserRepository() }
     val coroutineScope = rememberCoroutineScope()
     val firestore = FirebaseFirestore.getInstance()
-    
+
     // Thêm state để lưu trữ tin nhắn mới nhất cho mỗi cuộc thảo luận
     val latestDiscussionMessages = remember { mutableStateMapOf<String, String>() }
     var messagesLoaded by remember { mutableStateOf(false) }
-    
+
     // Lấy thông tin người dùng hiện tại
     LaunchedEffect(userEmail) {
         try {
@@ -708,7 +897,7 @@ fun DiscussionTab(
             Log.e("DiscussionTab", "Error loading current user", e)
         }
     }
-    
+
     // Tải tin nhắn mới nhất cho mỗi cuộc thảo luận
     LaunchedEffect(discussions) {
         if (!messagesLoaded && discussions.isNotEmpty()) {
@@ -718,27 +907,27 @@ fun DiscussionTab(
                     val allMessagesSnapshot = firestore.collection("discussionMessages")
                         .get()
                         .await()
-                    
+
                     Log.d("DiscussionTab", "Fetched ${allMessagesSnapshot.size()} total discussion messages")
-                    
+
                     // Lọc và xử lý tin nhắn cho từng cuộc thảo luận
                     discussions.forEach { discussion ->
                         val discussionMessages = allMessagesSnapshot.documents
-                            .mapNotNull { doc -> 
+                            .mapNotNull { doc ->
                                 val message = doc.toObject(DiscussionMessage::class.java)
                                 if (message?.discussionId == discussion.id) message else null
                             }
                             .sortedByDescending { it.timestamp?.seconds ?: 0 }
-                        
+
                         Log.d("DiscussionTab", "Found ${discussionMessages.size} messages for discussion ${discussion.id}")
-                        
+
                         if (discussionMessages.isNotEmpty()) {
                             val latestMessage = discussionMessages.first()
                             latestDiscussionMessages[discussion.id] = "${latestMessage.senderName}: ${latestMessage.content}"
                             Log.d("DiscussionTab", "Latest message for discussion ${discussion.id}: ${latestMessage.content}")
                         }
                     }
-                    
+
                     messagesLoaded = true
                 } catch (e: Exception) {
                     Log.e("DiscussionTab", "Error loading messages", e)
@@ -762,9 +951,9 @@ fun DiscussionTab(
             ) {
                 Text("Cuộc thảo luận", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Button(
-                    onClick = { 
+                    onClick = {
                         // Điều hướng đến màn hình tạo thảo luận mới
-                        navController.navigate("create_discussion/$userEmail") 
+                        navController.navigate("create_discussion/$userEmail")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853))
                 ) {
@@ -841,9 +1030,9 @@ fun DiscussionCardWithChat(
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.width(12.dp))
-                
+
                 Column {
                     Text(
                         text = discussion.title,
@@ -857,9 +1046,9 @@ fun DiscussionCardWithChat(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = discussion.content,
                 style = MaterialTheme.typography.bodyMedium,
@@ -867,9 +1056,9 @@ fun DiscussionCardWithChat(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Tags
             if (discussion.tags.isNotEmpty()) {
                 Row(
@@ -891,9 +1080,9 @@ fun DiscussionCardWithChat(
                     }
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Thông tin bổ sung
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -905,13 +1094,13 @@ fun DiscussionCardWithChat(
                     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                     sdf.format(Date(discussion.createdAt))
                 }
-                
+
                 Text(
                     text = formattedDate,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
-                
+
                 // Số lượng bình luận
                 Row(
                     verticalAlignment = Alignment.CenterVertically
@@ -930,7 +1119,7 @@ fun DiscussionCardWithChat(
                     )
                 }
             }
-            
+
             // Hiển thị tin nhắn mới nhất nếu có
             if (!latestMessage.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1051,6 +1240,669 @@ fun LeaderboardTab(users: List<User>, learningGoals: List<LearningGoal>) {
         }
     }
 }
+// AI UI Components - Thêm vào file CommunityScreenFull.kt
+
+// === Enhanced Study Group Card with AI ===
+@Composable
+fun EnhancedStudyGroupCard(
+    group: StudyGroup,
+    dailyTip: AITip?,
+    challenges: List<GroupChallenge>,
+    onClick: () -> Unit,
+    latestMessage: String? = null
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Group,
+                    contentDescription = null,
+                    tint = Color(0xFF00C853),
+                    modifier = Modifier.size(32.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = group.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        text = "${group.memberCount} thành viên",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
+            }
+            if (!latestMessage.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0xFFF5F5F5),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Comment,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = latestMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF00897B), // Đổi màu cho nổi bật
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontStyle = FontStyle.Italic,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+//            // Daily Tip
+//            dailyTip?.let { tip ->
+//                Spacer(modifier = Modifier.height(12.dp))
+//                Card(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    colors = CardDefaults.cardColors(
+//                        containerColor = Color(0xFFFFF9C4)
+//                    ),
+//                    shape = RoundedCornerShape(8.dp)
+//                ) {
+//                    Row(
+//                        modifier = Modifier.padding(12.dp),
+//                        verticalAlignment = Alignment.Top
+//                    ) {
+//                        Icon(
+//                            imageVector = Icons.Default.Lightbulb,
+//                            contentDescription = null,
+//                            tint = Color(0xFFF57C00),
+//                            modifier = Modifier.size(20.dp)
+//                        )
+//
+//                        Spacer(modifier = Modifier.width(8.dp))
+//
+//                        Column {
+//                            Text(
+//                                text = "Mẹo hôm nay",
+//                                style = MaterialTheme.typography.labelSmall,
+//                                fontWeight = FontWeight.Bold,
+//                                color = Color(0xFFE65100)
+//                            )
+//
+//                            Text(
+//                                text = tip.tip,
+//                                style = MaterialTheme.typography.bodySmall,
+//                                color = Color(0xFF5D4037)
+//                            )
+//                        }
+//                    }
+//                }
+//            }
+
+            // Active Challenges
+            if (challenges.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                challenges.take(2).forEach { challenge ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EmojiEvents,
+                            contentDescription = null,
+                            tint = Color(0xFFFF9800),
+                            modifier = Modifier.size(16.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = challenge.title,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFE65100),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                if (challenges.size > 2) {
+                    Text(
+                        text = "+${challenges.size - 2} thử thách khác",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(start = 24.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ChatBubble(message: String, isUser: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = if (isUser) Color(0xFF4CAF50) else Color(0xFFF5F5F5)
+            ),
+            shape = RoundedCornerShape(
+                topStart = 16.dp,
+                topEnd = 16.dp,
+                bottomStart = if (isUser) 16.dp else 4.dp,
+                bottomEnd = if (isUser) 4.dp else 16.dp
+            )
+        ) {
+            Text(
+                text = message,
+                modifier = Modifier.padding(12.dp),
+                color = if (isUser) Color.White else Color.Black,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+// === Smart Recommendations Dialog ===
+@Composable
+fun SmartRecommendationsDialog(
+    recommendations: List<UserRecommendation>,
+    currentUser: User?,
+    onConnect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = Color(0xFF4CAF50)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Gợi ý kết nối thông minh")
+            }
+        },
+        text = {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 500.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(recommendations) { recommendation ->
+                    RecommendationCard(
+                        recommendation = recommendation,
+                        onConnect = { onConnect(recommendation.userId) }
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
+}
+
+@Composable
+fun RecommendationCard(
+    recommendation: UserRecommendation,
+    onConnect: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Avatar
+                AsyncImage(
+                    model = recommendation.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = recommendation.username,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    recommendation.jlptLevel?.let {
+                        Text(
+                            text = "JLPT N$it",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+                }
+
+                // Match Score
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(
+                            color = Color(0xFFE8F5E9),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "${recommendation.matchScore}%",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4CAF50)
+                        )
+                        Text(
+                            text = "phù hợp",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 8.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
+            // Match Reasons
+            if (recommendation.matchReasons.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                recommendation.matchReasons.take(3).forEach { reason ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = reason,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = onConnect,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50)
+                )
+            ) {
+                Text("Kết nối")
+            }
+        }
+    }
+}
+
+// === Group Challenges Dialog ===
+@Composable
+fun GroupChallengesDialog(
+    challenges: Map<String, List<GroupChallenge>>,
+    studyGroups: List<StudyGroup>,
+    currentUser: User?,
+    onJoinChallenge: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = Color(0xFFFF9800)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Thử thách nhóm")
+            }
+        },
+        text = {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 500.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                challenges.forEach { (groupId, groupChallenges) ->
+                    val group = studyGroups.find { it.id == groupId }
+
+                    item {
+                        Text(
+                            text = group?.title ?: "Group",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+
+                    items(groupChallenges) { challenge ->
+                        ChallengeCard(
+                            challenge = challenge,
+                            currentUserId = currentUser?.id,
+                            onJoin = { onJoinChallenge(challenge.id) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
+}
+
+@Composable
+fun ChallengeCard(
+    challenge: GroupChallenge,
+    currentUserId: String?,
+    onJoin: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = Color(0xFFFF9800),
+                    modifier = Modifier.size(32.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    text = challenge.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = challenge.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Progress
+            val userProgress = currentUserId?.let { challenge.participants[it] } ?: 0
+            val progressPercent = if (challenge.targetValue > 0)
+                (userProgress.toFloat() / challenge.targetValue) * 100 else 0f
+
+            LinearProgressIndicator(
+                progress = { progressPercent / 100 },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = Color(0xFFFF9800),
+                trackColor = Color(0xFFFFE0B2)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "$userProgress / ${challenge.targetValue}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Rewards
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "🥇 ${challenge.rewards["top1"]}đ | 🥈 ${challenge.rewards["top2"]}đ | 🥉 ${challenge.rewards["top3"]}đ",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE65100)
+                )
+            }
+        }
+    }
+}
+
+// === AI Assistant Tab ===
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AIPersonalChatTab(
+    currentUser: User?,
+    aiRepository: AIRepository
+) {
+    var messages by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    var inputText by remember { mutableStateOf("") }
+    var isResponding by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+
+    val handleSendMessage: () -> Unit = {
+        if (inputText.isNotBlank() && !isResponding && currentUser != null) {
+            val userMessage = inputText
+            messages = messages + ("user" to userMessage)
+            inputText = ""
+            isResponding = true
+            keyboardController?.hide()
+
+            coroutineScope.launch {
+                try {
+                    // Gọi AI chat với user_id
+                    val response = aiRepository.chatWithAI(userMessage, userId = currentUser.id)
+                    if (response != null) {
+                        messages = messages + ("ai" to response.reply)
+                    } else {
+                        messages = messages + ("ai" to "Xin lỗi, tôi không thể trả lời lúc này.")
+                    }
+                } catch (e: Exception) {
+                    messages = messages + ("ai" to "Đã xảy ra lỗi: ${e.message}")
+                } finally {
+                    isResponding = false
+                }
+            }
+        } else if (currentUser == null) {
+            Toast.makeText(context, "Không thể tải thông tin người dùng", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Tự động cuộn xuống khi có tin nhắn mới
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F5))
+    ) {
+        // Vùng chat
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (messages.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier.fillParentMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Psychology,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Nihongo AI Sensei",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Hỏi tôi bất cứ điều gì về tiếng Nhật nhé!\nVí dụ: \"Phân biệt 'wa' và 'ga'\"",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            } else {
+                items(messages) { (sender, message) ->
+                    ChatBubble(
+                        message = message,
+                        isUser = sender == "user"
+                    )
+                }
+            }
+
+            if (isResponding) {
+                item {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color(0xFF4CAF50)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Sensei đang suy nghĩ...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+        }
+
+        // Vùng nhập liệu
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Hỏi AI Sensei...") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { handleSendMessage() }),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF4CAF50),
+                        unfocusedBorderColor = Color.LightGray
+                    ),
+                    shape = RoundedCornerShape(32.dp),
+                    enabled = !isResponding
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = handleSendMessage,
+                    enabled = inputText.isNotBlank() && !isResponding,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = if (inputText.isNotBlank() && !isResponding)
+                                Color(0xFF4CAF50) else Color.Gray,
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Send",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+
 
 @Composable
 fun StudyGroupCard(
@@ -1087,17 +1939,17 @@ fun StudyGroupCard(
                     fontWeight = FontWeight.Bold
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
+
             Text(
                 text = members,
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Hiển thị mô tả
             Text(
                 text = description,
@@ -1106,7 +1958,7 @@ fun StudyGroupCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            
+
             // Hiển thị tin nhắn mới nhất nếu có - THÊM PHẦN NÀY
             if (!latestMessage.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1171,7 +2023,7 @@ fun StudyPartnerCard(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                    
+
                     // Online indicator
                     if (user.online) {
                         Box(
@@ -1184,7 +2036,7 @@ fun StudyPartnerCard(
                         )
                     }
                 }
-                
+
                 // User info
                 Column(
                     modifier = Modifier
@@ -1196,13 +2048,13 @@ fun StudyPartnerCard(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    
+
                     Text(
                         text = user.rank,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
-                    
+
                     if (user.jlptLevel != null) {
                         Text(
                             text = "JLPT N${user.jlptLevel}",
@@ -1211,7 +2063,7 @@ fun StudyPartnerCard(
                         )
                     }
                 }
-                
+
                 // Nút Kết nối hoặc Chat
                 if (currentUser == null) {
                     // Không hiển thị nút nếu chưa đăng nhập
@@ -1237,7 +2089,7 @@ fun StudyPartnerCard(
                     }
                 }
             }
-            
+
             // Hiển thị tin nhắn mới nhất nếu có
             if (!latestMessage.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1357,9 +2209,9 @@ fun TopUserCard(user: User, points: Int, rank: Int, color: Color) {
                 fontWeight = FontWeight.Bold
             )
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         // Ảnh đại diện người dùng
         Box(
             modifier = Modifier
@@ -1375,9 +2227,9 @@ fun TopUserCard(user: User, points: Int, rank: Int, color: Color) {
                 modifier = Modifier.fillMaxSize()
             )
         }
-        
+
         Spacer(modifier = Modifier.height(4.dp))
-        
+
         // Tên người dùng
         Text(
             text = user.username,
@@ -1386,14 +2238,14 @@ fun TopUserCard(user: User, points: Int, rank: Int, color: Color) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        
+
         // Rank của người dùng
         Text(
             text = user.rank,
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray
         )
-        
+
         // Điểm số
         Text(
             text = "$points điểm",
@@ -1501,14 +2353,14 @@ fun LearningGoalCard(title: String, progress: Float, description: String) {
 @Composable
 fun RealTimeClock() {
     var currentTime by remember { mutableStateOf(getCurrentFormattedTime()) }
-    
+
     LaunchedEffect(Unit) {
         while (true) {
             delay(1000) // Cập nhật mỗi giây
             currentTime = getCurrentFormattedTime()
         }
     }
-    
+
     Text(
         text = currentTime,
         color = Color(0xFF00C853),
@@ -1529,13 +2381,13 @@ suspend fun getStudyGroupsFromFirestore(): List<StudyGroup> {
         val snapshot = firestore.collection("studyGroups")
             .get()
             .await()
-        
+
         val groups = snapshot.documents.mapNotNull { doc ->
             doc.toObject(StudyGroup::class.java)?.apply {
                 id = doc.id // Gán ID từ document
             }
         }
-        
+
         Log.d("Firestore", "Fetched ${groups.size} study groups")
         groups
     } catch (e: Exception) {
@@ -1552,14 +2404,14 @@ suspend fun getDiscussionsFromFirestore(): List<Discussion> {
         val snapshot = firestore.collection("discussions")
             .get()
             .await()
-        
+
         // Sắp xếp ở phía client
         val discussions = snapshot.documents.mapNotNull { doc ->
             doc.toObject(Discussion::class.java)?.apply {
                 id = doc.id
             }
         }.sortedByDescending { it.createdAt } // Sử dụng createdAt thay vì timestamp
-        
+
         Log.d("Firestore", "Fetched ${discussions.size} discussions")
         discussions
     } catch (e: Exception) {
@@ -1576,7 +2428,7 @@ suspend fun getLearningGoalsFromFirestore(userId: String): List<LearningGoal> {
             .collection("learningGoals")
             .get()
             .await()
-        
+
         snapshot.documents.mapNotNull { doc ->
             doc.toObject(LearningGoal::class.java)?.apply {
                 id = doc.id
@@ -1591,7 +2443,7 @@ suspend fun getLearningGoalsFromFirestore(userId: String): List<LearningGoal> {
 // Hàm để tạo dữ liệu mẫu và đẩy lên Firestore
 fun uploadSampleDataToFirestore(context: Context) {
     val firestore = FirebaseFirestore.getInstance()
-    
+
     // Xóa dữ liệu cũ trước khi thêm dữ liệu mới
     clearExistingData(firestore, context) { success ->
         if (success) {
@@ -1609,7 +2461,7 @@ private fun clearExistingData(firestore: FirebaseFirestore, context: Context, on
     val collectionsToDelete = listOf("studyGroups", "discussions")
     var completedCount = 0
     var successCount = 0
-    
+
     // Xóa dữ liệu từ các collection chính
     for (collectionName in collectionsToDelete) {
         firestore.collection(collectionName)
@@ -1619,7 +2471,7 @@ private fun clearExistingData(firestore: FirebaseFirestore, context: Context, on
                 for (document in snapshot.documents) {
                     batch.delete(document.reference)
                 }
-                
+
                 if (snapshot.documents.isNotEmpty()) {
                     batch.commit()
                         .addOnSuccessListener {
@@ -1655,7 +2507,7 @@ private fun clearExistingData(firestore: FirebaseFirestore, context: Context, on
                 }
             }
     }
-    
+
     // Xóa learning goals cho tất cả người dùng
     // Lưu ý: Đây là một thao tác phức tạp hơn vì cần duyệt qua từng người dùng
     firestore.collection("users")
@@ -1663,7 +2515,7 @@ private fun clearExistingData(firestore: FirebaseFirestore, context: Context, on
         .addOnSuccessListener { usersSnapshot ->
             var userProcessed = 0
             var userSuccess = 0
-            
+
             if (usersSnapshot.documents.isEmpty()) {
                 // Không có người dùng, coi như thành công
                 completedCount++
@@ -1673,7 +2525,7 @@ private fun clearExistingData(firestore: FirebaseFirestore, context: Context, on
                 }
                 return@addOnSuccessListener
             }
-            
+
             for (userDoc in usersSnapshot.documents) {
                 val userId = userDoc.id
                 firestore.collection("users")
@@ -1685,7 +2537,7 @@ private fun clearExistingData(firestore: FirebaseFirestore, context: Context, on
                         for (goalDoc in goalsSnapshot.documents) {
                             batch.delete(goalDoc.reference)
                         }
-                        
+
                         if (goalsSnapshot.documents.isNotEmpty()) {
                             batch.commit()
                                 .addOnSuccessListener {

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -84,9 +85,11 @@ import com.example.nihongo.User.data.models.UserProgress
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
+import com.example.nihongo.User.ui.components.BottomNavItem
 import com.example.nihongo.User.ui.screens.homepage.CourseLikesTab
 import com.example.nihongo.User.ui.screens.homepage.CourseReviewsTab
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -125,6 +128,18 @@ fun LessonsScreen(
     // Thêm tabs và selectedTab
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Bài học", "Tiến độ", "Tài liệu", "Đánh giá", "Thích/Không thích")
+    
+    // Save scroll position when navigating away
+    val savedScrollPosition = navController.currentBackStackEntry?.savedStateHandle?.get<Int>("scrollPosition")
+    
+    // Check if returning from QuizScreen and refresh data
+    LaunchedEffect(navController.currentBackStackEntry) {
+        val shouldRefresh = navController.previousBackStackEntry?.savedStateHandle?.get<Boolean>("shouldRefreshProgress")
+        if (shouldRefresh == true) {
+            refreshData()
+            navController.previousBackStackEntry?.savedStateHandle?.remove<Boolean>("shouldRefreshProgress")
+        }
+    }
     
     // Fetch data
     LaunchedEffect(courseId, refreshTrigger) {
@@ -181,7 +196,14 @@ fun LessonsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { 
+                        // Navigate to HomeScreen instead of just popping back
+                        navController.navigate("${BottomNavItem.Home.route}/$userEmail") {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
@@ -237,9 +259,11 @@ fun LessonsScreen(
                     userProgress = userProgress.value,
                     expandedLessons = expandedLessons,
                     expandedUnits = expandedUnits,
+                    savedScrollPosition = savedScrollPosition,
                     onSubLessonClick = { sub, lesson ->
                         navController.navigate("exercise/${course.value?.id}/${lesson.id}/${sub.id}/$userEmail")
-                    }
+                    },
+                    navController = navController
                 )
                 1 -> {
                     // Chuyển đổi UserProgress? thành List<UserProgress>
@@ -265,7 +289,13 @@ fun LessonsScreen(
                         courseId = courseId,
                         courseRepository = courseRepository,
                         context = LocalContext.current
-                    ) { refreshData() }
+                    ) { 
+                        refreshData()
+                        // Also refresh course data
+                        coroutineScope.launch {
+                            course.value = courseRepository.getCourseById(courseId)
+                        }
+                    }
                 }
             }
         }
@@ -388,9 +418,24 @@ fun LessonsTab(
     userProgress: UserProgress?,
     expandedLessons: SnapshotStateMap<String, Boolean>,
     expandedUnits: SnapshotStateMap<String, Boolean>,
-    onSubLessonClick: (SubLesson, Lesson) -> Unit
+    savedScrollPosition: Int? = null,
+    onSubLessonClick: (SubLesson, Lesson) -> Unit,
+    navController: NavController? = null
 ) {
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = savedScrollPosition ?: 0
+    )
+    
+    // Save scroll position periodically and when navigating
+    LaunchedEffect(listState.firstVisibleItemIndex) {
+        navController?.currentBackStackEntry?.savedStateHandle?.set(
+            "scrollPosition", 
+            listState.firstVisibleItemIndex
+        )
+    }
+    
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp)

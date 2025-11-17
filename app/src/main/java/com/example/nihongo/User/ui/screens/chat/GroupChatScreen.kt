@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -53,6 +55,8 @@ import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
 import com.example.nihongo.User.data.models.GroupChatMessage
 import com.example.nihongo.User.data.models.StudyGroup
 import com.example.nihongo.User.data.models.User
+import com.example.nihongo.User.data.repository.AIRepository
+import com.example.nihongo.User.data.repository.AITip
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.google.firebase.Timestamp
@@ -70,7 +74,8 @@ fun GroupChatScreen(
     navController: NavController,
     groupId: String,
     userEmail: String,
-    userRepository: UserRepository
+    userRepository: UserRepository,
+    aiRepository: AIRepository
 ) {
     val selectedItem = "community"
     var studyGroup by remember { mutableStateOf<StudyGroup?>(null) }
@@ -81,7 +86,8 @@ fun GroupChatScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val listenerState = remember { mutableStateOf<ListenerRegistration?>(null) }
-    
+    var dailyTip by remember { mutableStateOf<AITip?>(null) }
+
     // Thêm state để theo dõi lỗi
     var indexError by remember { mutableStateOf(false) }
 
@@ -111,6 +117,10 @@ fun GroupChatScreen(
             
             Log.d("GroupChat", "Loaded ${initialMessages.size} initial messages")
             messages = initialMessages
+            val desc = studyGroup?.description ?: ""
+            // generateDailyTipForGroup là suspend nên có thể gọi trực tiếp trong LaunchedEffect
+            val tip = aiRepository.generateDailyTipForGroup(groupId, "1", desc)
+            dailyTip = tip
         } catch (e: Exception) {
             Log.e("GroupChat", "Error loading initial data", e)
         }
@@ -228,20 +238,73 @@ fun GroupChatScreen(
                 }
             }
 
-            // Hiển thị tin nhắn
+            dailyTip?.let { tip ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFF9C4)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lightbulb,
+                            contentDescription = null,
+                            tint = Color(0xFFF57C00),
+                            modifier = Modifier.size(20.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Column {
+                            Text(
+                                text = "Mẹo hôm nay",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE65100)
+                            )
+
+                            Text(
+                                text = tip.tip,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF5D4037)
+                            )
+                        }
+                    }
+                }
+            }
+
+            val listState = rememberLazyListState()
+
+            LaunchedEffect(messages.size) {
+                if (messages.isNotEmpty()) {
+                    listState.scrollToItem(messages.lastIndex)
+                }
+            }
+
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 reverseLayout = false
             ) {
+                item { Spacer(modifier = Modifier.height(12.dp)) }
+
                 items(messages) { message ->
                     val isCurrentUser = message.senderId == currentUser?.id
                     MessageItem(message, isCurrentUser)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+
             }
+
 
             // Thanh nhập tin nhắn
             Card(
@@ -262,10 +325,10 @@ fun GroupChatScreen(
                         onValueChange = { messageText = it },
                         placeholder = { Text("Nhập tin nhắn...") },
                         modifier = Modifier.weight(1f),
-                        colors = TextFieldDefaults.textFieldColors(
-                            containerColor = Color.White,
+                        colors = TextFieldDefaults.colors(
                             focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent
                         ),
                         singleLine = true
                     )

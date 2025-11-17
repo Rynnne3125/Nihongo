@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -124,12 +125,20 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
     // Track if the answer has been checked
     var isAnswerChecked by remember { mutableStateOf(false) }
     val userProgressRepository = UserRepository()
+    val context = LocalContext.current
 
     var user by remember { mutableStateOf<User?>(null) }
     var userProgressList by remember { mutableStateOf<List<UserProgress>>(emptyList()) }
 
     // Progress tracking
     val progress = (currentIndex + 1).toFloat() / quizExercises.size.toFloat()
+    
+    // AI Sensei Overlay states
+    var showSenseiOverlay by remember { mutableStateOf(false) }
+    var aiExplanation by remember { mutableStateOf("") }
+    var isRecording by remember { mutableStateOf(false) }
+    var wrongAnswerCount by remember { mutableStateOf(0) }
+    var showFloatingSensei by remember { mutableStateOf(false) }
 
     // Load user profile when composable is launched
     LaunchedEffect(userEmail) {
@@ -196,6 +205,12 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
         } else {
             result = "Sai rồi!"
             Log.d("QuizScreen", "Answer is incorrect!")
+            wrongAnswerCount++
+            
+            // Show Floating Sensei nếu sai 2 lần liên tiếp
+            if (wrongAnswerCount >= 2) {
+                showFloatingSensei = true
+            }
             
             scope.launch {
                 repeat(3) {
@@ -208,6 +223,12 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
             }
         }
         isAnswerChecked = true
+    }
+    
+    // Reset wrong answer count when moving to next question
+    LaunchedEffect(currentIndex) {
+        wrongAnswerCount = 0
+        showFloatingSensei = false
     }
 
     Scaffold(
@@ -464,7 +485,11 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
                                         isAnswerChecked = false
                                     } else {
                                         Log.d("QuizScreen", "Quiz completed, navigating to lessons screen")
-                                        navController.navigate("lessons/${courseId}/$userEmail")
+                                        // Set flag to refresh progress when returning to LessonsScreen
+                                        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefreshProgress", true)
+                                        navController.navigate("lessons/${courseId}/$userEmail") {
+                                            popUpTo("lessons/${courseId}/$userEmail") { inclusive = false }
+                                        }
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(

@@ -81,6 +81,7 @@ import com.example.nihongo.User.data.models.UserProgress
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
+import com.example.nihongo.User.ui.components.BottomNavItem
 import com.example.nihongo.User.ui.components.BottomNavigationBar
 import com.example.nihongo.User.ui.components.TopBarIcon
 import kotlinx.coroutines.CoroutineScope
@@ -143,10 +144,11 @@ fun CoursesScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 2.dp),
-                            colors = TextFieldDefaults.textFieldColors(
-                                containerColor = Color.White,
+                            colors = TextFieldDefaults.colors(
                                 focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedContainerColor = Color(0xFFF0F0F0),
+                                unfocusedContainerColor = Color(0xFFF0F0F0)
                             ),
                             shape = RoundedCornerShape(8.dp),
                             singleLine = true,
@@ -171,7 +173,16 @@ fun CoursesScreen(
                     }
                 },
                 navigationIcon = {
-                    TopBarIcon(selectedItem = selectedItem)
+                    IconButton(onClick = {
+                        // Navigate to HomeScreen when back button is pressed
+                        navController.navigate("${BottomNavItem.Home.route}/$userEmail") {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }) {
+                        TopBarIcon(selectedItem = selectedItem)
+                    }
                 },
                 actions = {
                     IconButton(onClick = {
@@ -937,12 +948,15 @@ fun CourseLikesTab(
         liked = isLiked
     }
 
-    // Thêm state để lưu danh sách đánh giá
+    // Thêm state để lưu danh sách đánh giá và course data
     var courseReviews by remember { mutableStateOf<List<CourseReview>>(emptyList()) }
+    var currentCourse by remember { mutableStateOf(course) }
 
-    // Lấy danh sách đánh giá khi component được tạo
+    // Lấy danh sách đánh giá và course data khi component được tạo hoặc refresh
     LaunchedEffect(courseId, refreshTrigger) {
         courseReviews = courseRepository.getCourseReviews(courseId)
+        // Refresh course data to get updated likes/dislikes
+        currentCourse = courseRepository.getCourseById(courseId)
     }
 
     // Khi onDataChanged được gọi, cập nhật refreshTrigger
@@ -958,10 +972,12 @@ fun CourseLikesTab(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (course == null) {
+        if (currentCourse == null) {
             CircularProgressIndicator(color = Color(0xFF4CAF50))
             return
         }
+        
+        val displayCourse = currentCourse ?: course
 
         // Course info
         Card(
@@ -1017,7 +1033,8 @@ fun CourseLikesTab(
                                                 if (liked) "Đã thích khóa học" else "Đã bỏ thích khóa học",
                                                 Toast.LENGTH_SHORT
                                             ).show()
-                                            refreshData() // Refresh data after successful action
+                                            // Refresh course data and reviews
+                                            refreshData()
                                             onDataChanged() // Also call the parent's callback
                                         }
                                     }
@@ -1048,7 +1065,7 @@ fun CourseLikesTab(
                         )
 
                         Text(
-                            text = "${course.likes} người thích",
+                            text = "${displayCourse?.likes ?: 0} người thích",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray
                         )
@@ -1082,7 +1099,8 @@ fun CourseLikesTab(
                                                 if (isDisliked) "Đã không thích khóa học" else "Đã bỏ không thích khóa học",
                                                 Toast.LENGTH_SHORT
                                             ).show()
-                                            refreshData() // Refresh data after successful action
+                                            // Refresh course data and reviews
+                                            refreshData()
                                             onDataChanged() // Also call the parent's callback
                                         }
                                     }
@@ -1113,7 +1131,7 @@ fun CourseLikesTab(
                         )
 
                         Text(
-                            text = "${course.dislikes ?: 0} người không thích",
+                            text = "${displayCourse?.dislikes ?: 0} người không thích",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray
                         )
@@ -1132,10 +1150,12 @@ fun CourseLikesTab(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Hiển thị phân bố đánh giá
-                val ratingDistribution = courseReviews.groupBy { it.rating }
-                    .mapValues { it.value.size }
-                    .toSortedMap(compareByDescending { it })
+                // Hiển thị phân bố đánh giá - refresh when courseReviews changes
+                val ratingDistribution = remember(courseReviews) {
+                    courseReviews.groupBy { it.rating }
+                        .mapValues { it.value.size }
+                        .toSortedMap(compareByDescending { it })
+                }
 
                 val totalReviews = courseReviews.size.toFloat().coerceAtLeast(1f)
 

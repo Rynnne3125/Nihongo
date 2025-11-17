@@ -3,12 +3,17 @@ package com.example.nihongo.Admin.ui
 import Campaign
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -30,8 +36,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -55,6 +61,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
@@ -64,7 +71,6 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -76,32 +82,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.nihongo.Admin.utils.ImgurUploader
 import com.example.nihongo.Admin.viewmodel.AdminNotifyPageViewModel
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.launch
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import android.content.Intent
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.PaddingValues
-import coil.compose.AsyncImage
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.layout.ContentScale
-import com.example.nihongo.Admin.utils.ImgurUploader
-import java.io.File
-import android.content.ContentResolver
-import android.provider.OpenableColumns
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -456,7 +452,7 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
                                         onValueChange = { title = it },
                                         label = { Text("Title") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                        colors = OutlinedTextFieldDefaults.colors(
                                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                                             focusedLabelColor = MaterialTheme.colorScheme.primary
                                         ),
@@ -476,7 +472,7 @@ fun NotifyPage(viewModel: AdminNotifyPageViewModel = AdminNotifyPageViewModel())
                                         onValueChange = { message = it },
                                         label = { Text("Message") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                        colors = OutlinedTextFieldDefaults.colors(
                                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                                             focusedLabelColor = MaterialTheme.colorScheme.primary
                                         ),
