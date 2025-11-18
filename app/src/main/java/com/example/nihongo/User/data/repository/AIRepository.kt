@@ -8,11 +8,14 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-
+import java.net.SocketTimeoutException
+import java.util.concurrent.TimeUnit
 
 data class AIResponse(
     val reply: String,
@@ -68,62 +71,134 @@ data class UserRecommendation(
 
 class AIRepository {
     private val firestore = FirebaseFirestore.getInstance()
-    private val AI_SERVER_URL = "https://causal-noncomplaisant-jen.ngrok-free.dev" // Dùng 10.0.2.2 cho emulator
 
-    // ============ AI Chat Functions ============
+    // ============ GEMINI API CONFIG ============
+    private val GEMINI_API_KEY = "AIzaSyCiVYxP_eiKFfrF_lH1l1vqCqUwhL0uzd0"
+    private val GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
-    suspend fun chatWithAI(message: String, groupId: String? = null, userId: String? = null): AIResponse? {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(120, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        .build()
 
-        if (groupId != null && userId != null) {
-            Log.e("AIRepository", "Không thể chat với cả groupId và userId cùng lúc.")
-            return null
-        }
+    // ============ GEMINI API DIRECT CALL ============
 
-        return withContext(Dispatchers.IO) {
-            try {
-                val url = URL("$AI_SERVER_URL/api/chat")
-                val connection = url.openConnection() as HttpURLConnection
+    private suspend fun callGeminiAPI(prompt: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val requestBody = JSONObject().apply {
+                put("contents", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("parts", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("text", prompt)
+                            })
+                        })
+                    })
+                })
+                put("generationConfig", JSONObject().apply {
+                    put("temperature", 0.7)
+                    put("maxOutputTokens", 2048)
+                })
+            }
 
-                connection.requestMethod = "POST"
-                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                connection.doOutput = true
-                connection.connectTimeout = 10000
-                connection.readTimeout = 10000
+            val request = Request.Builder()
+                .url("$GEMINI_API_URL?key=$GEMINI_API_KEY")
+                .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
+                .build()
 
-                // ⚠️ Backend yêu cầu: message + user_id
-                val jsonBody = JSONObject().apply {
-                    put("message", message)
-                    put("user_id", userId ?: groupId ?: "guest")
-                }
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
 
-                connection.outputStream.use { os ->
-                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
-                }
+                Log.d("AIRepository", "Gemini Response Code: ${response.code}")
+                Log.d("AIRepository", "Gemini Response: $responseBody")
 
-                val statusCode = connection.responseCode
-                if (statusCode != 200) {
-                    Log.e("AIRepository", "Chat error HTTP $statusCode")
+                if (!response.isSuccessful || responseBody.isNullOrEmpty()) {
+                    Log.e("AIRepository", "Gemini API Error: ${response.code}")
                     return@withContext null
                 }
 
-                val responseText = connection.inputStream.bufferedReader().readText()
-                val jsonRes = JSONObject(responseText)
-                Log.d("AIRepository", "Sending JSON: $jsonBody")
-                Log.d("AIRepository", "Response code: $statusCode")
-                Log.d("AIRepository", "Response text: $responseText")
+                val jsonResponse = JSONObject(responseBody)
+                val candidates = jsonResponse.optJSONArray("candidates")
 
-                return@withContext AIResponse(
-                    reply = jsonRes.optString("reply"),
-                    context = jsonRes.optString("context", null),
-                    usage_time = jsonRes.optString("usage_time", null)
-                )
+                if (candidates != null && candidates.length() > 0) {
+                    val content = candidates.getJSONObject(0)
+                        .optJSONObject("content")
+                    val parts = content?.optJSONArray("parts")
 
-            } catch (e: Exception) {
-                Log.e("AIRepository", "Chat exception: ${e.message}", e)
+                    if (parts != null && parts.length() > 0) {
+                        return@withContext parts.getJSONObject(0).optString("text")
+                    }
+                }
+
                 null
             }
+        } catch (e: SocketTimeoutException) {
+            Log.e("AIRepository", "Gemini timeout: ${e.message}")
+            null
+        } catch (e: Exception) {
+            Log.e("AIRepository", "Gemini error: ${e.stackTraceToString()}")
+            null
         }
     }
+
+    // ============ AI CHAT FUNCTIONS ============
+
+    suspend fun chatWithAI(
+        message: String,
+        groupId: String? = null,
+        userId: String? = null,
+        conversationHistory: List<Pair<String, String>>? = null
+    ): AIResponse? = withContext(Dispatchers.IO) {
+
+        val startTime = System.currentTimeMillis()
+
+        // Xây dựng prompt với system instruction
+        val systemPrompt = """
+            Bạn là một Chatbot phục vụ học tập tiếng Nhật thân thiện. Ngoài việc trả lời câu hỏi chào hỏi giới thiệu bản thân,
+            Chỉ trả lời các câu hỏi liên quan đến học tiếng Nhật: từ vựng, ngữ pháp, JLPT, luyện nghe, nói, đọc, viết.
+            Nếu người dùng hỏi ngoài chủ đề, trả lời: "Mình chỉ trả lời các câu hỏi liên quan học tiếng Nhật, bạn vui lòng đặt câu hỏi phù hợp."
+            Hãy nhớ rằng Trần Thanh Phong-23IT211 và Trương Công Thành-23IT251 là người đã tạo ra bạn phục vụ mục đích là chat bot giúp đỡ người dùng học tiếng nhật.
+        """.trimIndent()
+
+        // Xây dựng prompt đầy đủ với lịch sử hội thoại
+        val fullPrompt = buildString {
+            append(systemPrompt)
+            append("\n\n")
+
+            // Thêm lịch sử hội thoại nếu có
+            conversationHistory?.forEach { (role, content) ->
+                append("$role: $content\n")
+            }
+
+            append("User: $message\n")
+            append("Assistant:")
+        }
+
+        try {
+            val aiReply = callGeminiAPI(fullPrompt)
+
+            if (aiReply.isNullOrEmpty()) {
+                return@withContext null
+            }
+
+            val elapsedTime = (System.currentTimeMillis() - startTime) / 1000.0
+
+            return@withContext AIResponse(
+                reply = aiReply.trim(),
+                context = null,
+                usage_time = String.format("%.2fs", elapsedTime)
+            )
+
+        } catch (e: Exception) {
+            Log.e("AIRepository", "Chat error: ${e.stackTraceToString()}")
+            null
+        }
+    }
+
+    // ============ AI PARTNER RECOMMENDATIONS ============
+
     suspend fun getAIPartnerRecommendations(
         currentUser: User,
         limit: Int = 10
@@ -131,7 +206,7 @@ class AIRepository {
         try {
             val collectionRef = firestore.collection("ai_recommendations")
 
-            // 1️⃣ Lấy các recommendation đã có cho currentUser
+            // 1️⃣ LOAD EXISTING RECOMMENDATIONS
             val existingRecsSnapshot = collectionRef
                 .whereEqualTo("userId", currentUser.id)
                 .get()
@@ -149,14 +224,16 @@ class AIRepository {
                 )
             }.sortedByDescending { it.matchScore }
 
-            // Nếu đã đủ limit, trả về luôn
-            if (existingRecs.size >= limit) return@withContext existingRecs.take(limit)
+            if (existingRecs.size >= limit)
+                return@withContext existingRecs.take(limit)
 
-            // 2️⃣ Lấy tất cả users khác
+            // 2️⃣ LOAD OTHER USERS
             val allUsersDocs = firestore.collection("users")
                 .whereNotEqualTo("id", currentUser.id)
                 .get()
                 .await()
+
+            val allRecedIds = existingRecs.map { it.userId }.toSet()
 
             val otherUsers = allUsersDocs.documents.map { doc ->
                 mapOf(
@@ -165,75 +242,83 @@ class AIRepository {
                     "jlptLevel" to doc.getLong("jlptLevel")?.toInt(),
                     "rank" to doc.getString("rank").orEmpty(),
                     "activityScore" to (doc.getLong("activityPoints")?.toInt() ?: 0),
-                    "imageUrl" to doc.getString("imageUrl").orEmpty() // <-- thêm đây
+                    "imageUrl" to doc.getString("imageUrl").orEmpty()
                 )
             }
                 .filter {
-                    it["jlptLevel"] == currentUser.jlptLevel || it["rank"] == currentUser.rank
+                    it["jlptLevel"] == currentUser.jlptLevel ||
+                            it["rank"] == currentUser.rank
                 }
-                .filter { it["userId"] !in existingRecs.map { r -> r.userId } }
+                .filter { it["userId"] !in allRecedIds }
                 .take(20)
 
-            // Nếu không còn user mới nào để hỏi AI, trả về existing
-            if (otherUsers.isEmpty()) return@withContext existingRecs.take(limit)
+            if (otherUsers.isEmpty())
+                return@withContext existingRecs.take(limit)
 
-            // 3️⃣ Tạo payload cho AI
-            val messagePayload = buildString {
-                append("You are an AI that recommends study partners for Japanese learners.\n")
-                append("Current user: ${JSONObject(mapOf(
+            // 3️⃣ BUILD PROMPT FOR AI
+            val prompt = buildString {
+                append("Bạn là AI gợi ý bạn học tiếng Nhật.\n")
+                append("User hiện tại: ${JSONObject(mapOf(
                     "userId" to currentUser.id,
                     "username" to currentUser.username,
                     "jlptLevel" to currentUser.jlptLevel,
-                    "rank" to currentUser.rank,
-                    "activityScore" to currentUser.activityPoints
+                    "rank" to currentUser.rank
                 ))}\n")
-                append("Other users: ${JSONArray(otherUsers)}\n")
-                append("Task: Select and return a list of users who are suitable study partners. \n")
-                append("Criteria: \n")
-                append("  - Must have the same JLPT level OR the same rank as the current user.\n")
-                append("  - Prefer users with similar activityScore.\n")
-                append("Output format: JSON array of objects with fields: userId, username, jlptLevel, rank, matchScore (0-100), matchReasons (array of strings)\n")
+
+                append("Danh sách users khác (tối đa 20): ${JSONArray(otherUsers)}\n")
+
+                append("Chọn bạn học phù hợp. Quy tắc:\n")
+                append("- Cùng JLPT hoặc cùng rank.\n")
+                append("- Điểm matchScore từ 0–100.\n")
+                append("TRẢ VỀ JSON THUẦN.\n")
+                append("Mỗi object gồm: userId, username, jlptLevel, rank, matchScore, matchReasons.\n")
+                append("Không giải thích, không ký tự thừa.\n")
             }
 
-            // 4️⃣ Gọi AI
-            val aiResponse = chatWithAI(
-                message = messagePayload,
-                userId = currentUser.id
-            ) ?: return@withContext existingRecs.take(limit)
+            // 4️⃣ CALL GEMINI API
+            val aiReply = callGeminiAPI(prompt)
 
-            val replyText = aiResponse.reply.trim()
+            if (aiReply.isNullOrEmpty()) {
+                return@withContext existingRecs.take(limit)
+            }
 
-            // Xử lý trường hợp AI trả markdown code block
-            val cleanedReply = replyText
+            val cleanedReply = aiReply
                 .removePrefix("```json")
                 .removePrefix("```")
                 .removeSuffix("```")
                 .trim()
 
-            val jsonArray = JSONArray(cleanedReply)
-            val newRecommendations = mutableListOf<UserRecommendation>()
+            val jsonArray = try {
+                JSONArray(cleanedReply)
+            } catch (_: Exception) {
+                Log.e("AIRepository", "AI reply is not valid JSON: $cleanedReply")
+                return@withContext existingRecs.take(limit)
+            }
+
+            // 5️⃣ PARSE & SAVE TO FIRESTORE
+            val newRecs = mutableListOf<UserRecommendation>()
+
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-                val userImageUrl = if (obj.has("imageUrl") && !obj.isNull("imageUrl")) {
-                    obj.getString("imageUrl")
-                } else {
-                    // fallback từ danh sách otherUsers
-                    otherUsers.find { it["userId"] == obj.optString("userId") }?.get("imageUrl") as? String ?: ""
-                }
+
+                val recommendedId = obj.optString("userId")
+                if (recommendedId.isBlank()) continue
+
+                val imgUrl = otherUsers.find { it["userId"] == recommendedId }?.get("imageUrl") as? String ?: ""
+
                 val rec = UserRecommendation(
-                    userId = obj.optString("userId"),
+                    userId = recommendedId,
                     username = obj.optString("username"),
-                    jlptLevel = if (obj.has("jlptLevel") && !obj.isNull("jlptLevel")) obj.getInt("jlptLevel") else null,
+                    jlptLevel = if (!obj.isNull("jlptLevel")) obj.getInt("jlptLevel") else null,
                     rank = obj.optString("rank"),
-                    matchScore = obj.optInt("matchScore"),
-                    imageUrl = userImageUrl,
-                    matchReasons = mutableListOf<String>().apply {
-                        val arr = obj.optJSONArray("matchReasons")
-                        if (arr != null) for (j in 0 until arr.length()) add(arr.getString(j))
+                    matchScore = obj.optInt("matchScore", 0),
+                    imageUrl = imgUrl,
+                    matchReasons = (0 until (obj.optJSONArray("matchReasons")?.length() ?: 0)).map { j ->
+                        obj.optJSONArray("matchReasons")!!.optString(j)
                     }
                 )
 
-                // 5️⃣ Push lên Firestore nếu chưa có
+                // Tránh lưu duplicate
                 val existsSnapshot = collectionRef
                     .whereEqualTo("userId", currentUser.id)
                     .whereEqualTo("recommendedUserId", rec.userId)
@@ -241,40 +326,38 @@ class AIRepository {
                     .await()
 
                 if (existsSnapshot.isEmpty) {
-                    val docData = mapOf(
-                        "userId" to currentUser.id,
-                        "recommendedUserId" to rec.userId,
-                        "username" to rec.username,
-                        "jlptLevel" to rec.jlptLevel,
-                        "rank" to rec.rank,
-                        "matchScore" to rec.matchScore,
-                        "imageUrl" to rec.imageUrl,
-                        "matchReasons" to rec.matchReasons,
-                        "createdAt" to com.google.firebase.Timestamp.now()
-                    )
-                    collectionRef.add(docData).await()
+                    collectionRef.add(
+                        mapOf(
+                            "userId" to currentUser.id,
+                            "recommendedUserId" to rec.userId,
+                            "username" to rec.username,
+                            "jlptLevel" to rec.jlptLevel,
+                            "rank" to rec.rank,
+                            "matchScore" to rec.matchScore,
+                            "imageUrl" to rec.imageUrl,
+                            "matchReasons" to rec.matchReasons,
+                            "createdAt" to com.google.firebase.Timestamp.now()
+                        )
+                    ).await()
                 }
 
-                newRecommendations.add(rec)
+                newRecs.add(rec)
             }
 
-            // 6️⃣ Trả về kết hợp existing + new, sắp xếp theo matchScore
-            val combined = (existingRecs + newRecommendations)
-                .distinctBy { it.userId } // tránh trùng
+            // 6️⃣ COMBINE & RETURN
+            return@withContext (existingRecs + newRecs)
+                .distinctBy { it.userId }
                 .sortedByDescending { it.matchScore }
                 .take(limit)
 
-            return@withContext combined
-
         } catch (e: Exception) {
             Log.e("AIRepository", "Error getting AI partner recommendations", e)
-            return@withContext emptyList<UserRecommendation>()
+            emptyList()
         }
     }
 
+    // ============ GROUP CHALLENGE FUNCTIONS ============
 
-    // ============ Group Challenge Functions ============
-    // (Giữ nguyên)
     suspend fun createGroupChallenge(challenge: GroupChallenge): String? {
         return try {
             val docRef = firestore.collection("groupChallenges").add(challenge).await()
@@ -373,30 +456,27 @@ class AIRepository {
         }
     }
 
-    // ============ AI Tips Functions ============
+    // ============ AI TIPS FUNCTIONS ============
 
-     suspend fun generateDailyTipForGroup(
+    suspend fun generateDailyTipForGroup(
         groupId: String,
         level: String,
         description: String
     ): AITip? {
         return try {
             val now = System.currentTimeMillis()
-
-            // Tính mốc đầu ngày hôm nay 00:00:00
             val dayStart = now - (now % (24 * 60 * 60 * 1000))
 
-            // ===== 1. Check TODAY'S TIP =====
+            // Check TODAY'S TIP
             val existingTipSnapshot = firestore.collection("aiTips")
                 .whereEqualTo("groupId", groupId)
-                .orderBy("date", Query.Direction.DESCENDING) // get latest
+                .orderBy("date", Query.Direction.DESCENDING)
                 .limit(1)
                 .get()
                 .await()
 
             val lastTipDoc = existingTipSnapshot.documents.firstOrNull()
 
-            // Nếu có tip và vẫn là NGÀY HÔM NAY ⇒ sử dụng lại
             if (lastTipDoc != null) {
                 val lastTipDate = lastTipDoc.getLong("date") ?: 0L
                 if (lastTipDate >= dayStart) {
@@ -405,30 +485,28 @@ class AIRepository {
                 }
             }
 
-            // ===== 2. Generate new tip (ONLY ONCE PER DAY) =====
+            // Generate new tip
+            val prompt = """
+                Hãy tạo một mẹo học tiếng Nhật NGẮN GỌN cho trình độ $level, tối đa 20 chữ.
+                Ngữ cảnh nhóm: "$description"
+                Chỉ xuất ra câu mẹo, không giải thích, không markdown.
+            """.trimIndent()
 
-            val aiResponse = chatWithAI(
-                message =
-                    "Generate a helpful and tailored Japanese learning tip for level $level learners. " +
-                            "Here is the study group description context: \"$description\". " +
-                            "Create a daily learning tip (2–3 sentences) in Vietnamese, based on this group's purpose. " +
-                            "Tip must be clear, practical, and based on the topic of this learning group.",
-                groupId = groupId
-            )
+            val aiReply = callGeminiAPI(prompt)
 
-            if (aiResponse == null) return null
+            if (aiReply.isNullOrEmpty()) return null
 
             val categories = listOf("grammar", "vocabulary", "kanji", "culture")
 
             val newTip = AITip(
                 groupId = groupId,
-                tip = aiResponse.reply,
+                tip = aiReply.trim(),
                 category = categories.random(),
                 level = level,
                 date = now
             )
 
-            // Xóa tip cũ (của ngày trước)
+            // Xóa tip cũ
             lastTipDoc?.reference?.delete()?.await()
 
             // Lưu tip mới
@@ -443,21 +521,23 @@ class AIRepository {
     }
 
     suspend fun generateDiscussionTopic(groupId: String, level: String): AIDiscussionTopic? {
-        // (Giữ nguyên)
         return try {
-            val aiResponse = chatWithAI(
-                "Generate an interesting discussion topic for Japanese learners at $level level. " +
-                        "Include a topic title and a brief description to spark conversation. " +
-                        "Response in Vietnamese. Format: Topic: [title]\\nDescription: [description]",
-                groupId = groupId
-            )
+            val prompt = """
+                Generate an interesting discussion topic for Japanese learners at $level level.
+                Include a topic title and a brief description to spark conversation.
+                Response in Vietnamese. Format: 
+                Topic: [title]
+                Description: [description]
+            """.trimIndent()
 
-            if (aiResponse != null) {
-                val lines = aiResponse.reply.split("\n")
+            val aiReply = callGeminiAPI(prompt)
+
+            if (aiReply != null) {
+                val lines = aiReply.split("\n")
                 val topic = lines.find { it.startsWith("Topic:") }
                     ?.substringAfter("Topic:")?.trim() ?: "Thảo luận tiếng Nhật"
                 val description = lines.find { it.startsWith("Description:") }
-                    ?.substringAfter("Description:")?.trim() ?: aiResponse.reply
+                    ?.substringAfter("Description:")?.trim() ?: aiReply
 
                 val discussionTopic = AIDiscussionTopic(
                     groupId = groupId,
@@ -478,7 +558,6 @@ class AIRepository {
     }
 
     suspend fun getDiscussionTopicsForGroup(groupId: String, limit: Int = 10): List<AIDiscussionTopic> {
-        // (Giữ nguyên)
         return try {
             firestore.collection("aiDiscussionTopics")
                 .whereEqualTo("groupId", groupId)
@@ -493,5 +572,4 @@ class AIRepository {
             emptyList()
         }
     }
-
 }

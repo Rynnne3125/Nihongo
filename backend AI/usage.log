@@ -1262,3 +1262,336 @@ werkzeug.exceptions.BadRequest: 400 Bad Request: Failed to decode JSON object: '
 2025-11-17 23:14:16,690 | Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
 2025-11-17 23:14:20,645 |  * Debugger is active!
 2025-11-17 23:14:20,650 |  * Debugger PIN: 136-249-302
+2025-11-17 23:38:38,343 | Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-11-17 23:38:38,719 | Use pytorch device_name: cpu
+2025-11-17 23:38:38,719 | Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-11-17 23:38:44,085 | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:3125
+ * Running on http://192.168.2.62:3125
+2025-11-17 23:38:44,085 | [33mPress CTRL+C to quit[0m
+2025-11-17 23:38:44,087 |  * Restarting with stat
+2025-11-17 23:39:06,225 | Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-11-17 23:39:06,358 | Use pytorch device_name: cpu
+2025-11-17 23:39:06,358 | Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-11-17 23:39:10,188 |  * Debugger is active!
+2025-11-17 23:39:10,198 |  * Debugger PIN: 136-249-302
+2025-11-17 23:40:58,790 | AFC is enabled with max remote calls: 10.
+2025-11-17 23:41:01,489 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-17 23:41:01,654 | auto-learn error
+2025-11-17 23:41:01,655 | 127.0.0.1 - - [17/Nov/2025 23:41:01] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:00:54,992 | AFC is enabled with max remote calls: 10.
+2025-11-18 00:00:56,973 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 00:00:57,069 | auto-learn error
+2025-11-18 00:00:57,071 | 127.0.0.1 - - [18/Nov/2025 00:00:57] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:00:58,389 | AFC is enabled with max remote calls: 10.
+2025-11-18 00:01:00,139 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 00:01:00,186 | auto-learn error
+2025-11-18 00:01:00,186 | 127.0.0.1 - - [18/Nov/2025 00:01:00] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:01:01,553 | AFC is enabled with max remote calls: 10.
+2025-11-18 00:01:03,491 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 00:01:03,542 | auto-learn error
+2025-11-18 00:01:03,542 | 127.0.0.1 - - [18/Nov/2025 00:01:03] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:01:04,749 | AFC is enabled with max remote calls: 10.
+2025-11-18 00:01:06,603 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 00:01:06,659 | auto-learn error
+2025-11-18 00:01:06,659 | 127.0.0.1 - - [18/Nov/2025 00:01:06] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:02:02,317 | AFC is enabled with max remote calls: 10.
+2025-11-18 00:02:04,541 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 00:02:04,647 | auto-learn error
+2025-11-18 00:02:04,648 | 127.0.0.1 - - [18/Nov/2025 00:02:04] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:35:32,659 | 127.0.0.1 - - [18/Nov/2025 00:35:32] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:36:05,104 | 127.0.0.1 - - [18/Nov/2025 00:36:05] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:36:23,749 | 127.0.0.1 - - [18/Nov/2025 00:36:23] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:42:00,011 | AFC is enabled with max remote calls: 10.
+2025-11-18 00:42:01,681 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 00:42:01,789 | auto-learn error
+2025-11-18 00:42:01,790 | 127.0.0.1 - - [18/Nov/2025 00:42:01] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 00:53:58,494 | AFC is enabled with max remote calls: 10.
+2025-11-18 00:54:00,101 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 00:54:00,244 | auto-learn error
+2025-11-18 00:54:00,246 | 127.0.0.1 - - [18/Nov/2025 00:54:00] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 01:00:52,486 | AFC is enabled with max remote calls: 10.
+2025-11-18 01:00:54,026 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 01:00:54,140 | auto-learn error
+2025-11-18 01:00:54,143 | 127.0.0.1 - - [18/Nov/2025 01:00:54] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 01:06:27,790 | AFC is enabled with max remote calls: 10.
+2025-11-18 01:06:29,128 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 01:06:29,224 | auto-learn error
+2025-11-18 01:06:29,226 | 127.0.0.1 - - [18/Nov/2025 01:06:29] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:22:05,410 | Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-11-18 13:22:05,614 | Use pytorch device_name: cpu
+2025-11-18 13:22:05,614 | Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-11-18 13:22:11,670 | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:3125
+ * Running on http://192.168.1.147:3125
+2025-11-18 13:22:11,670 | [33mPress CTRL+C to quit[0m
+2025-11-18 13:22:11,672 |  * Restarting with stat
+2025-11-18 13:22:28,617 | Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-11-18 13:22:28,723 | Use pytorch device_name: cpu
+2025-11-18 13:22:28,723 | Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-11-18 13:22:33,486 |  * Debugger is active!
+2025-11-18 13:22:33,491 |  * Debugger PIN: 136-249-302
+2025-11-18 13:27:14,732 | 127.0.0.1 - - [18/Nov/2025 13:27:14] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:27:16,136 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:27:18,863 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:27:19,021 | auto-learn error
+2025-11-18 13:27:19,021 | 127.0.0.1 - - [18/Nov/2025 13:27:19] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:27:22,070 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:27:25,209 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+2025-11-18 13:27:25,411 | Traceback (most recent call last):
+  File "D:\Android\Projects\Nihongo\backend AI\nihongo.py", line 192, in chat
+    reply = call_gemini(MODEL_NAME, messages)
+  File "D:\Android\Projects\Nihongo\backend AI\nihongo.py", line 109, in call_gemini
+    response = client.models.generate_content(
+        model=model,
+        contents=final_prompt
+    )
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\models.py", line 5001, in generate_content
+    response = self._generate_content(
+        model=model, contents=contents, config=parsed_config
+    )
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\models.py", line 3813, in _generate_content
+    response = self._api_client.request(
+        'post', path, request_dict, http_options
+    )
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\_api_client.py", line 1307, in request
+    response = self._request(http_request, http_options, stream=False)
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\_api_client.py", line 1143, in _request
+    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 477, in __call__
+    do = self.iter(retry_state=retry_state)
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 378, in iter
+    result = action(retry_state)
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 420, in exc_check
+    raise retry_exc.reraise()
+          ~~~~~~~~~~~~~~~~~^^
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 187, in reraise
+    raise self.last_attempt.result()
+          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\Python Jupiter\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "D:\Python Jupiter\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 480, in __call__
+    result = fn(*args, **kwargs)
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\_api_client.py", line 1120, in _request_once
+    errors.APIError.raise_for_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\errors.py", line 108, in raise_for_response
+    raise ClientError(status_code, response_json, response)
+google.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.', 'status': 'RESOURCE_EXHAUSTED'}}
+
+2025-11-18 13:27:25,447 | auto-learn error
+2025-11-18 13:27:25,447 | 127.0.0.1 - - [18/Nov/2025 13:27:25] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:27:30,323 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:27:35,953 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:27:36,040 | auto-learn error
+2025-11-18 13:27:36,041 | 127.0.0.1 - - [18/Nov/2025 13:27:36] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:27:38,843 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:27:40,989 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 429 Too Many Requests"
+2025-11-18 13:27:40,992 | Traceback (most recent call last):
+  File "D:\Android\Projects\Nihongo\backend AI\nihongo.py", line 192, in chat
+    reply = call_gemini(MODEL_NAME, messages)
+  File "D:\Android\Projects\Nihongo\backend AI\nihongo.py", line 109, in call_gemini
+    response = client.models.generate_content(
+        model=model,
+        contents=final_prompt
+    )
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\models.py", line 5001, in generate_content
+    response = self._generate_content(
+        model=model, contents=contents, config=parsed_config
+    )
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\models.py", line 3813, in _generate_content
+    response = self._api_client.request(
+        'post', path, request_dict, http_options
+    )
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\_api_client.py", line 1307, in request
+    response = self._request(http_request, http_options, stream=False)
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\_api_client.py", line 1143, in _request
+    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 477, in __call__
+    do = self.iter(retry_state=retry_state)
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 378, in iter
+    result = action(retry_state)
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 420, in exc_check
+    raise retry_exc.reraise()
+          ~~~~~~~~~~~~~~~~~^^
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 187, in reraise
+    raise self.last_attempt.result()
+          ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\Python Jupiter\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "D:\Python Jupiter\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "D:\Python Jupiter\Lib\site-packages\tenacity\__init__.py", line 480, in __call__
+    result = fn(*args, **kwargs)
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\_api_client.py", line 1120, in _request_once
+    errors.APIError.raise_for_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "D:\Python Jupiter\Lib\site-packages\google\genai\errors.py", line 108, in raise_for_response
+    raise ClientError(status_code, response_json, response)
+google.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Resource exhausted. Please try again later. Please refer to https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 for more details.', 'status': 'RESOURCE_EXHAUSTED'}}
+
+2025-11-18 13:27:41,030 | auto-learn error
+2025-11-18 13:27:41,030 | 127.0.0.1 - - [18/Nov/2025 13:27:41] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:27:43,021 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:27:45,798 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:27:45,871 | auto-learn error
+2025-11-18 13:27:45,871 | 127.0.0.1 - - [18/Nov/2025 13:27:45] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:27:57,746 | 127.0.0.1 - - [18/Nov/2025 13:27:57] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:28:12,996 | 127.0.0.1 - - [18/Nov/2025 13:28:12] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:28:18,132 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:28:21,383 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:28:21,452 | auto-learn error
+2025-11-18 13:28:21,453 | 127.0.0.1 - - [18/Nov/2025 13:28:21] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:31:43,670 | 127.0.0.1 - - [18/Nov/2025 13:31:43] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:34:32,883 | 127.0.0.1 - - [18/Nov/2025 13:34:32] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:34:55,068 | 127.0.0.1 - - [18/Nov/2025 13:34:55] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:35:03,078 | 127.0.0.1 - - [18/Nov/2025 13:35:03] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:39:05,392 | 127.0.0.1 - - [18/Nov/2025 13:39:05] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:39:06,972 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:39:08,422 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:39:08,460 | auto-learn error
+2025-11-18 13:39:08,460 | 127.0.0.1 - - [18/Nov/2025 13:39:08] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:39:10,487 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:39:11,916 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:39:11,960 | auto-learn error
+2025-11-18 13:39:11,961 | 127.0.0.1 - - [18/Nov/2025 13:39:11] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:39:14,080 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:39:15,171 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:39:15,201 | auto-learn error
+2025-11-18 13:39:15,202 | 127.0.0.1 - - [18/Nov/2025 13:39:15] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:39:17,441 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:39:18,333 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:39:18,365 | auto-learn error
+2025-11-18 13:39:18,366 | 127.0.0.1 - - [18/Nov/2025 13:39:18] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:39:20,302 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:39:22,994 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:39:23,031 | auto-learn error
+2025-11-18 13:39:23,031 | 127.0.0.1 - - [18/Nov/2025 13:39:23] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:41:04,380 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:41:06,060 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:41:06,107 | auto-learn error
+2025-11-18 13:41:06,107 | 127.0.0.1 - - [18/Nov/2025 13:41:06] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:41:11,606 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:41:13,911 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:41:13,956 | auto-learn error
+2025-11-18 13:41:13,956 | 127.0.0.1 - - [18/Nov/2025 13:41:13] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:41:24,094 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:41:30,596 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:41:30,639 | auto-learn error
+2025-11-18 13:41:30,640 | 127.0.0.1 - - [18/Nov/2025 13:41:30] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 13:41:36,207 | AFC is enabled with max remote calls: 10.
+2025-11-18 13:41:38,297 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 13:41:38,343 | auto-learn error
+2025-11-18 13:41:38,343 | 127.0.0.1 - - [18/Nov/2025 13:41:38] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:21:52,520 | Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-11-18 14:21:52,798 | Use pytorch device_name: cpu
+2025-11-18 14:21:52,798 | Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-11-18 14:21:57,981 | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:3125
+ * Running on http://192.168.1.147:3125
+2025-11-18 14:21:57,981 | [33mPress CTRL+C to quit[0m
+2025-11-18 14:21:57,983 |  * Restarting with stat
+2025-11-18 14:22:20,010 | Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-11-18 14:22:20,159 | Use pytorch device_name: cpu
+2025-11-18 14:22:20,159 | Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-11-18 14:22:27,262 |  * Debugger is active!
+2025-11-18 14:22:27,269 |  * Debugger PIN: 136-249-302
+2025-11-18 14:22:27,451 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:22:27,457 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:22:29,266 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:22:29,387 | auto-learn error
+2025-11-18 14:22:29,389 | 127.0.0.1 - - [18/Nov/2025 14:22:29] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:22:35,621 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:22:35,687 | auto-learn error
+2025-11-18 14:22:35,687 | 127.0.0.1 - - [18/Nov/2025 14:22:35] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:22:47,439 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:22:49,804 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:22:49,861 | auto-learn error
+2025-11-18 14:22:49,861 | 127.0.0.1 - - [18/Nov/2025 14:22:49] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:23:00,876 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:23:04,655 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:23:04,767 | auto-learn error
+2025-11-18 14:23:04,767 | 127.0.0.1 - - [18/Nov/2025 14:23:04] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:23:47,684 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:23:59,754 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:23:59,815 | auto-learn error
+2025-11-18 14:23:59,815 | 127.0.0.1 - - [18/Nov/2025 14:23:59] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:24:16,436 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:24:30,790 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:24:30,846 | auto-learn error
+2025-11-18 14:24:30,846 | 127.0.0.1 - - [18/Nov/2025 14:24:30] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:30:19,316 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:30:30,148 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:30:30,227 | auto-learn error
+2025-11-18 14:30:30,227 | 127.0.0.1 - - [18/Nov/2025 14:30:30] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:31:03,717 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:31:13,728 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:31:13,797 | auto-learn error
+2025-11-18 14:31:13,798 | 127.0.0.1 - - [18/Nov/2025 14:31:13] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:39:15,803 | Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-11-18 14:39:16,013 | Use pytorch device_name: cpu
+2025-11-18 14:39:16,013 | Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-11-18 14:39:24,489 | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:3125
+ * Running on http://192.168.1.147:3125
+2025-11-18 14:39:24,489 | [33mPress CTRL+C to quit[0m
+2025-11-18 14:39:24,491 |  * Restarting with stat
+2025-11-18 14:39:41,738 | Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2025-11-18 14:39:41,836 | Use pytorch device_name: cpu
+2025-11-18 14:39:41,836 | Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-11-18 14:39:49,914 |  * Debugger is active!
+2025-11-18 14:39:49,918 |  * Debugger PIN: 136-249-302
+2025-11-18 14:39:56,963 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:40:01,628 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:40:01,715 | auto-learn error
+2025-11-18 14:40:01,717 | 127.0.0.1 - - [18/Nov/2025 14:40:01] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:40:25,871 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:40:29,844 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:40:29,892 | auto-learn error
+2025-11-18 14:40:29,892 | 127.0.0.1 - - [18/Nov/2025 14:40:29] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:40:41,822 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:40:45,192 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:40:45,309 | auto-learn error
+2025-11-18 14:40:45,309 | 127.0.0.1 - - [18/Nov/2025 14:40:45] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:40:54,252 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:40:59,435 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:40:59,467 | auto-learn error
+2025-11-18 14:40:59,468 | 127.0.0.1 - - [18/Nov/2025 14:40:59] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:41:16,780 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:41:20,046 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:41:20,081 | auto-learn error
+2025-11-18 14:41:20,081 | 127.0.0.1 - - [18/Nov/2025 14:41:20] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:44:10,422 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:44:15,320 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:44:15,371 | auto-learn error
+2025-11-18 14:44:15,371 | 127.0.0.1 - - [18/Nov/2025 14:44:15] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:44:44,138 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:44:45,323 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:44:45,366 | auto-learn error
+2025-11-18 14:44:45,367 | 127.0.0.1 - - [18/Nov/2025 14:44:45] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:44:47,191 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:44:48,147 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:44:48,199 | auto-learn error
+2025-11-18 14:44:48,200 | 127.0.0.1 - - [18/Nov/2025 14:44:48] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:44:50,333 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:44:51,294 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:44:51,529 | auto-learn error
+2025-11-18 14:44:51,530 | 127.0.0.1 - - [18/Nov/2025 14:44:51] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:44:54,597 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:44:55,595 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:44:55,711 | auto-learn error
+2025-11-18 14:44:55,712 | 127.0.0.1 - - [18/Nov/2025 14:44:55] "POST /api/chat HTTP/1.1" 200 -
+2025-11-18 14:44:58,193 | AFC is enabled with max remote calls: 10.
+2025-11-18 14:44:59,177 | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-18 14:44:59,329 | auto-learn error
+2025-11-18 14:44:59,329 | 127.0.0.1 - - [18/Nov/2025 14:44:59] "POST /api/chat HTTP/1.1" 200 -

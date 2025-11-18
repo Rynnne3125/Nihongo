@@ -153,7 +153,9 @@ fun CommunityScreen(
     var showRecommendationsDialog by remember { mutableStateOf(false) }
     var showChallengesDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-
+    val filteredRecommendations = smartRecommendations.filter { rec ->
+        currentUser?.partners?.contains(rec.userId) == false
+    }
     LaunchedEffect(userEmail) {
         // Lấy dữ liệu người dùng
         currentUser = userRepository.getUserByEmail(userEmail)
@@ -178,7 +180,13 @@ fun CommunityScreen(
             coroutineScope.launch {
                 try {
                     // 1. Get smart recommendations
-                    smartRecommendations = aiRepository.getAIPartnerRecommendations(user, limit = 10)
+                    val rawRecs = aiRepository.getAIPartnerRecommendations(user, limit = 10)
+
+                    smartRecommendations = rawRecs.filter { rec ->
+                        user.partners.contains(rec.userId) == false
+                    }
+
+                    Log.d("CommunityScreen", "Filtered recommendations: ${smartRecommendations.size}/${rawRecs.size}")
                     Log.d("CommunityScreen", "Loaded ${smartRecommendations.size} AI recommendations")
 
                     // 2. Load challenges and tips for each group
@@ -383,7 +391,7 @@ fun CommunityScreen(
     }
 
     // === Smart Recommendations Dialog ===
-    if (showRecommendationsDialog) {
+    if (showRecommendationsDialog && filteredRecommendations.isNotEmpty()) {
         SmartRecommendationsDialog(
             recommendations = smartRecommendations,
             currentUser = currentUser,
@@ -402,6 +410,8 @@ fun CommunityScreen(
                         currentUser = updatedUser
 
                         Toast.makeText(context, "Đã kết nối thành công!", Toast.LENGTH_SHORT).show()
+                        smartRecommendations = smartRecommendations.filter { it.userId != userId }
+
                     }
                 }
             },
