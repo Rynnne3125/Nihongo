@@ -24,11 +24,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
@@ -38,22 +35,17 @@ import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
@@ -77,10 +69,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -101,6 +91,7 @@ import com.example.nihongo.User.data.repository.GroupChallenge
 import com.example.nihongo.User.data.repository.UserRecommendation
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
+import com.example.nihongo.User.ui.components.FloatingAISensei
 import com.example.nihongo.User.ui.components.TopBarIcon
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
@@ -126,30 +117,20 @@ fun CommunityScreen(
     var discussions by remember { mutableStateOf<List<Discussion>>(emptyList()) }
     var studyGroups by remember { mutableStateOf<List<StudyGroup>>(emptyList()) }
     var learningGoals by remember { mutableStateOf<List<LearningGoal>>(emptyList()) }
-    var latestDiscussionMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var latestGroupMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var isLoading by remember { mutableStateOf(true) }
     val selectedItem = "community"
 
     // Định nghĩa tabs
-    val tabs = listOf("Cộng đồng", "Thảo luận", "Bảng xếp hạng", "AI Assistant")
+    val tabs = listOf("Cộng đồng", "Thảo luận", "Bảng xếp hạng")
 
     // Sử dụng initialTab làm giá trị khởi tạo cho selectedTab
     var selectedTab by remember { mutableStateOf(initialTab) }
 
-    // Thêm state để kiểm soát hiển thị dialog xác nhận
-    var showUploadDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val aiRepository = remember { AIRepository() }
     var smartRecommendations by remember { mutableStateOf<List<UserRecommendation>>(emptyList()) }
     var groupChallenges by remember { mutableStateOf<Map<String, List<GroupChallenge>>>(emptyMap()) }
     var dailyTips by remember { mutableStateOf<Map<String, AITip>>(emptyMap()) }
-    var showAIChatDialog by remember { mutableStateOf(false) }
-    var selectedGroupForAI by remember { mutableStateOf<String?>(null) }
-    var aiChatMessages by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) } // sender to message
-    var aiChatInput by remember { mutableStateOf("") }
-    var isAIResponding by remember { mutableStateOf(false) }
     var showRecommendationsDialog by remember { mutableStateOf(false) }
     var showChallengesDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -287,14 +268,6 @@ fun CommunityScreen(
                     TopBarIcon(selectedItem = selectedItem)
                 },
                 actions = {
-                    // AI Assistant Button
-                    IconButton(onClick = { selectedTab = 3 }) {
-                        Icon(
-                            Icons.Default.Psychology,
-                            contentDescription = "AI Assistant",
-                            tint = if (selectedTab == 3) Color(0xFF00C853) else Color.Gray
-                        )
-                    }
                     IconButton(onClick = {
                         navController.navigate("profile/$userEmail")
                     }) {
@@ -382,12 +355,12 @@ fun CommunityScreen(
                 )
                 1 -> DiscussionTab(discussions, navController, userEmail)
                 2 -> LeaderboardTab(allUsers, learningGoals)
-                3 -> AIPersonalChatTab(
-                    currentUser = currentUser,
-                    aiRepository = aiRepository
-                )
             }
         }
+        FloatingAISensei(
+            currentUser = currentUser,
+            aiRepository = aiRepository
+        )
     }
 
     // === Smart Recommendations Dialog ===
@@ -1737,183 +1710,6 @@ fun ChallengeCard(
         }
     }
 }
-
-// === AI Assistant Tab ===
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AIPersonalChatTab(
-    currentUser: User?,
-    aiRepository: AIRepository
-) {
-    var messages by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
-    var inputText by remember { mutableStateOf("") }
-    var isResponding by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
-    val listState = rememberLazyListState()
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val context = LocalContext.current
-
-    val handleSendMessage: () -> Unit = {
-        if (inputText.isNotBlank() && !isResponding && currentUser != null) {
-            val userMessage = inputText
-            messages = messages + ("user" to userMessage)
-            inputText = ""
-            isResponding = true
-            keyboardController?.hide()
-
-            coroutineScope.launch {
-                try {
-                    // Gọi AI chat với user_id
-                    val response = aiRepository.chatWithAI(userMessage, userId = currentUser.id)
-                    if (response != null) {
-                        messages = messages + ("ai" to response.reply)
-                    } else {
-                        messages = messages + ("ai" to "Xin lỗi, tôi không thể trả lời lúc này.")
-                    }
-                } catch (e: Exception) {
-                    messages = messages + ("ai" to "Đã xảy ra lỗi: ${e.message}")
-                } finally {
-                    isResponding = false
-                }
-            }
-        } else if (currentUser == null) {
-            Toast.makeText(context, "Không thể tải thông tin người dùng", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // Tự động cuộn xuống khi có tin nhắn mới
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
-    ) {
-        // Vùng chat
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (messages.isEmpty()) {
-                item {
-                    Column(
-                        modifier = Modifier.fillParentMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Psychology,
-                            contentDescription = null,
-                            tint = Color(0xFF4CAF50),
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Nihongo AI Sensei",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Hỏi tôi bất cứ điều gì về tiếng Nhật nhé!\nVí dụ: \"Phân biệt 'wa' và 'ga'\"",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                }
-            } else {
-                items(messages) { (sender, message) ->
-                    ChatBubble(
-                        message = message,
-                        isUser = sender == "user"
-                    )
-                }
-            }
-
-            if (isResponding) {
-                item {
-                    Row(
-                        modifier = Modifier.padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color(0xFF4CAF50)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Sensei đang suy nghĩ...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-                    }
-                }
-            }
-        }
-
-        // Vùng nhập liệu
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Hỏi AI Sensei...") },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { handleSendMessage() }),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF4CAF50),
-                        unfocusedBorderColor = Color.LightGray
-                    ),
-                    shape = RoundedCornerShape(32.dp),
-                    enabled = !isResponding
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = handleSendMessage,
-                    enabled = inputText.isNotBlank() && !isResponding,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(
-                            color = if (inputText.isNotBlank() && !isResponding)
-                                Color(0xFF4CAF50) else Color.Gray,
-                            shape = CircleShape
-                        )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = "Send",
-                        tint = Color.White
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-
 @Composable
 fun StudyGroupCard(
     title: String,

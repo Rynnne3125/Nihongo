@@ -81,9 +81,11 @@ import coil.compose.AsyncImage
 import com.example.nihongo.User.data.models.Course
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.models.UserProgress
+import com.example.nihongo.User.data.repository.AIRepository
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
+import com.example.nihongo.User.ui.components.FloatingAISensei
 import com.example.nihongo.User.ui.components.TopBarIcon
 import com.onesignal.OneSignal
 import java.text.SimpleDateFormat
@@ -105,7 +107,7 @@ fun HomeScreen(
     var isLoading by remember { mutableStateOf(true) }
     val context = LocalContext.current
     OneSignal.User.addTag(user_email, "true")
-
+    val aiRepository = remember { AIRepository() }
 // Calculate overall progress
     val totalLessons = userProgressList.sumOf { it.totalLessons }
     val completedLessons = userProgressList.flatMap { it.completedLessons }.distinct().size
@@ -569,12 +571,16 @@ fun HomeScreen(
                         }
                     )
                 }
-                
+
                 // Bottom spacing
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
+            FloatingAISensei(
+                currentUser = currentUser,
+                aiRepository = aiRepository,
+            )
         }
     }
 }

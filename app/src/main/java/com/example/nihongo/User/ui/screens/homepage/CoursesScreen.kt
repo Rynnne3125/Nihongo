@@ -78,11 +78,13 @@ import com.example.nihongo.User.data.models.CourseReview
 import com.example.nihongo.User.data.models.Lesson
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.models.UserProgress
+import com.example.nihongo.User.data.repository.AIRepository
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavItem
 import com.example.nihongo.User.ui.components.BottomNavigationBar
+import com.example.nihongo.User.ui.components.FloatingAISensei
 import com.example.nihongo.User.ui.components.TopBarIcon
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -104,7 +106,8 @@ fun CoursesScreen(
         if (searchQuery.isBlank()) allCourses.value
         else allCourses.value.filter { it.title.contains(searchQuery, ignoreCase = true) }
     }
-    
+
+
     // Thêm tabs và selectedTab
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Tất cả khóa học", "Khóa học của tôi", "Khóa học VIP")
@@ -112,8 +115,11 @@ fun CoursesScreen(
     // Lấy danh sách khóa học của người dùng
     val userProgressList = remember { mutableStateOf<List<UserProgress>>(emptyList()) }
     val userRepository = UserRepository()
-    
+    val aiRepository = remember { AIRepository() }
+    var currentUser by remember { mutableStateOf<User?>(null) }
     LaunchedEffect(Unit) {
+        currentUser = userRepository.getUserByEmail(userEmail)
+
         allCourses.value = courseRepository.getAllCourses()
         val user = userRepository.getUserByEmail(userEmail)
         user?.let {
@@ -345,6 +351,10 @@ fun CoursesScreen(
                 }
             }
         }
+        FloatingAISensei(
+            currentUser = currentUser,
+            aiRepository = aiRepository
+        )
     }
 }
 

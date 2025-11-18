@@ -66,8 +66,11 @@ import androidx.navigation.NavController
 import com.example.nihongo.Admin.ui.parseExplanation
 import com.example.nihongo.User.data.models.Exercise
 import com.example.nihongo.User.data.models.ExerciseType
+import com.example.nihongo.User.data.models.User
+import com.example.nihongo.User.data.repository.AIRepository
 import com.example.nihongo.User.data.repository.ExerciseRepository
 import com.example.nihongo.User.data.repository.UserRepository
+import com.example.nihongo.User.ui.components.FloatingAISensei
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.SimpleExoPlayer
@@ -90,9 +93,11 @@ fun ExerciseScreen(
         var shouldNavigateToQuiz by remember { mutableStateOf(false) }
         val userRepository = UserRepository()
         val coroutineScope = rememberCoroutineScope()
-
+        val aiRepository = remember { AIRepository() }
+        var currentUser by remember { mutableStateOf<User?>(null) }
         // Logic tải dữ liệu giữ nguyên
         LaunchedEffect(sublessonId) {
+            currentUser = userRepository.getUserByEmail(userEmail)
             isLoading = true
             Log.d("ExerciseScreen", "Loading exercises for sublessonId: $sublessonId, lessonId: $lessonId")
 
@@ -219,9 +224,10 @@ fun VideoExerciseView(
 ) {
     var videoStarted by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val userRepository = UserRepository()
+    val aiRepository = remember { AIRepository() }
+    var currentUser by remember { mutableStateOf<User?>(null) }
 
-
-    var playerState by remember { mutableStateOf<SimpleExoPlayer?>(null) }
 
     val player = remember(videoPath) {
         SimpleExoPlayer.Builder(context).build().apply {
@@ -235,13 +241,9 @@ fun VideoExerciseView(
                     if (state == Player.STATE_READY && !videoStarted) {
                         videoStarted = true
                     }
-                    // Ví dụ: Khi pause video, AI Sensei có thể nhắc nhở nhẹ
-                    if (state == Player.STATE_ENDED) {
-                        // aiManager.showFloatingSensei("Bạn đã xem xong video! Hãy thử làm bài tập nhé.", SenseiExpression.Excited)
-                    }
                 }
             })
-        }.also { playerState = it }
+        }.also { }
     }
 
     DisposableEffect(player) {
@@ -448,6 +450,10 @@ fun VideoExerciseView(
 
         item { Spacer(modifier = Modifier.height(24.dp)) }
     }
+    FloatingAISensei(
+        currentUser = currentUser,
+        aiRepository = aiRepository
+    )
 }
 
 @Composable
@@ -468,26 +474,78 @@ fun ExpandableExplanationCards(
                 modifier = Modifier
                     .fillMaxWidth()
                     .animateContentSize(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow))
-                    .clickable { expandedCardIndex.value = if (isExpanded) -1 else index },
+                    .clickable {
+                        expandedCardIndex.value = if (isExpanded) -1 else index
+                    },
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
                 elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // Header card... (giữ nguyên)
+                    // Header row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Index number box... (giữ nguyên)
-                            Box(modifier = Modifier.size(32.dp).background(Color(0xFF4CAF50).copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
-                                Text("${index + 1}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            // Index number box
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(
+                                        Color(0xFF4CAF50).copy(alpha = 0.1f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${index + 1}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4CAF50)
+                                )
                             }
+
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
                         }
-                        Icon(if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null, tint = Color(0xFF4CAF50))
+
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (isExpanded) "Thu gọn" else "Mở rộng",
+                            tint = Color(0xFF4CAF50)
+                        )
+                    }
+
+                    // Expanded content
+                    if (isExpanded) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Color.White,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = content,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF475569),
+                                lineHeight = 24.sp
+                            )
+                        }
                     }
                 }
             }

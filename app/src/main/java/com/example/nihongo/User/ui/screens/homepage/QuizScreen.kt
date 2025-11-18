@@ -67,7 +67,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -82,7 +81,9 @@ import coil.compose.AsyncImage
 import com.example.nihongo.User.data.models.Exercise
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.models.UserProgress
+import com.example.nihongo.User.data.repository.AIRepository
 import com.example.nihongo.User.data.repository.UserRepository
+import com.example.nihongo.User.ui.components.FloatingAISensei
 import com.google.accompanist.flowlayout.FlowRow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -125,20 +126,15 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
     // Track if the answer has been checked
     var isAnswerChecked by remember { mutableStateOf(false) }
     val userProgressRepository = UserRepository()
-    val context = LocalContext.current
-
+    val aiRepository = remember { AIRepository() }
+    val userRepository = remember { UserRepository() }
     var user by remember { mutableStateOf<User?>(null) }
     var userProgressList by remember { mutableStateOf<List<UserProgress>>(emptyList()) }
 
     // Progress tracking
     val progress = (currentIndex + 1).toFloat() / quizExercises.size.toFloat()
-    
-    // AI Sensei Overlay states
-    var showSenseiOverlay by remember { mutableStateOf(false) }
-    var aiExplanation by remember { mutableStateOf("") }
-    var isRecording by remember { mutableStateOf(false) }
+
     var wrongAnswerCount by remember { mutableStateOf(0) }
-    var showFloatingSensei by remember { mutableStateOf(false) }
 
     // Load user profile when composable is launched
     LaunchedEffect(userEmail) {
@@ -206,11 +202,7 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
             result = "Sai rồi!"
             Log.d("QuizScreen", "Answer is incorrect!")
             wrongAnswerCount++
-            
-            // Show Floating Sensei nếu sai 2 lần liên tiếp
-            if (wrongAnswerCount >= 2) {
-                showFloatingSensei = true
-            }
+            Log.d("QuizScreen", "Wrong answer count for this question: $wrongAnswerCount")
             
             scope.launch {
                 repeat(3) {
@@ -228,7 +220,6 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
     // Reset wrong answer count when moving to next question
     LaunchedEffect(currentIndex) {
         wrongAnswerCount = 0
-        showFloatingSensei = false
     }
 
     Scaffold(
@@ -519,6 +510,10 @@ fun QuizScreen(quizExercises: List<Exercise>, userEmail: String, courseId: Strin
                     }
                 )
             }
+            FloatingAISensei(
+                currentUser = user,
+                aiRepository = aiRepository,
+            )
         }
     }
 }

@@ -87,8 +87,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.example.nihongo.User.data.models.User
+import com.example.nihongo.User.data.repository.AIRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
+import com.example.nihongo.User.ui.components.FloatingAISensei
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -120,7 +122,12 @@ fun FlashcardScreen(navController: NavController, user_email: String, initialTab
     var showTapToExplain by remember { mutableStateOf(false) }
     var selectedWord by remember { mutableStateOf("") }
     var selectedContext by remember { mutableStateOf("") }
-
+    val aiRepository = remember { AIRepository() }
+    val userRepository = remember { UserRepository() }
+    var currentUser by remember { mutableStateOf<User?>(null) }
+    LaunchedEffect(user_email) {
+        currentUser = userRepository.getUserByEmail(user_email)
+    }
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
         topBar = {
@@ -247,6 +254,10 @@ fun FlashcardScreen(navController: NavController, user_email: String, initialTab
                 }
             }
         }
+        FloatingAISensei(
+            currentUser = currentUser,
+            aiRepository = aiRepository
+        )
 
         // StudyMode Selection Dialog
         if (showStartSessionDialog) {
@@ -518,7 +529,7 @@ fun PracticeSessionDialog(
     
 
     var currentUser by remember { mutableStateOf<User?>(null) }
-    
+    val aiRepository = remember { AIRepository() }
     // Load user data with logging
     LaunchedEffect(user_email) {
         Log.d("FlashcardScreen", "Attempting to load user with email: '$user_email'")

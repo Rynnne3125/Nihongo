@@ -82,10 +82,12 @@ import com.example.nihongo.User.data.models.SubLesson
 import com.example.nihongo.User.data.models.UnitItem
 import com.example.nihongo.User.data.models.User
 import com.example.nihongo.User.data.models.UserProgress
+import com.example.nihongo.User.data.repository.AIRepository
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavItem
+import com.example.nihongo.User.ui.components.FloatingAISensei
 import com.example.nihongo.User.ui.screens.homepage.CourseLikesTab
 import com.example.nihongo.User.ui.screens.homepage.CourseReviewsTab
 import com.google.firebase.firestore.FirebaseFirestore
@@ -116,7 +118,8 @@ fun LessonsScreen(
     var isLiked by remember { mutableStateOf(false) }
     var isDisliked by remember { mutableStateOf(false) }
     var currentUser by remember { mutableStateOf<User?>(null) }
-    
+    val aiRepository = remember { AIRepository() }
+
     // Add refresh trigger
     var refreshTrigger by remember { mutableStateOf(0) }
     
@@ -299,6 +302,10 @@ fun LessonsScreen(
                 }
             }
         }
+        FloatingAISensei(
+            currentUser = currentUser,
+            aiRepository = aiRepository,
+        )
     }
 }
 
