@@ -9,22 +9,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
@@ -32,46 +18,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,48 +38,32 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
+import com.example.nihongo.Admin.utils.AiCourseGenerate
 import com.example.nihongo.User.data.models.User
-import com.example.nihongo.User.data.repository.AIRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavigationBar
-import com.example.nihongo.User.ui.components.FloatingAISensei
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FlashcardScreen(navController: NavController, user_email: String, initialTab: String? = null) {
     val tabs = listOf("Hiragana", "Katakana", "Kanji", "Từ vựng")
-    val context = LocalContext.current
-    
-    // Xác định tab ban đầu dựa trên tham số
+
     val initialTabIndex = when (initialTab) {
         "hiragana" -> 0
         "katakana" -> 1
         "kanji" -> 2
         "vocabulary" -> 3
-        else -> 0 // Mặc định là Hiragana
+        else -> 0
     }
-    
+
     var selectedTab by remember { mutableStateOf(initialTabIndex) }
     val selectedItem = "vocabulary"
     var showStartSessionDialog by remember { mutableStateOf(false) }
     var studySessionConfig by remember { mutableStateOf<StudySessionConfig?>(null) }
-    
-    // Tap-to-Explain states
-    var showTapToExplain by remember { mutableStateOf(false) }
-    var selectedWord by remember { mutableStateOf("") }
-    var selectedContext by remember { mutableStateOf("") }
-    val aiRepository = remember { AIRepository() }
-    val userRepository = remember { UserRepository() }
-    var currentUser by remember { mutableStateOf<User?>(null) }
-    LaunchedEffect(user_email) {
-        currentUser = userRepository.getUserByEmail(user_email)
-    }
+
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
         topBar = {
@@ -191,7 +127,6 @@ fun FlashcardScreen(navController: NavController, user_email: String, initialTab
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Tab Row
             ScrollableTabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.White,
@@ -214,7 +149,6 @@ fun FlashcardScreen(navController: NavController, user_email: String, initialTab
                 }
             }
 
-            // Nội dung flashcard, chuyển động mượt mà khi đổi tab
             AnimatedContent(
                 targetState = selectedTab,
                 modifier = Modifier
@@ -222,44 +156,15 @@ fun FlashcardScreen(navController: NavController, user_email: String, initialTab
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) { targetState ->
                 when (targetState) {
-                    0 -> HiraganaFlashcard(
-                        onWordTapped = { word, context ->
-                            selectedWord = word
-                            selectedContext = context
-                            showTapToExplain = true
-                        }
-                    )
-                    1 -> KatakanaFlashcard(
-                        onWordTapped = { word, context ->
-                            selectedWord = word
-                            selectedContext = context
-                            showTapToExplain = true
-                        }
-                    )
-                    2 -> KanjiFlashcard(
-                        onWordTapped = { word, context ->
-                            selectedWord = word
-                            selectedContext = context
-                            showTapToExplain = true
-                        }
-                    )
-                    3 -> VocabularyFlashcard(
-                        onWordTapped = { word, context ->
-                            selectedWord = word
-                            selectedContext = context
-                            showTapToExplain = true
-                        }
-                    )
+                    0 -> HiraganaFlashcard()
+                    1 -> KatakanaFlashcard()
+                    2 -> KanjiFlashcard()
+                    3 -> VocabularyFlashcard()
                     else -> Unit
                 }
             }
         }
-        FloatingAISensei(
-            currentUser = currentUser,
-            aiRepository = aiRepository
-        )
 
-        // StudyMode Selection Dialog
         if (showStartSessionDialog) {
             StudySetupDialog(
                 onDismiss = { showStartSessionDialog = false },
@@ -267,9 +172,6 @@ fun FlashcardScreen(navController: NavController, user_email: String, initialTab
                     studySessionConfig = config
                     showStartSessionDialog = false
 
-                    // Update the selected tab based on card types
-                    // Chọn tab đầu tiên trong danh sách các loại thẻ được chọn
-                    // Nếu chọn "mixed" thì giữ nguyên tab hiện tại
                     if (!config.cardTypes.contains("mixed")) {
                         val firstType = config.cardTypes.firstOrNull()
                         when (firstType) {
@@ -282,14 +184,21 @@ fun FlashcardScreen(navController: NavController, user_email: String, initialTab
                 }
             )
         }
-        
-        // Study Session Screen
+
         studySessionConfig?.let { config ->
-            PracticeSessionDialog(
-                config = config,
-                user_email = user_email,
-                onDismiss = { studySessionConfig = null }
-            )
+            if (config.isAIChallenge) {
+                AIChallengePracticeDialog(
+                    config = config,
+                    user_email = user_email,
+                    onDismiss = { studySessionConfig = null }
+                )
+            } else {
+                PracticeSessionDialog(
+                    config = config,
+                    user_email = user_email,
+                    onDismiss = { studySessionConfig = null }
+                )
+            }
         }
     }
 }
@@ -299,12 +208,21 @@ fun StudySetupDialog(
     onDismiss: () -> Unit,
     onStartSession: (StudySessionConfig) -> Unit
 ) {
-    // Thay đổi từ selectedCardType thành selectedCardTypes (danh sách loại thẻ được chọn)
+    var selectedMode by remember { mutableStateOf(0) } // 0: Flashcard, 1: AI Challenge
     var selectedCardTypes by remember { mutableStateOf(setOf<String>()) }
     var selectedCardCount by remember { mutableStateOf(10) }
 
-    // Thêm một biến để kiểm tra nếu không có loại thẻ nào được chọn
-    val isSelectionValid = selectedCardTypes.isNotEmpty()
+    // AI Challenge settings
+    var aiContent by remember { mutableStateOf("") }
+    var aiQuestionCount by remember { mutableStateOf(5) }
+    var aiLevel by remember { mutableStateOf("N5") }
+    var aiDifficulty by remember { mutableStateOf("Dễ") }
+
+    val isSelectionValid = if (selectedMode == 0) {
+        selectedCardTypes.isNotEmpty()
+    } else {
+        true // AI Challenge không cần chọn loại thẻ
+    }
 
     val cardTypeOptions = listOf(
         "hiragana" to "Hiragana",
@@ -315,16 +233,18 @@ fun StudySetupDialog(
     )
 
     val cardCountOptions = listOf(5, 10, 15, 20, 30, 50)
+    val aiQuestionCountOptions = listOf(5, 10, 15, 20)
+    val aiLevelOptions = listOf("N5", "N4", "N3", "N2", "N1")
+    val aiDifficultyOptions = listOf("Dễ", "Trung bình", "Khó")
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight(0.85f)
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = 6.dp
-            )
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -339,115 +259,270 @@ fun StudySetupDialog(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
-                // Card Type Selection
-                Text(
-                    text = "Chọn loại thẻ (có thể chọn nhiều)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                FlowRow(
-                    maxItemsInEachRow = 3,
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                // Mode Selection Tabs
+                TabRow(
+                    selectedTabIndex = selectedMode,
+                    containerColor = Color(0xFFF5F5F5),
+                    contentColor = Color(0xFF4CAF50)
                 ) {
-                    cardTypeOptions.forEach { (value, text) ->
-                        val isSelected = selectedCardTypes.contains(value)
+                    Tab(
+                        selected = selectedMode == 0,
+                        onClick = { selectedMode = 0 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Flashcard")
+                            }
+                        }
+                    )
+                    Tab(
+                        selected = selectedMode == 1,
+                        onClick = { selectedMode = 1 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("AI Challenge")
+                            }
+                        }
+                    )
+                }
 
-                        // Nếu "mixed" được chọn, hủy chọn các loại khác
-                        // Nếu một loại khác được chọn, hủy chọn "mixed"
-                        val onClick = {
-                            selectedCardTypes = when {
-                                value == "mixed" && !isSelected -> setOf("mixed")
-                                value != "mixed" && !isSelected -> {
-                                    val newSelection = selectedCardTypes.toMutableSet()
-                                    newSelection.add(value)
-                                    newSelection.remove("mixed")
-                                    newSelection
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Content based on selected mode
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (selectedMode == 0) {
+                        // Flashcard Mode
+                        Text(
+                            text = "Chọn loại thẻ (có thể chọn nhiều)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        FlowRow(
+                            maxItemsInEachRow = 3,
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            cardTypeOptions.forEach { (value, text) ->
+                                val isSelected = selectedCardTypes.contains(value)
+
+                                val onClick = {
+                                    selectedCardTypes = when {
+                                        value == "mixed" && !isSelected -> setOf("mixed")
+                                        value != "mixed" && !isSelected -> {
+                                            val newSelection = selectedCardTypes.toMutableSet()
+                                            newSelection.add(value)
+                                            newSelection.remove("mixed")
+                                            newSelection
+                                        }
+                                        else -> {
+                                            val newSelection = selectedCardTypes.toMutableSet()
+                                            newSelection.remove(value)
+                                            newSelection
+                                        }
+                                    }
                                 }
-                                else -> {
-                                    val newSelection = selectedCardTypes.toMutableSet()
-                                    newSelection.remove(value)
-                                    newSelection
+
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = onClick,
+                                    label = { Text(text, fontSize = 14.sp) },
+                                    leadingIcon = if (isSelected) {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    } else null,
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFF81C784),
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+
+                        if (selectedCardTypes.isNotEmpty()) {
+                            val selectedTypesText = if (selectedCardTypes.contains("mixed")) {
+                                "Tất cả loại thẻ"
+                            } else {
+                                selectedCardTypes.joinToString(", ") { type ->
+                                    cardTypeOptions.find { it.first == type }?.second ?: ""
+                                }
+                            }
+
+                            Text(
+                                text = "Đã chọn: $selectedTypesText",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF4CAF50),
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+
+                        Text(
+                            text = "Số lượng thẻ: $selectedCardCount",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            cardCountOptions.forEach { count ->
+                                OutlinedButton(
+                                    onClick = { selectedCardCount = count },
+                                    shape = CircleShape,
+                                    border = BorderStroke(
+                                        width = 1.dp,
+                                        color = if (selectedCardCount == count) Color(0xFF4CAF50) else Color.LightGray
+                                    ),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = if (selectedCardCount == count) Color(0xFF4CAF50) else Color.Transparent,
+                                        contentColor = if (selectedCardCount == count) Color.White else Color.DarkGray
+                                    ),
+                                    modifier = Modifier.size(46.dp),
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text(
+                                        text = count.toString(),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // AI Challenge Mode
+                        OutlinedTextField(
+                            value = aiContent,
+                            onValueChange = { aiContent = it },
+                            label = { Text("Thêm Nội dung hỏi (tùy chọn) kết hợp cùng các course bạn đang học nhé !") },
+                            placeholder = { Text("Để trống để tạo câu hỏi ngẫu nhiên") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            minLines = 2,
+                            maxLines = 4,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF4CAF50),
+                                focusedLabelColor = Color(0xFF4CAF50)
+                            )
+                        )
+
+                        Text(
+                            text = "Số câu hỏi: $aiQuestionCount",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            aiQuestionCountOptions.forEach { count ->
+                                OutlinedButton(
+                                    onClick = { aiQuestionCount = count },
+                                    shape = CircleShape,
+                                    border = BorderStroke(
+                                        width = 1.dp,
+                                        color = if (aiQuestionCount == count) Color(0xFF4CAF50) else Color.LightGray
+                                    ),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = if (aiQuestionCount == count) Color(0xFF4CAF50) else Color.Transparent,
+                                        contentColor = if (aiQuestionCount == count) Color.White else Color.DarkGray
+                                    ),
+                                    modifier = Modifier.size(46.dp),
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text(
+                                        text = count.toString(),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
                             }
                         }
 
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = onClick,
-                            label = { Text(text, fontSize = 14.sp) },
-                            leadingIcon = if (isSelected) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            } else null,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFF81C784),
-                                selectedLabelColor = Color.White
-                            )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Trình độ JLPT: $aiLevel",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
-                    }
-                }
 
-                // Thêm dòng text hiển thị loại thẻ được chọn
-                if (selectedCardTypes.isNotEmpty()) {
-                    val selectedTypesText = if (selectedCardTypes.contains("mixed")) {
-                        "Tất cả loại thẻ"
-                    } else {
-                        selectedCardTypes.joinToString(", ") { type ->
-                            cardTypeOptions.find { it.first == type }?.second ?: ""
-                        }
-                    }
-
-                    Text(
-                        text = "Đã chọn: $selectedTypesText",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF4CAF50),
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-
-                // Card Count Selection
-                Text(
-                    text = "Số lượng thẻ: $selectedCardCount",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    cardCountOptions.forEach { count ->
-                        OutlinedButton(
-                            onClick = { selectedCardCount = count },
-                            shape = CircleShape,
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (selectedCardCount == count) Color(0xFF4CAF50) else Color.LightGray
-                            ),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (selectedCardCount == count) Color(0xFF4CAF50) else Color.Transparent,
-                                contentColor = if (selectedCardCount == count) Color.White else Color.DarkGray
-                            ),
-                            modifier = Modifier.size(46.dp),
-                            contentPadding = PaddingValues(0.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = count.toString(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            aiLevelOptions.forEach { level ->
+                                FilterChip(
+                                    selected = aiLevel == level,
+                                    onClick = { aiLevel = level },
+                                    label = { Text(level) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFF81C784),
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Độ khó: $aiDifficulty",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            aiDifficultyOptions.forEach { difficulty ->
+                                FilterChip(
+                                    selected = aiDifficulty == difficulty,
+                                    onClick = { aiDifficulty = difficulty },
+                                    label = { Text(difficulty) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFF81C784),
+                                        selectedLabelColor = Color.White
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
@@ -456,7 +531,7 @@ fun StudySetupDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 32.dp),
+                        .padding(top = 16.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(
@@ -473,13 +548,27 @@ fun StudySetupDialog(
                     Button(
                         onClick = {
                             if (isSelectionValid) {
-                                onStartSession(
-                                    StudySessionConfig(
-                                        // Truyền danh sách loại thẻ được chọn thay vì một chuỗi
-                                        cardTypes = selectedCardTypes.toList(),
-                                        cardCount = selectedCardCount
+                                if (selectedMode == 0) {
+                                    onStartSession(
+                                        StudySessionConfig(
+                                            cardTypes = selectedCardTypes.toList(),
+                                            cardCount = selectedCardCount,
+                                            isAIChallenge = false
+                                        )
                                     )
-                                )
+                                } else {
+                                    onStartSession(
+                                        StudySessionConfig(
+                                            cardTypes = emptyList(),
+                                            cardCount = 0,
+                                            isAIChallenge = true,
+                                            aiContent = aiContent.ifEmpty { "" },
+                                            aiQuestionCount = aiQuestionCount,
+                                            aiLevel = aiLevel,
+                                            aiDifficulty = aiDifficulty
+                                        )
+                                    )
+                                }
                             }
                         },
                         enabled = isSelectionValid,
@@ -501,12 +590,792 @@ fun StudySetupDialog(
     }
 }
 
-// Cập nhật lớp StudySessionConfig để hỗ trợ nhiều loại thẻ
 data class StudySessionConfig(
-    // Thay đổi từ cardType thành cardTypes
     val cardTypes: List<String>,
-    val cardCount: Int
+    val cardCount: Int,
+    val isAIChallenge: Boolean = false,
+    val aiContent: String = "",
+    val aiQuestionCount: Int = 5,
+    val aiLevel: String = "N5",
+    val aiDifficulty: String = "Dễ"
 )
+
+data class AIQuestion(
+    val question: String,
+    val correctAnswer: String,
+    val options: List<String>,
+    val explanation: String
+)
+
+@Composable
+fun AIChallengePracticeDialog(
+    config: StudySessionConfig,
+    user_email: String,
+    onDismiss: () -> Unit
+) {
+    var questions by remember { mutableStateOf<List<AIQuestion>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var currentQuestionIndex by remember { mutableStateOf(0) }
+    var selectedAnswer by remember { mutableStateOf<String?>(null) }
+    var showExplanation by remember { mutableStateOf(false) }
+    var score by remember { mutableStateOf(0) }
+    var correctAnswers by remember { mutableStateOf(0) }
+    var isGameComplete by remember { mutableStateOf(false) }
+
+    val userRepository = remember { UserRepository() }
+    val context = LocalContext.current
+    var currentUser by remember { mutableStateOf<User?>(null) }
+
+    LaunchedEffect(user_email) {
+        if (user_email.isNotEmpty()) {
+            try {
+                currentUser = userRepository.getUserByEmail(user_email)
+            } catch (e: Exception) {
+                Log.e("AIChallenge", "Error loading user", e)
+            }
+        }
+    }
+
+    LaunchedEffect(config) {
+        isLoading = true
+        try {
+            val userRepository = UserRepository()
+            Log.d("AIChallenge", "Getting user by email: $user_email")
+
+            val current_user = userRepository.getUserByEmail(user_email)
+            Log.d("AIChallenge", "Current user: ${current_user?.id}")
+
+            val userProgressList = userRepository.getAllUserProgress(current_user?.id ?: "")
+            Log.d("AIChallenge", "User progress count: ${userProgressList.size}")
+
+            // Lấy tất cả courseTitle và nối thành chuỗi "title1,title2,..."
+            val TitleCoursesString = userProgressList
+                .map { it.courseTitle }
+                .joinToString(separator = ",")
+
+            Log.d("AIChallenge", "TitleCoursesString: $TitleCoursesString")
+
+            val promptContent = """
+            Các khóa học mà người học đã hoàn thành: $TitleCoursesString
+            
+            ${config.aiContent}
+            """.trimIndent()
+
+            Log.d("AIChallenge", "Prompt content: $promptContent")
+
+            val response = AiCourseGenerate.generateAIChallenge(
+                content = promptContent,
+                number_of_question = config.aiQuestionCount,
+                levelJLPT = config.aiLevel,
+                mode = config.aiDifficulty
+            )
+
+            Log.d("AIChallenge", "AI response: $response")
+
+            if (response != null) {
+                questions = parseAIResponse(response)
+                Log.d("AIChallenge", "Parsed questions count: ${questions.size}")
+
+                if (questions.isEmpty()) {
+                    loadError = "Không thể tạo câu hỏi. Vui lòng thử lại."
+                }
+            } else {
+                loadError = "Lỗi kết nối. Vui lòng kiểm tra mạng và thử lại."
+            }
+
+        } catch (e: Exception) {
+            loadError = "Đã xảy ra lỗi: ${e.message}"
+            Log.e("AIChallenge", "Error generating questions", e)
+        } finally {
+            isLoading = false
+            Log.d("AIChallenge", "Loading finished")
+        }
+    }
+
+    fun checkAnswer() {
+        if (selectedAnswer != null && currentQuestionIndex < questions.size) {
+            val currentQuestion = questions[currentQuestionIndex]
+            if (selectedAnswer == currentQuestion.correctAnswer) {
+                score += 10
+                correctAnswers++
+            }
+            showExplanation = true
+        }
+    }
+
+    fun nextQuestion() {
+        if (currentQuestionIndex < questions.size - 1) {
+            currentQuestionIndex++
+            selectedAnswer = null
+            showExplanation = false
+        } else {
+            isGameComplete = true
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "AI Challenge",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4CAF50)
+                        )
+                        Text(
+                            text = "JLPT ${config.aiLevel} - ${config.aiDifficulty}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
+
+                    Text(
+                        text = "Điểm: $score",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4CAF50)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = Color(0xFF4CAF50))
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Đang tạo câu hỏi từ AI...")
+                            }
+                        }
+                    }
+                    loadError != null -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = null,
+                                    tint = Color.Red,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = loadError!!,
+                                    textAlign = TextAlign.Center,
+                                    color = Color.Red
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = onDismiss,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF4CAF50)
+                                    )
+                                ) {
+                                    Text("Đóng")
+                                }
+                            }
+                        }
+                    }
+                    isGameComplete -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(vertical = 32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (correctAnswers >= questions.size / 2)
+                                        Icons.Default.EmojiEvents else Icons.Default.Favorite,
+                                    contentDescription = null,
+                                    tint = if (correctAnswers >= questions.size / 2)
+                                        Color(0xFFFFD700) else Color(0xFF4CAF50),
+                                    modifier = Modifier.size(72.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Text(
+                                    text = "Hoàn thành!",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4CAF50)
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = "Điểm của bạn: $score",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = "Trả lời đúng: $correctAnswers/${questions.size}",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                Button(
+                                    onClick = {
+                                        if (score > 0 && currentUser != null) {
+                                            GlobalScope.launch(Dispatchers.IO) {
+                                                try {
+                                                    val repo = UserRepository()
+                                                    val success = repo.addActivityPoints(currentUser!!.id, score)
+
+                                                    if (success) {
+                                                        withContext(Dispatchers.Main) {
+                                                            Toast.makeText(
+                                                                context,
+                                                                "Đã thêm $score điểm năng động!",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    Log.e("AIChallenge", "Error adding points", e)
+                                                }
+                                            }
+                                        }
+                                        onDismiss()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF4CAF50)
+                                    ),
+                                    shape = RoundedCornerShape(24.dp),
+                                    modifier = Modifier.width(200.dp)
+                                ) {
+                                    Text("Kết thúc")
+                                }
+                            }
+                        }
+                    }
+                    else -> {
+                        // Progress
+                        LinearProgressIndicator(
+                            progress = (currentQuestionIndex + 1).toFloat() / questions.size.toFloat(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = Color(0xFF4CAF50),
+                            trackColor = Color(0xFFE0E0E0)
+                        )
+
+                        Text(
+                            text = "Câu hỏi ${currentQuestionIndex + 1}/${questions.size}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            val currentQuestion = questions[currentQuestionIndex]
+
+                            // Question
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color(0xFFF1F8E9)
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Text(
+                                    text = currentQuestion.question,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+
+                            // Options
+                            currentQuestion.options.forEachIndexed { index, option ->
+                                val isSelected = selectedAnswer == option
+                                val isCorrect = option == currentQuestion.correctAnswer
+                                val showResult = showExplanation
+
+                                Card(
+                                    onClick = {
+                                        if (!showExplanation) {
+                                            selectedAnswer = option
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = when {
+                                            showResult && isCorrect -> Color(0xFFC8E6C9)
+                                            showResult && isSelected && !isCorrect -> Color(0xFFFFCDD2)
+                                            isSelected -> Color(0xFFE3F2FD)
+                                            else -> Color.White
+                                        }
+                                    ),
+                                    border = BorderStroke(
+                                        width = 2.dp,
+                                        color = when {
+                                            showResult && isCorrect -> Color(0xFF4CAF50)
+                                            showResult && isSelected && !isCorrect -> Color(0xFFE57373)
+                                            isSelected -> Color(0xFF2196F3)
+                                            else -> Color(0xFFE0E0E0)
+                                        }
+                                    ),
+                                    elevation = CardDefaults.cardElevation(
+                                        defaultElevation = if (isSelected) 4.dp else 1.dp
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .background(
+                                                    color = when {
+                                                        showResult && isCorrect -> Color(0xFF4CAF50)
+                                                        showResult && isSelected && !isCorrect -> Color(0xFFE57373)
+                                                        isSelected -> Color(0xFF2196F3)
+                                                        else -> Color(0xFFE0E0E0)
+                                                    },
+                                                    shape = CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (showResult && isCorrect) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            } else if (showResult && isSelected && !isCorrect) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = ('A' + index).toString(),
+                                                    color = if (isSelected) Color.White else Color.Gray,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        Text(
+                                            text = option,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Explanation
+                            if (showExplanation) {
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Color(0xFFFFF9C4)
+                                    )
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Info,
+                                                contentDescription = null,
+                                                tint = Color(0xFFF57C00),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Giải thích:",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFF57C00)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = currentQuestion.explanation,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Action Buttons
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (!showExplanation) {
+                            Button(
+                                onClick = { checkAnswer() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                enabled = selectedAnswer != null,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF4CAF50)
+                                ),
+                                shape = RoundedCornerShape(24.dp)
+                            ) {
+                                Text("Kiểm tra")
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { isGameComplete = true },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp),
+                                    border = BorderStroke(1.dp, Color(0xFFBDBDBD)),
+                                    shape = RoundedCornerShape(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = null
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Dừng")
+                                }
+
+                                Button(
+                                    onClick = { nextQuestion() },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF4CAF50)
+                                    ),
+                                    shape = RoundedCornerShape(24.dp)
+                                ) {
+                                    Text(if (currentQuestionIndex < questions.size - 1) "Tiếp tục" else "Hoàn thành")
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowForward,
+                                        contentDescription = null
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun parseAIResponse(response: String): List<AIQuestion> {
+    val questions = mutableListOf<AIQuestion>()
+
+    try {
+        val textContent = extractTextFromGeminiResponse(response)
+        Log.d("AIChallenge", "==== RAW RESPONSE START ====")
+        Log.d("AIChallenge", textContent)
+        Log.d("AIChallenge", "==== RAW RESPONSE END ====")
+
+        if (textContent.isEmpty()) {
+            Log.e("AIChallenge", "Empty response from AI")
+            return questions
+        }
+
+        // Method 1: Try parsing with numbered markers
+        var parsed = parseWithNumberedMarkers(textContent)
+
+        // Method 2: If failed, try without numbers
+        if (parsed.isEmpty()) {
+            Log.d("AIChallenge", "Numbered markers failed, trying unnumbered...")
+            parsed = parseWithUnnumberedMarkers(textContent)
+        }
+
+        // Method 3: If still failed, try simple split
+        if (parsed.isEmpty()) {
+            Log.d("AIChallenge", "Unnumbered failed, trying simple split...")
+            parsed = parseWithSimpleSplit(textContent)
+        }
+
+        questions.addAll(parsed)
+    } catch (e: Exception) {
+        Log.e("AIChallenge", "Error parsing AI response: ${e.message}", e)
+    }
+
+    Log.d("AIChallenge", "Total questions parsed: ${questions.size}")
+    return questions
+}
+
+// ===== PARSING METHODS =====
+
+fun parseWithNumberedMarkers(text: String): List<AIQuestion> {
+    val questions = mutableListOf<AIQuestion>()
+
+    // Split by &Question pattern
+    val blocks = text.split(Regex("&Question\\d+&")).filter { it.isNotBlank() }
+
+    Log.d("AIChallenge", "Found ${blocks.size} question blocks with numbered markers")
+
+    blocks.forEachIndexed { index, block ->
+        try {
+            val questionNum = index + 1
+
+            // Extract question text (everything before &Answer marker)
+            val answerRegex = Regex("&Answer\\d+&")
+            val match = answerRegex.find(block)
+
+            val questionText = if (match != null) {
+                block.substring(0, match.range.first).trim()
+            } else {
+                block.trim()
+            }
+
+
+            // Extract correct answer
+            val answerMatch = Regex("&Answer\\d+&\\s*(.+?)\\s*&Option").find(block)
+            val correctAnswer = answerMatch?.groupValues?.get(1)?.trim() ?: ""
+
+            // Extract all 4 options
+            val options = mutableListOf<String>()
+            for (choiceNum in 1..4) {
+                val optionMatch = Regex("&Option\\d+Choice${choiceNum}&\\s*(.+?)\\s*(?=&|$)").find(block)
+                val option = optionMatch?.groupValues?.get(1)?.trim()
+                if (!option.isNullOrEmpty()) {
+                    options.add(option)
+                }
+            }
+
+            // Extract explanation
+            val explanationMatch = Regex("&Explanation\\d+&\\s*(.+?)\\s*(?=&Question|$)", RegexOption.DOT_MATCHES_ALL).find(block)
+            val explanation = explanationMatch?.groupValues?.get(1)?.trim()?.ifEmpty { "Không có giải thích" }
+                ?: "Không có giải thích"
+
+            Log.d("AIChallenge", "Q$questionNum: question='${questionText.take(30)}...', answer='$correctAnswer', options=${options.size}")
+
+            if (questionText.isNotEmpty() && correctAnswer.isNotEmpty() && options.size >= 2) {
+                // Ensure correct answer is in options list
+                if (!options.contains(correctAnswer)) {
+                    if (options.size >= 4) {
+                        options[options.size - 1] = correctAnswer
+                    } else {
+                        options.add(correctAnswer)
+                    }
+                }
+
+                // Shuffle to randomize position
+                val shuffledOptions = options.shuffled()
+
+                questions.add(
+                    AIQuestion(
+                        question = questionText,
+                        correctAnswer = correctAnswer,
+                        options = shuffledOptions.take(4),
+                        explanation = explanation
+                    )
+                )
+
+                Log.d("AIChallenge", "Successfully parsed question $questionNum")
+            } else {
+                Log.e("AIChallenge", "Invalid Q$questionNum: text empty=${questionText.isEmpty()}, answer empty=${correctAnswer.isEmpty()}, opts=${options.size}")
+            }
+        } catch (e: Exception) {
+            Log.e("AIChallenge", "Error parsing question ${index + 1}: ${e.message}", e)
+        }
+    }
+
+    return questions
+}
+
+fun parseWithUnnumberedMarkers(text: String): List<AIQuestion> {
+    val questions = mutableListOf<AIQuestion>()
+    val blocks = text.split("&Question&").filter { it.isNotBlank() }
+
+    Log.d("AIChallenge", "Found ${blocks.size} blocks with unnumbered markers")
+
+    for ((index, block) in blocks.withIndex()) {
+        try {
+            val questionText = block.substringBefore("&Answer&").trim()
+
+            val answerBlock = block.substringAfter("&Answer&", "")
+            val correctAnswer = answerBlock.substringBefore("&Option").trim()
+
+            val options = mutableListOf<String>()
+
+            // Try to extract options
+            val optionPattern = Regex("&OptionChoice(\\d+)&")
+            val optionMatches = optionPattern.findAll(block).toList()
+
+            for (i in optionMatches.indices) {
+                val startIdx = optionMatches[i].range.last + 1
+                val endIdx = if (i < optionMatches.size - 1) {
+                    optionMatches[i + 1].range.first
+                } else {
+                    block.indexOf("&Explanation&").takeIf { it > 0 } ?: block.length
+                }
+
+                val option = block.substring(startIdx, endIdx).trim()
+                if (option.isNotEmpty()) {
+                    options.add(option)
+                }
+            }
+
+            val explanation = block.substringAfter("&Explanation&", "")
+                .trim()
+                .ifEmpty { "Không có giải thích" }
+
+            if (questionText.isNotEmpty() && correctAnswer.isNotEmpty() && options.size >= 2) {
+                if (!options.contains(correctAnswer)) {
+                    options.add(correctAnswer)
+                    options.shuffle()
+                }
+
+                questions.add(
+                    AIQuestion(
+                        question = questionText,
+                        correctAnswer = correctAnswer,
+                        options = options.take(4),
+                        explanation = explanation
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("AIChallenge", "Error in parseWithUnnumberedMarkers: ${e.message}", e)
+        }
+    }
+
+    return questions
+}
+
+fun parseWithSimpleSplit(text: String): List<AIQuestion> {
+    val questions = mutableListOf<AIQuestion>()
+
+    // Try splitting by any Question marker
+    val blocks = text.split(Regex("&Question\\d*&")).filter { it.isNotBlank() }
+
+    Log.d("AIChallenge", "Found ${blocks.size} blocks with simple split")
+
+    for (block in blocks) {
+        try {
+            // Find all content before first &Answer
+            val answerRegex = Regex("&Answer\\d+&")
+            val match = answerRegex.find(block)
+
+            val questionText = if (match != null) {
+                block.substring(0, match.range.first).trim()
+            } else {
+                ""
+            }
+
+
+            // Find answer
+            val answerMatch = Regex("&Answer\\d*&\\s*([^&]+)").find(block)
+            val correctAnswer = answerMatch?.groupValues?.get(1)?.trim() ?: ""
+
+            // Find all options
+            val optionMatches = Regex("&Option\\d*Choice\\d*&\\s*([^&]+)").findAll(block)
+            val options = optionMatches.map { it.groupValues[1].trim() }.toList()
+
+            // Find explanation
+            val explanationMatch = Regex("&Explanation\\d*&\\s*(.+?)(?=&|$)", RegexOption.DOT_MATCHES_ALL).find(block)
+            val explanation = explanationMatch?.groupValues?.get(1)?.trim()?.ifEmpty { "Không có giải thích" }
+                ?: "Không có giải thích"
+
+            if (questionText.isNotEmpty() && correctAnswer.isNotEmpty() && options.size >= 2) {
+                val finalOptions = options.toMutableList()
+                if (!finalOptions.contains(correctAnswer)) {
+                    finalOptions.add(correctAnswer)
+                    finalOptions.shuffle()
+                }
+
+                questions.add(
+                    AIQuestion(
+                        question = questionText,
+                        correctAnswer = correctAnswer,
+                        options = finalOptions.take(4),
+                        explanation = explanation
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("AIChallenge", "Error in parseWithSimpleSplit: ${e.message}", e)
+        }
+    }
+
+    return questions
+}
+
+
+fun extractTextFromGeminiResponse(response: String): String {
+    return try {
+        val jsonResponse = org.json.JSONObject(response)
+        val candidates = jsonResponse.getJSONArray("candidates")
+        if (candidates.length() > 0) {
+            val content = candidates.getJSONObject(0).getJSONObject("content")
+            val parts = content.getJSONArray("parts")
+            if (parts.length() > 0) {
+                parts.getJSONObject(0).getString("text")
+            } else ""
+        } else ""
+    } catch (e: Exception) {
+        Log.e("AIChallenge", "Error extracting text from response", e)
+        ""
+    }
+}
 
 @Composable
 fun PracticeSessionDialog(
@@ -525,35 +1394,19 @@ fun PracticeSessionDialog(
     var correctAnswers by remember { mutableStateOf(0) }
     val userRepository = remember { UserRepository() }
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    
 
     var currentUser by remember { mutableStateOf<User?>(null) }
-    val aiRepository = remember { AIRepository() }
-    // Load user data with logging
+
     LaunchedEffect(user_email) {
-        Log.d("FlashcardScreen", "Attempting to load user with email: '$user_email'")
-        
         if (user_email.isNotEmpty()) {
             try {
-                val user = userRepository.getUserByEmail(user_email)
-                currentUser = user
-                
-                if (user != null) {
-                    Log.d("FlashcardScreen", "Successfully loaded user: id=${user.id}, username=${user.username}, activityPoints=${user.activityPoints}")
-                } else {
-                    Log.e("FlashcardScreen", "Failed to load user: getUserByEmail returned null")
-                }
+                currentUser = userRepository.getUserByEmail(user_email)
             } catch (e: Exception) {
                 Log.e("FlashcardScreen", "Error loading user data", e)
             }
-        } else {
-            Log.w("FlashcardScreen", "Empty user email, cannot load user data")
         }
     }
-    
 
-    // Hiển thị tiêu đề phù hợp với các loại thẻ đã chọn
     val sessionTitle = when {
         config.cardTypes.contains("mixed") -> "Luyện tập trộn"
         config.cardTypes.size == 1 -> when(config.cardTypes.first()) {
@@ -563,23 +1416,10 @@ fun PracticeSessionDialog(
             "vocabulary" -> "Luyện tập Từ vựng"
             else -> "Luyện tập"
         }
-        else -> {
-            val typeNames = config.cardTypes.map { type ->
-                when(type) {
-                    "hiragana" -> "Hiragana"
-                    "katakana" -> "Katakana"
-                    "kanji" -> "Kanji"
-                    "vocabulary" -> "Từ vựng"
-                    else -> ""
-                }
-            }
-            "Flashcard Game"
-        }
+        else -> "Flashcard Game"
     }
 
-    // Load flashcards based on selected types
     LaunchedEffect(config) {
-        // Nếu chọn "mixed", lấy tất cả các loại thẻ
         if (config.cardTypes.contains("mixed")) {
             val hiragana = getFlashcardsByExerciseId("hiragana_basic")
             val katakana = getFlashcardsByExerciseId("katakana_basic")
@@ -587,7 +1427,6 @@ fun PracticeSessionDialog(
             val vocabulary = getFlashcardsByExerciseId("vocabulary_n5")
             flashcards = (hiragana + katakana + kanji + vocabulary).shuffled()
         } else {
-            // Nếu không, lấy các loại thẻ được chọn
             val selectedFlashcards = mutableListOf<Pair<String, String>>()
 
             if (config.cardTypes.contains("hiragana")) {
@@ -606,7 +1445,6 @@ fun PracticeSessionDialog(
             flashcards = selectedFlashcards.shuffled()
         }
 
-        // Limit the number of cards based on config
         if (flashcards.size > config.cardCount) {
             flashcards = flashcards.take(config.cardCount).shuffled()
         }
@@ -614,7 +1452,6 @@ fun PracticeSessionDialog(
         isLoading = false
     }
 
-    // Check answer function
     fun checkAnswer() {
         if (currentCardIndex < flashcards.size) {
             val currentCard = flashcards[currentCardIndex]
@@ -622,33 +1459,27 @@ fun PracticeSessionDialog(
             val userInputAnswer = userAnswer.trim().lowercase()
 
             if (correctAnswer == userInputAnswer) {
-                // Correct answer
                 score += 10
                 correctAnswers++
 
-                // Move to next card
                 if (currentCardIndex < flashcards.size - 1) {
                     currentCardIndex++
                     isCardFlipped = false
                     userAnswer = ""
                     remainingAttempts = 2
                 } else {
-                    // Game complete
                     isGameComplete = true
                 }
             } else {
-                // Wrong answer
                 remainingAttempts--
 
                 if (remainingAttempts <= 0) {
-                    // Show answer
                     isCardFlipped = true
                 }
             }
         }
     }
 
-    // Next card function
     fun nextCard() {
         if (currentCardIndex < flashcards.size - 1) {
             currentCardIndex++
@@ -656,7 +1487,6 @@ fun PracticeSessionDialog(
             userAnswer = ""
             remainingAttempts = 2
         } else {
-            // Game complete
             isGameComplete = true
         }
     }
@@ -672,7 +1502,6 @@ fun PracticeSessionDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -692,7 +1521,6 @@ fun PracticeSessionDialog(
                     )
                 }
 
-                // Progress
                 if (!isGameComplete) {
                     LinearProgressIndicator(
                         progress = (currentCardIndex + 1).toFloat() / flashcards.size.toFloat(),
@@ -712,7 +1540,6 @@ fun PracticeSessionDialog(
                     )
                 }
 
-
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.padding(32.dp),
@@ -721,7 +1548,6 @@ fun PracticeSessionDialog(
                 } else if (flashcards.isEmpty()) {
                     Text("Không tìm thấy thẻ flashcard cho loại này")
                 } else if (isGameComplete) {
-                    // Game Complete Screen
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -765,55 +1591,26 @@ fun PracticeSessionDialog(
 
                         Button(
                             onClick = {
-                                // Add detailed logging to diagnose issues
-                                Log.d("FlashcardScreen", "Kết thúc button clicked, score=$score, currentUser=${currentUser?.id ?: "null"}")
-                                
-                                // Add activity points to user when they click "Kết thúc"
                                 if (score > 0 && currentUser != null) {
-                                    try {
-                                        // Thực hiện việc thêm điểm trong một coroutine riêng biệt
-                                        // không phụ thuộc vào rememberCoroutineScope
-                                        val userId = currentUser!!.id
-                                        val pointsToAdd = score
-                                        
-                                        // Sử dụng GlobalScope để đảm bảo coroutine tiếp tục chạy
-                                        // ngay cả khi composition bị hủy
-                                        GlobalScope.launch(Dispatchers.IO) {
-                                            try {
-                                                Log.d("FlashcardScreen", "GlobalScope: Adding $pointsToAdd points to user $userId")
-                                                val repo = UserRepository()
-                                                val success = repo.addActivityPoints(userId, pointsToAdd)
-                                                
-                                                if (success) {
-                                                    Log.d("FlashcardScreen", "GlobalScope: Successfully added points")
-                                                    // Hiển thị toast trên Main thread
-                                                    withContext(Dispatchers.Main) {
-                                                        Toast.makeText(
-                                                            context,
-                                                            "Đã thêm $pointsToAdd điểm năng động!",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                } else {
-                                                    Log.e("FlashcardScreen", "GlobalScope: Failed to add points")
+                                    GlobalScope.launch(Dispatchers.IO) {
+                                        try {
+                                            val repo = UserRepository()
+                                            val success = repo.addActivityPoints(currentUser!!.id, score)
+
+                                            if (success) {
+                                                withContext(Dispatchers.Main) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Đã thêm $score điểm năng động!",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                 }
-                                            } catch (e: Exception) {
-                                                Log.e("FlashcardScreen", "GlobalScope: Error adding points", e)
                                             }
+                                        } catch (e: Exception) {
+                                            Log.e("FlashcardScreen", "Error adding points", e)
                                         }
-                                    } catch (e: Exception) {
-                                        Log.e("FlashcardScreen", "Error starting GlobalScope coroutine", e)
-                                    }
-                                } else {
-                                    if (score <= 0) {
-                                        Log.w("FlashcardScreen", "Not adding points: score=$score is not positive")
-                                    }
-                                    if (currentUser == null) {
-                                        Log.w("FlashcardScreen", "Not adding points: currentUser is null")
                                     }
                                 }
-                                
-                                // Đóng dialog ngay lập tức - không cần delay
                                 onDismiss()
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -826,7 +1623,6 @@ fun PracticeSessionDialog(
                         }
                     }
                 } else {
-                    // Current card
                     val currentCard = flashcards[currentCardIndex]
 
                     Box(
@@ -835,10 +1631,8 @@ fun PracticeSessionDialog(
                             .height(250.dp)
                             .padding(vertical = 24.dp)
                     ) {
-                        // Card with flip animation
                         FlippableCard(
                             frontContent = {
-                                // Front of card (question)
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -861,7 +1655,6 @@ fun PracticeSessionDialog(
                                 }
                             },
                             backContent = {
-                                // Back of card (answer)
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -897,7 +1690,6 @@ fun PracticeSessionDialog(
                         )
                     }
 
-                    // Attempts remaining
                     if (!isCardFlipped) {
                         Row(
                             modifier = Modifier.padding(bottom = 8.dp),
@@ -919,7 +1711,6 @@ fun PracticeSessionDialog(
                         }
                     }
 
-                    // Answer input
                     if (!isCardFlipped) {
                         OutlinedTextField(
                             value = userAnswer,
@@ -956,7 +1747,6 @@ fun PracticeSessionDialog(
                             Text("Kiểm tra")
                         }
                     } else {
-                        // When card is flipped, show next button
                         Button(
                             onClick = { nextCard() },
                             modifier = Modifier
@@ -971,7 +1761,6 @@ fun PracticeSessionDialog(
                         }
                     }
 
-                    // Control buttons
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -980,7 +1769,6 @@ fun PracticeSessionDialog(
                     ) {
                         OutlinedButton(
                             onClick = {
-                                // Skip current card
                                 if (!isCardFlipped) {
                                     isCardFlipped = true
                                 } else {
@@ -1002,7 +1790,6 @@ fun PracticeSessionDialog(
 
                         OutlinedButton(
                             onClick = {
-                                // End session
                                 isGameComplete = true
                             },
                             border = BorderStroke(1.dp, Color(0xFFBDBDBD)),
@@ -1047,26 +1834,21 @@ fun FlippableCard(
                 cameraDistance = 12f * density
             }
     ) {
-        // Back content - visible when flipped
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    // Only show back when card is flipped
                     alpha = if (rotation.value > 90f) 1f else 0f
-                    // Apply 180 rotation to make text readable after flip
                     rotationY = 180f
                 }
         ) {
             backContent()
         }
 
-        // Front content - visible initially
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    // Only show front when card is not flipped
                     alpha = if (rotation.value < 90f) 1f else 0f
                 }
         ) {
@@ -1076,7 +1858,7 @@ fun FlippableCard(
 }
 
 @Composable
-fun HiraganaFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
+fun HiraganaFlashcard() {
     var flashcards by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -1094,12 +1876,12 @@ fun HiraganaFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
             Text("Không tìm thấy thẻ Hiragana")
         }
     } else {
-        ImprovedFlashcardGrid(flashcards, onWordTapped)
+        ImprovedFlashcardGrid(flashcards)
     }
 }
 
 @Composable
-fun KatakanaFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
+fun KatakanaFlashcard() {
     var flashcards by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -1117,12 +1899,12 @@ fun KatakanaFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
             Text("Không tìm thấy thẻ Katakana")
         }
     } else {
-        ImprovedFlashcardGrid(flashcards, onWordTapped)
+        ImprovedFlashcardGrid(flashcards)
     }
 }
 
 @Composable
-fun KanjiFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
+fun KanjiFlashcard() {
     var flashcards by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -1140,12 +1922,12 @@ fun KanjiFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
             Text("Không tìm thấy thẻ Kanji")
         }
     } else {
-        ImprovedFlashcardGrid(flashcards, onWordTapped)
+        ImprovedFlashcardGrid(flashcards)
     }
 }
 
 @Composable
-fun VocabularyFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
+fun VocabularyFlashcard() {
     var flashcards by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -1163,15 +1945,12 @@ fun VocabularyFlashcard(onWordTapped: ((String, String) -> Unit)? = null) {
             Text("Không tìm thấy thẻ Từ vựng")
         }
     } else {
-        ImprovedFlashcardGrid(flashcards, onWordTapped)
+        ImprovedFlashcardGrid(flashcards)
     }
 }
 
 @Composable
-fun ImprovedFlashcardGrid(
-    flashcards: List<Pair<String, String>>,
-    onWordTapped: ((String, String) -> Unit)? = null
-) {
+fun ImprovedFlashcardGrid(flashcards: List<Pair<String, String>>) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         contentPadding = PaddingValues(8.dp),
@@ -1181,19 +1960,13 @@ fun ImprovedFlashcardGrid(
         modifier = Modifier.fillMaxSize()
     ) {
         items(flashcards.size) { index ->
-            FlashcardGridItem(
-                flashcard = flashcards[index],
-                onWordTapped = onWordTapped
-            )
+            FlashcardGridItem(flashcard = flashcards[index])
         }
     }
 }
 
 @Composable
-fun FlashcardGridItem(
-    flashcard: Pair<String, String>,
-    onWordTapped: ((String, String) -> Unit)? = null
-) {
+fun FlashcardGridItem(flashcard: Pair<String, String>) {
     var isFlipped by remember { mutableStateOf(false) }
 
     Card(
@@ -1210,20 +1983,16 @@ fun FlashcardGridItem(
             contentAlignment = Alignment.Center
         ) {
             if (isFlipped) {
-                // Hiển thị định nghĩa - có thể tap để giải thích
+                // Hiển thị định nghĩa
                 Text(
                     text = flashcard.second,
                     textAlign = TextAlign.Center,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .clickable {
-                            onWordTapped?.invoke(flashcard.second, flashcard.first)
-                        }
+                    modifier = Modifier.padding(8.dp)
                 )
             } else {
-                // Hiển thị thuật ngữ - có thể tap để giải thích
+                // Hiển thị thuật ngữ
                 Text(
                     text = flashcard.first,
                     textAlign = TextAlign.Center,
@@ -1233,11 +2002,7 @@ fun FlashcardGridItem(
                         else -> 16.sp
                     },
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .clickable {
-                            onWordTapped?.invoke(flashcard.first, flashcard.second)
-                        }
+                    modifier = Modifier.padding(8.dp)
                 )
             }
         }
