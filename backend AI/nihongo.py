@@ -8,7 +8,7 @@ import traceback
 # Gemini API
 # ==============================
 from google import genai
-GEMINI_API_KEY = "AIzaSyCiVYxP_eiKFfrF_lH1l1vqCqUwhL0uzd0"   # <<< THAY API KEY CỦA BẠN
+GEMINI_API_KEY = "YOUR_API_KEY"   # <<< THAY API KEY CỦA BẠN
 GEMINI_MODEL = "gemini-2.0-flash"
 
 client = genai.Client(api_key=GEMINI_API_KEY)
