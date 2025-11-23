@@ -1,11 +1,5 @@
 package com.example.nihongo.Admin.utils
 
-import android.R.attr.apiKey
-import android.R.attr.description
-import android.R.attr.prompt
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.os.Parcelable
 import android.util.Log
 import com.example.nihongo.Admin.viewmodel.AdminCourseViewModel
 import com.example.nihongo.Admin.viewmodel.AdminExerciseViewModel
@@ -18,28 +12,24 @@ import com.example.nihongo.User.data.models.SubLesson
 import com.example.nihongo.User.data.models.UnitItem
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.net.SocketTimeoutException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 
-
 object AiCourseGenerate {
-    private const val API_KEY_1="AIzaSyAMDsnRdT02e808A_JvGH94NMHIG0fBGRU"
-    private const val API_KEY_2="AIzaSyDxaeutJ0c189bk8gYQXceMjKNuFSDjthM"
-    private const val API_KEY_3="AIzaSyC9jmTNz-7iC_bxTzZqFSynaKCHPKUZCl0"
+    private const val API_KEY_1="YOUR_API_KEY"
+    private const val API_KEY_2="YOUR_API_KEY"
+    private const val API_KEY_3="YOUR_API_KEY"
 
     // ---- 3 API KEY GEMINI
     private val apiKeys = listOf(
@@ -475,7 +465,7 @@ object AiCourseGenerate {
             answer = null,
             type = ExerciseType.VIDEO,
             options = null,
-            videoUrl = null,
+            videoUrl = "https://drive.google.com/uc?id=1G2tiFAR1HRFKsNT8fLqri1Ucxim7GNo2&export=download",
             romanji = null,
             kana = null,
             audioUrl = null,
@@ -770,54 +760,54 @@ object AiCourseGenerate {
         mode: String
     ): String? {
         val apiKey = getRandomKey()
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey"
+        val modelName = "gemini-2.0-flash"
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
 
+        // Prompt giữ nguyên như của bạn
         val prompt = """
-        Bạn là một giáo viên song ngữ việt-nhật và đang dạy tiếng nhật cho người việt.
-        Nội dung đang học gồm: "$content" (nếu là "" thì cho câu hỏi chủ đề ngẫu nhiên)
-        Số câu hỏi trắc nghiệm: $number_of_question
-        Trình độ hiện tại của người học: "$levelJLPT" (nếu là "" thì coi như là N5 hoặc thấp hơn)
-        Độ khó: "$mode"
-        
-        QUAN TRỌNG: Bạn CHỈ được trả về theo format bên dưới, KHÔNG thêm bất kỳ text nào khác:
-        
-        &Question1&
-        [Câu hỏi 1]
-        &Answer1&
-        [Đáp án đúng]
-        &Option1Choice1&
-        [Lựa chọn 1]
-        &Option1Choice2&
-        [Lựa chọn 2]
-        &Option1Choice3&
-        [Lựa chọn 3]
-        &Option1Choice4&
-        [Lựa chọn 4]
-        &Explanation1&
-        [Giải thích ngắn gọn bằng tiếng Việt]
-        
-        &Question2&
-        [Câu hỏi 2]
-        &Answer2&
-        [Đáp án đúng]
-        &Option2Choice1&
-        [Lựa chọn 1]
-        &Option2Choice2&
-        [Lựa chọn 2]
-        &Option2Choice3&
-        [Lựa chọn 3]
-        &Option2Choice4&
-        [Lựa chọn 4]
-        &Explanation2&
-        [Giải thích]
-        
-        [Tiếp tục tương tự cho các câu còn lại...]
-        
-        LƯU Ý:
-        - 4 lựa chọn PHẢI bao gồm cả đáp án đúng
-        - Trộn vị trí đáp án đúng trong 4 lựa chọn
-        - Mỗi câu hỏi phải có đủ 4 lựa chọn
-        - Giải thích bằng tiếng Việt, ngắn gọn dễ hiểu
+    Bạn là một giáo viên song ngữ việt-nhật và đang dạy tiếng nhật cho người việt.
+    Nội dung đang học gồm: "$content" (nếu là "" thì cho câu hỏi chủ đề ngẫu nhiên)
+    Số câu hỏi trắc nghiệm: $number_of_question
+    Trình độ hiện tại của người học: "$levelJLPT" (nếu là "" thì coi như là N5 hoặc thấp hơn)
+    Độ khó: "$mode"
+    
+    QUAN TRỌNG: Bạn CHỈ được trả về theo format bên dưới, KHÔNG thêm bất kỳ text nào khác:
+    
+    &Question1&
+    [Câu hỏi 1]
+    &Answer1&
+    [Đáp án đúng]
+    &Option1Choice1&
+    [Lựa chọn 1]
+    &Option1Choice2&
+    [Lựa chọn 2]
+    &Option1Choice3&
+    [Lựa chọn 3]
+    &Option1Choice4&
+    [Lựa chọn 4]
+    &Explanation1&
+    [Giải thích ngắn gọn bằng tiếng Việt]
+    
+    &Question2&
+    [Câu hỏi 2]
+    &Answer2&
+    [Đáp án đúng]
+    &Option2Choice1&
+    [Lựa chọn 1]
+    &Option2Choice2&
+    [Lựa chọn 2]
+    &Option2Choice3&
+    [Lựa chọn 3]
+    &Option2Choice4&
+    [Lựa chọn 4]
+    &Explanation2&
+    [Giải thích]
+    
+    LƯU Ý:
+    - 4 lựa chọn PHẢI bao gồm cả đáp án đúng
+    - Trộn vị trí đáp án đúng trong 4 lựa chọn
+    - Mỗi câu hỏi phải có đủ 4 lựa chọn
+    - Giải thích bằng tiếng Việt, ngắn gọn dễ hiểu
     """.trimIndent()
 
         val jsonBody = JSONObject().apply {
@@ -836,7 +826,17 @@ object AiCourseGenerate {
         return withContext(Dispatchers.IO) {
             try {
                 client.newCall(request).execute().use { response ->
-                    response.body?.string()
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        // ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT: In lỗi ra Logcat
+                        Log.e("AiCourseGenerate", "API call failed with code: ${response.code}")
+                        Log.e("AiCourseGenerate", "Error Body: $responseBody")
+                        return@withContext null
+                    }
+
+                    // Nếu thành công thì trả về body
+                    responseBody
                 }
             } catch (e: Exception) {
                 Log.e("AiCourseGenerate", "Network error: ${e.message}")

@@ -74,23 +74,32 @@ class AdminExerciseViewModel : ViewModel() {
             try {
                 _isLoading.value = true
 
+                // 1. Log kiểm tra dữ liệu đầu vào
+                Log.d("FIREBASE_DEBUG", "--- Bắt đầu tạo Exercise ---")
+                Log.d("FIREBASE_DEBUG", "LessonID: $lessonId")
+                Log.d("FIREBASE_DEBUG", "VideoURL cần lưu: ${exercise.videoUrl}")
+                // Nếu Log này hiện null -> Lỗi ở code Generator (AiCourseGenerate)
+                // Nếu Log này hiện có link -> Lỗi do Firestore hoặc Data Class
+
                 val exercisesCollection = firestore.collection("lessons")
                     .document(lessonId)
                     .collection("exercises")
 
-                // Create a new document with auto-generated ID
                 val docRef = exercisesCollection.document()
 
                 // Add the ID to the exercise object
                 val exerciseWithId = exercise.copy(id = docRef.id)
 
-                // Set the document data
+                // 2. Set the document data (Firestore tự map object)
                 docRef.set(exerciseWithId).await()
+
+                Log.d("FIREBASE_DEBUG", "✅ Đã lưu thành công Exercise ID: ${docRef.id}")
 
                 // Reload exercises
                 loadExercises(lessonId, exercise.subLessonId ?: "")
                 onSuccess()
             } catch (e: Exception) {
+                Log.e("FIREBASE_DEBUG", "❌ Lỗi khi lưu: ${e.message}")
                 _errorMessage.value = "Failed to create exercise: ${e.message}"
                 onError(_errorMessage.value ?: "Unknown error")
             } finally {
