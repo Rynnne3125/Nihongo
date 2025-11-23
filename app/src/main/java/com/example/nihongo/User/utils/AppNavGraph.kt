@@ -36,6 +36,7 @@ import com.example.nihongo.User.ui.screens.homepage.QuizScreen
 import com.example.nihongo.User.ui.screens.login.LoginScreen
 import com.example.nihongo.User.ui.screens.login.OTPScreen
 import com.example.nihongo.User.ui.screens.login.RegisterScreen
+import com.example.nihongo.User.ui.screens.login.ResetPasswordScreen
 import com.example.nihongo.ui.screens.homepage.LessonsScreen
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
@@ -65,11 +66,15 @@ fun AppNavGraph(
         }
 
         composable("otp_screen") {
+            val isForgot = navController.previousBackStackEntry?.savedStateHandle?.get<Boolean>("isForgotPassword") ?: false
             val expectedOtp = navController.previousBackStackEntry?.savedStateHandle?.get<String>("expectedOtp") ?: ""
             val userEmail = navController.previousBackStackEntry?.savedStateHandle?.get<String>("user_email") ?: ""
-            OTPScreen(navController, expectedOtp, userEmail)
+            OTPScreen(navController, expectedOtp, userEmail, isForgot)
         }
-
+        composable("reset_password") {
+            val email = navController.previousBackStackEntry?.savedStateHandle?.get<String>("user_email") ?: ""
+            ResetPasswordScreen(navController, userRepo, email)
+        }
         // Bottom Nav Screens
         composable("${BottomNavItem.Home.route}/{user_email}",
             arguments = listOf(navArgument("user_email") { type = NavType.StringType })

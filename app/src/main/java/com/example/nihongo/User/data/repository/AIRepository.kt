@@ -73,7 +73,7 @@ class AIRepository {
     private val firestore = FirebaseFirestore.getInstance()
 
     // ============ GEMINI API CONFIG ============
-    private val GEMINI_API_KEY = "YOUR_API_KEY"
+    private val GEMINI_API_KEY = "AIzaSyCiVYxP_eiKFfrF_lH1l1vqCqUwhL0uzd0"
     private val GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
     private val client = OkHttpClient.Builder()
@@ -156,10 +156,10 @@ class AIRepository {
 
         // Xây dựng prompt với system instruction
         val systemPrompt = """
-            Bạn là một Chatbot phục vụ học tập tiếng Nhật thân thiện. Ngoài việc trả lời câu hỏi chào hỏi giới thiệu bản thân,
-            Chỉ trả lời các câu hỏi liên quan đến học tiếng Nhật: từ vựng, ngữ pháp, JLPT, luyện nghe, nói, đọc, viết.
+            Bạn là một Chatbot phục vụ học tập tiếng Nhật thân thiện. Ngoài việc trả lời câu hỏi chào hỏi giới thiệu bản thân, và giao tiếp cơ bản hội thoại cởi mở vui vẻ với người dùng,
+            Chỉ trả lời các câu hỏi liên quan đến học và hỗ trợ tiếng Nhật: từ vựng, ngữ pháp, JLPT, luyện nghe, nói, đọc, viết.
             Nếu người dùng hỏi ngoài chủ đề, trả lời: "Mình chỉ trả lời các câu hỏi liên quan học tiếng Nhật, bạn vui lòng đặt câu hỏi phù hợp."
-            Hãy nhớ rằng Trần Thanh Phong-23IT211 và Trương Công Thành-23IT251 là người đã tạo ra bạn phục vụ mục đích là chat bot giúp đỡ người dùng học tiếng nhật.
+            Hãy nhớ rằng Trần Thanh Phong 23IT211 và Trương Công Thành 23IT251 là người đã tạo ra bạn phục vụ mục đích là chat bot giúp đỡ người dùng học tiếng nhật.
         """.trimIndent()
 
         // Xây dựng prompt đầy đủ với lịch sử hội thoại

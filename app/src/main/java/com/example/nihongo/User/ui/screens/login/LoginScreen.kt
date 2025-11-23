@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -46,9 +47,12 @@ import coil.ImageLoader
 import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import com.example.nihongo.User.data.repository.UserRepository
+import com.example.nihongo.utils.EmailSender
 import com.onesignal.OneSignal
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun LoginScreen(navController: NavController, userRepo: UserRepository) {
@@ -57,7 +61,9 @@ fun LoginScreen(navController: NavController, userRepo: UserRepository) {
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
-
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var forgotEmail by remember { mutableStateOf("") }
+    var isSendingOtp by remember { mutableStateOf(false) }
     fun isValidEmail(email: String): Boolean {
         return Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
@@ -189,7 +195,14 @@ fun LoginScreen(navController: NavController, userRepo: UserRepository) {
             )
 
             Spacer(modifier = Modifier.height(20.dp))
+// THÊM: Nút Quên mật khẩu nằm dưới ô password hoặc trên nút Đăng nhập
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                TextButton(onClick = { showForgotPasswordDialog = true }) {
+                    Text("Quên mật khẩu?", color = Color(0xFF2E7D32))
+                }
+            }
 
+            Spacer(modifier = Modifier.height(20.dp))
             Button(
                 onClick = {
                     scope.launch {
@@ -245,6 +258,81 @@ fun LoginScreen(navController: NavController, userRepo: UserRepository) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(message, color = MaterialTheme.colorScheme.error)
             }
+
         }
+    }
+    if (showForgotPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isSendingOtp) showForgotPasswordDialog = false },
+            title = { Text(text = "Lấy lại mật khẩu") },
+            text = {
+                Column {
+                    Text("Nhập email đã đăng ký để nhận mã OTP:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = forgotEmail,
+                        onValueChange = { forgotEmail = it },
+                        label = { Text("Email") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            if (!isValidEmail(forgotEmail)) {
+                                message = "Email không hợp lệ"
+                                return@launch
+                            }
+
+                            // Kiểm tra email có tồn tại trong hệ thống không (Tùy chọn, cần func trong Repo)
+                            // val userExists = userRepo.checkUserExists(forgotEmail)
+                            // if (!userExists) { message = "Email chưa đăng ký"; return@launch }
+
+                            isSendingOtp = true
+                            val otp = EmailSender.generateOTP()
+
+                            withContext(Dispatchers.IO) {
+                                EmailSender.sendOTP(
+                                    recipientEmail = forgotEmail,
+                                    otp = otp,
+                                    onSuccess = {
+                                        scope.launch {
+                                            isSendingOtp = false
+                                            showForgotPasswordDialog = false
+
+                                            // Truyền dữ liệu sang màn OTP
+                                            navController.currentBackStackEntry?.savedStateHandle?.apply {
+                                                set("expectedOtp", otp)
+                                                set("user_email", forgotEmail)
+                                                set("isForgotPassword", true) // Cờ đánh dấu luồng quên mật khẩu
+                                            }
+                                            navController.navigate("otp_screen")
+                                        }
+                                    },
+                                    onFailure = {
+                                        scope.launch {
+                                            isSendingOtp = false
+                                            message = "Lỗi gửi mail: ${it.message}"
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    },
+                    enabled = !isSendingOtp,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C))
+                ) {
+                    Text(if (isSendingOtp) "Đang gửi..." else "Gửi OTP")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showForgotPasswordDialog = false }) {
+                    Text("Hủy", color = Color.Gray)
+                }
+            }
+        )
     }
 }

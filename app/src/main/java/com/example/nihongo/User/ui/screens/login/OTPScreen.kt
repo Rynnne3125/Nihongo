@@ -44,7 +44,7 @@ import androidx.navigation.NavController
 import com.example.nihongo.User.utils.NavigationRoutes
 
 @Composable
-fun OTPScreen(navController: NavController, expectedOtp: String, user_email: String)
+fun OTPScreen(navController: NavController, expectedOtp: String, user_email: String, isForgotPassword: Boolean = false)
  {
     val backgroundColor = Color(0xFFE8F5E9)
     val focusManager = LocalFocusManager.current
@@ -142,16 +142,25 @@ fun OTPScreen(navController: NavController, expectedOtp: String, user_email: Str
                     } else {
                         errorMessage = "Mã OTP không đúng"
                     }
+                    if (isForgotPassword) {
+                        // Nếu là quên mật khẩu -> Sang màn hình đặt lại mật khẩu
+                        navController.currentBackStackEntry?.savedStateHandle?.set("user_email", user_email)
+                        navController.navigate("reset_password")
+                    } else {
+                        // Nếu là đăng ký -> Về trang đăng nhập
+                        navController.navigate(NavigationRoutes.LOGIN) {
+                            popUpTo(0)
+                        }
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
                 Text("Xác nhận", color = Color.White)
+                if (errorMessage.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(errorMessage, color = MaterialTheme.colorScheme.error)
+                }
             }
-
-            if (errorMessage.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(errorMessage, color = MaterialTheme.colorScheme.error)
-            }
-        }
     }
+}
 }

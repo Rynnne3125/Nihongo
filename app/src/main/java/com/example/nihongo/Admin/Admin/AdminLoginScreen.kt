@@ -27,19 +27,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.nihongo.Admin.viewmodel.AdminUserViewModel
 import com.onesignal.OneSignal
 
 @Composable
 fun AdminLoginScreen(navController: NavController) {
-    var username by remember { mutableStateOf("") }
+    // State cho các trường nhập liệu
+    var email by remember { mutableStateOf("") } // Đổi tên biến thành email cho rõ nghĩa với ViewModel
     var password by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    
-    val viewModel = remember { AdminUserViewModel() }
+
+    // Sử dụng viewModel() để đảm bảo lifecycle tốt hơn là remember { AdminUserViewModel() }
+    // Nếu chưa có dependency, bạn có thể giữ nguyên remember { AdminUserViewModel() }
+    val viewModel: AdminUserViewModel = viewModel()
+
     val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -47,15 +53,20 @@ fun AdminLoginScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Admin Login", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF2E7D32))
+        Text(
+            text = "Admin Login",
+            style = MaterialTheme.typography.headlineMedium,
+            color = Color(0xFF2E7D32)
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Input Email
         OutlinedTextField(
-            value = username,
+            value = email,
             onValueChange = {
-                username = it
-                message = ""
+                email = it
+                message = "" // Xóa thông báo lỗi khi người dùng gõ lại
             },
             label = { Text("Email Admin") },
             singleLine = true,
@@ -65,6 +76,7 @@ fun AdminLoginScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Input Password
         OutlinedTextField(
             value = password,
             onValueChange = {
@@ -80,52 +92,61 @@ fun AdminLoginScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // Nút Đăng nhập
         Button(
             onClick = {
-                if (username.isBlank() && password.isBlank()) {
-                    // Cho phép vào nhưng không lưu session
-                    navController.navigate("MainPage") {
-                        popUpTo("admin_login") { inclusive = true }
-                    }
+                // 1. Validate cơ bản: Không được để trống
+                if (email.isBlank() || password.isBlank()) {
+                    message = "Vui lòng nhập đầy đủ Email và Mật khẩu!"
                     return@Button
                 }
 
-                if (username.isBlank() || password.isBlank()) {
-                    message = "Vui lòng nhập đầy đủ thông tin!"
-                    return@Button
-                }
-                
+                // 2. Bắt đầu loading
                 isLoading = true
-                viewModel.checkLogin(username, password) { success ->
-                    isLoading = false
+                message = ""
+
+                // 3. Gọi ViewModel để kiểm tra (Firebase)
+                viewModel.checkLogin(email, password) { success ->
+                    isLoading = false // Tắt loading khi có kết quả
+
                     if (success) {
+                        // --- ĐĂNG NHẬP THÀNH CÔNG ---
+                        Log.d("AdminLogin", "Login Success: $email")
+
+                        // Lưu session vào SharedPreferences
                         val sharedPref = context.getSharedPreferences("admin_session", Context.MODE_PRIVATE)
                         sharedPref.edit().putBoolean("isLoggedIn", true).apply()
-                    // Thiết lập tag "admin" = "true" cho OneSignal
+
+                        // Thiết lập tag cho OneSignal (để gửi noti riêng cho admin)
                         OneSignal.User.addTag("admin", "true")
-                        Log.d("AdminLogin", "Set OneSignal tag: admin=true")
+
+                        // Chuyển màn hình
                         navController.navigate("MainPage") {
                             popUpTo("admin_login") { inclusive = true }
                         }
                     } else {
-                        message = "Sai email hoặc mật khẩu!"
+                        // --- ĐĂNG NHẬP THẤT BẠI ---
+                        Log.w("AdminLogin", "Login Failed")
+                        message = "Sai email, mật khẩu hoặc tài khoản không phải Admin!"
                     }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C)),
-            enabled = !isLoading
+            enabled = !isLoading // Disable nút khi đang loading
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
-                    color = Color.White
+                    color = Color.White,
+                    strokeWidth = 2.dp
                 )
             } else {
                 Text("Đăng nhập")
             }
         }
 
+        // Hiển thị thông báo lỗi nếu có
         if (message.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(message, color = Color.Red)

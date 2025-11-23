@@ -475,4 +475,38 @@ class UserRepository(
             false
         }
     }
+    suspend fun updatePassword(email: String, newPassword: String): Boolean {
+        return try {
+            Log.d("UserRepository", "Attempting reset password for email: $email")
+
+            // 1. Tìm user bằng Email để lấy Document ID
+            val querySnapshot = usersCollection
+                .whereEqualTo("email", email)
+                .limit(1)
+                .get()
+                .await()
+
+            if (querySnapshot.isEmpty) {
+                Log.e("UserRepository", "Reset password failed: Email not found")
+                return false
+            }
+
+            val document = querySnapshot.documents.first()
+            val docId = document.id
+
+            // 2. Hash mật khẩu mới (Sử dụng hàm hashPassword có sẵn ở trên)
+            val hashedPassword = hashPassword(newPassword)
+
+            // 3. Cập nhật vào Firestore
+            usersCollection.document(docId)
+                .update("password", hashedPassword)
+                .await()
+
+            Log.d("UserRepository", "Password reset successfully for email: $email")
+            true
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error resetting password", e)
+            false
+        }
+    }
 }
