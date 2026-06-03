@@ -56,7 +56,8 @@ object AiCourseGenerate {
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
     ) {
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$API_KEY"
+        val url =
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$API_KEY"
 
         val prompt = """
             Bạn là một giáo viên song ngữ việt-nhật và đang dạy tiếng nhật cho người việt.
@@ -399,7 +400,8 @@ object AiCourseGenerate {
 
         // Kiểm tra có Video không
         if (unitContent.contains("&Unit${unitNumber}Video&")) {
-            val subLesson = parseVideoSubLesson(unitContent, unitNumber, lessonId, adminExerciseViewModel)
+            val subLesson =
+                parseVideoSubLesson(unitContent, unitNumber, lessonId, adminExerciseViewModel)
             subLessons.add(subLesson)
         }
 
@@ -695,7 +697,8 @@ object AiCourseGenerate {
                     "$prompt. Style Anime",
                     "UTF-8"
                 )
-                val imageUrl = "https://image.pollinations.ai/prompt/$encodedPrompt?width=1024&height=1024&nologo=true&model=flux"
+                val imageUrl =
+                    "https://image.pollinations.ai/prompt/$encodedPrompt?width=1024&height=1024&nologo=true&model=flux"
 
                 val request = Request.Builder()
                     .url(imageUrl)
@@ -729,7 +732,8 @@ object AiCourseGenerate {
         mode: String
     ): String? {
         val modelName = "gemini-2.0-flash"
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$API_KEY"
+        val url =
+            "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$API_KEY"
 
         val prompt = """
     Bạn là một giáo viên song ngữ việt-nhật và đang dạy tiếng nhật cho người việt.
@@ -787,7 +791,8 @@ object AiCourseGenerate {
             })
         }
 
-        val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        val requestBody =
+            jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
         val request = Request.Builder().url(url).post(requestBody).build()
 
         return withContext(Dispatchers.IO) {
