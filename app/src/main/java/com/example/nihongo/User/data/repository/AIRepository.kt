@@ -1,6 +1,9 @@
 package com.example.nihongo.User.data.repository
 
 import android.util.Log
+import kotlinx.coroutines.CancellationException
+import com.example.nihongo.User.data.models.Exercise
+import com.example.nihongo.User.data.models.ExerciseType
 import com.example.nihongo.User.data.models.User
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -14,6 +17,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.Serializable
 import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
 
@@ -22,7 +26,13 @@ data class AIResponse(
     val context: String?,
     val usage_time: String?
 )
-
+data class AIChatSession(
+    val id: String = "",
+    val userId: String = "",
+    val title: String = "",
+    val messages: List<Map<String, String>> = emptyList(),
+    val updatedAt: Long = System.currentTimeMillis()
+)
 data class GroupChallenge(
     val id: String = "",
     val groupId: String = "",
@@ -36,7 +46,7 @@ data class GroupChallenge(
     val rewards: Map<String, Int> = mapOf("top1" to 300, "top2" to 200, "top3" to 100, "others" to 50),
     val status: String = "active",
     val createdAt: Long = System.currentTimeMillis()
-)
+): Serializable
 
 data class AITip(
     val id: String = "",
@@ -46,17 +56,8 @@ data class AITip(
     val level: String = "",
     val date: Long = System.currentTimeMillis(),
     val likes: Int = 0
-)
+): Serializable
 
-data class AIDiscussionTopic(
-    val id: String = "",
-    val groupId: String = "",
-    val topic: String = "",
-    val description: String = "",
-    val level: String = "",
-    val createdAt: Long = System.currentTimeMillis(),
-    val responses: Int = 0
-)
 
 data class UserRecommendation(
     val userId: String = "",
@@ -73,9 +74,8 @@ class AIRepository {
     private val firestore = FirebaseFirestore.getInstance()
 
     // ============ GEMINI API CONFIG ============
-    private val GEMINI_API_KEY = "AIzaSyCiVYxP_eiKFfrF_lH1l1vqCqUwhL0uzd0"
-    private val GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-
+    private val GEMINI_API_KEY = "AIzaSyD1EQ1a2FUZT6iEBGJdlgWGzHALhpIklz8"
+    private val GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent"
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
@@ -84,7 +84,39 @@ class AIRepository {
         .build()
 
     // ============ GEMINI API DIRECT CALL ============
+    private suspend fun executeGeminiRequest(requestBody: JSONObject): String? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("$GEMINI_API_URL?key=$GEMINI_API_KEY")
+                .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
+                .build()
 
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                if (!response.isSuccessful || responseBody.isNullOrEmpty()) {
+                    Log.e("AIRepository", "Gemini API Error: ${response.code} - $responseBody")
+                    return@withContext null
+                }
+
+                val jsonResponse = JSONObject(responseBody)
+                val candidates = jsonResponse.optJSONArray("candidates")
+
+                if (candidates != null && candidates.length() > 0) {
+                    val parts = candidates.getJSONObject(0)
+                        .optJSONObject("content")
+                        ?.optJSONArray("parts")
+
+                    if (parts != null && parts.length() > 0) {
+                        return@withContext parts.getJSONObject(0).optString("text")
+                    }
+                }
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("AIRepository", "Gemini request error: ${e.stackTraceToString()}")
+            null
+        }
+    }
     private suspend fun callGeminiAPI(prompt: String): String? = withContext(Dispatchers.IO) {
         try {
             val requestBody = JSONObject().apply {
@@ -151,40 +183,61 @@ class AIRepository {
         userId: String? = null,
         conversationHistory: List<Pair<String, String>>? = null
     ): AIResponse? = withContext(Dispatchers.IO) {
-
         val startTime = System.currentTimeMillis()
 
-        // Xây dựng prompt với system instruction
-        val systemPrompt = """
-            Bạn là một Chatbot phục vụ học tập tiếng Nhật thân thiện. Ngoài việc trả lời câu hỏi chào hỏi giới thiệu bản thân, và giao tiếp cơ bản hội thoại cởi mở vui vẻ với người dùng,
-            Chỉ trả lời các câu hỏi liên quan đến học và hỗ trợ tiếng Nhật: từ vựng, ngữ pháp, JLPT, luyện nghe, nói, đọc, viết.
-            Nếu người dùng hỏi ngoài chủ đề, trả lời: "Mình chỉ trả lời các câu hỏi liên quan học tiếng Nhật, bạn vui lòng đặt câu hỏi phù hợp."
-            Hãy nhớ rằng Trần Thanh Phong 23IT211 và Trương Công Thành 23IT251 là người đã tạo ra bạn phục vụ mục đích là chat bot giúp đỡ người dùng học tiếng nhật.
+        try {
+            val rootObj = JSONObject()
+
+            // 1. SYSTEM INSTRUCTION: Định hình nhân vật ở tầng hệ thống (Giảm hao phí token lặp)
+            val systemPrompt = """
+            Bạn là Chatbot hỗ trợ học tiếng Nhật thân thiện.
+            Chỉ trả lời câu hỏi liên quan đến học tiếng Nhật (từ vựng, ngữ pháp, JLPT, giao tiếp).
+            Nếu hỏi ngoài lề, từ chối lịch sự.
+            Người tạo ra bạn: Trần Thanh Phong (23IT211) và Trương Công Thành (23IT251).
         """.trimIndent()
 
-        // Xây dựng prompt đầy đủ với lịch sử hội thoại
-        val fullPrompt = buildString {
-            append(systemPrompt)
-            append("\n\n")
+            rootObj.put("system_instruction", JSONObject().apply {
+                put("parts", JSONArray().apply {
+                    put(JSONObject().apply { put("text", systemPrompt) })
+                })
+            })
 
-            // Thêm lịch sử hội thoại nếu có
+            // 2. CONTENTS: Cấu trúc hội thoại rõ ràng theo Role
+            val contentsArray = JSONArray()
+
+            // Nạp lịch sử (nếu có)
             conversationHistory?.forEach { (role, content) ->
-                append("$role: $content\n")
+                // Role của Gemini chỉ nhận "user" hoặc "model"
+                val geminiRole = if (role.equals("user", true)) "user" else "model"
+                contentsArray.put(JSONObject().apply {
+                    put("role", geminiRole)
+                    put("parts", JSONArray().apply {
+                        put(JSONObject().apply { put("text", content) })
+                    })
+                })
             }
 
-            append("User: $message\n")
-            append("Assistant:")
-        }
+            // Nạp câu hỏi hiện tại
+            contentsArray.put(JSONObject().apply {
+                put("role", "user")
+                put("parts", JSONArray().apply {
+                    put(JSONObject().apply { put("text", message) })
+                })
+            })
+            rootObj.put("contents", contentsArray)
 
-        try {
-            val aiReply = callGeminiAPI(fullPrompt)
+            // 3. CONFIGURATION
+            rootObj.put("generationConfig", JSONObject().apply {
+                put("temperature", 0.7)
+                put("maxOutputTokens", 1024) // Giảm xuống 1024 để chat nhanh hơn
+            })
 
-            if (aiReply.isNullOrEmpty()) {
-                return@withContext null
-            }
+            // GỌI API
+            val aiReply = executeGeminiRequest(rootObj)
+
+            if (aiReply.isNullOrEmpty()) return@withContext null
 
             val elapsedTime = (System.currentTimeMillis() - startTime) / 1000.0
-
             return@withContext AIResponse(
                 reply = aiReply.trim(),
                 context = null,
@@ -206,7 +259,7 @@ class AIRepository {
         try {
             val collectionRef = firestore.collection("ai_recommendations")
 
-            // 1️⃣ LOAD EXISTING RECOMMENDATIONS
+            // 1️⃣ LOAD EXISTING (Logic cũ giữ nguyên vì đã tối ưu số lệnh DB)
             val existingRecsSnapshot = collectionRef
                 .whereEqualTo("userId", currentUser.id)
                 .get()
@@ -224,74 +277,64 @@ class AIRepository {
                 )
             }.sortedByDescending { it.matchScore }
 
-            if (existingRecs.size >= limit)
-                return@withContext existingRecs.take(limit)
+            if (existingRecs.size >= limit) return@withContext existingRecs.take(limit)
 
             // 2️⃣ LOAD OTHER USERS
             val allUsersDocs = firestore.collection("users")
                 .whereNotEqualTo("id", currentUser.id)
-                .get()
-                .await()
+                .get().await()
 
             val allRecedIds = existingRecs.map { it.userId }.toSet()
 
-            val otherUsers = allUsersDocs.documents.map { doc ->
+            // TỐI ƯU: Chỉ bóc xuất những trường THỰC SỰ cần cho AI chấm điểm (Bỏ qua imageUrl)
+            val otherUsersMap = allUsersDocs.documents.associateBy { it.id }
+            val candidateUsers = allUsersDocs.documents.filter { doc ->
+                val uid = doc.id
+                val jlpt = doc.getLong("jlptLevel")?.toInt()
+                val rank = doc.getString("rank").orEmpty()
+
+                uid !in allRecedIds && (jlpt == currentUser.jlptLevel || rank == currentUser.rank)
+            }.take(20).map { doc ->
                 mapOf(
-                    "userId" to doc.id,
-                    "username" to doc.getString("username").orEmpty(),
-                    "jlptLevel" to doc.getLong("jlptLevel")?.toInt(),
-                    "rank" to doc.getString("rank").orEmpty(),
-                    "activityScore" to (doc.getLong("activityPoints")?.toInt() ?: 0),
-                    "imageUrl" to doc.getString("imageUrl").orEmpty()
+                    "id" to doc.id,
+                    "jlpt" to (doc.getLong("jlptLevel")?.toInt() ?: 0),
+                    "rank" to doc.getString("rank").orEmpty()
                 )
             }
-                .filter {
-                    it["jlptLevel"] == currentUser.jlptLevel ||
-                            it["rank"] == currentUser.rank
-                }
-                .filter { it["userId"] !in allRecedIds }
-                .take(20)
 
-            if (otherUsers.isEmpty())
-                return@withContext existingRecs.take(limit)
+            if (candidateUsers.isEmpty()) return@withContext existingRecs.take(limit)
 
-            // 3️⃣ BUILD PROMPT FOR AI
-            val prompt = buildString {
-                append("Bạn là AI gợi ý bạn học tiếng Nhật.\n")
-                append("User hiện tại: ${JSONObject(mapOf(
-                    "userId" to currentUser.id,
-                    "username" to currentUser.username,
-                    "jlptLevel" to currentUser.jlptLevel,
-                    "rank" to currentUser.rank
-                ))}\n")
+            // 3️⃣ BUILD REQUEST JSON BẮT BUỘC TRẢ VỀ JSON
+            val rootObj = JSONObject()
 
-                append("Danh sách users khác (tối đa 20): ${JSONArray(otherUsers)}\n")
+            val prompt = """
+            Tìm bạn học phù hợp cho user hiện tại: {"jlpt":${currentUser.jlptLevel}, "rank":"${currentUser.rank}"}.
+            Danh sách ứng viên: ${JSONArray(candidateUsers)}.
+            Quy tắc:
+            1. Đánh giá matchScore (0-100) dựa trên mức độ tương đồng JLPT và Rank.
+            2. Trả về mảng JSON. Mỗi phần tử gồm: "userId", "matchScore", "matchReasons" (mảng 2 lý do ngắn gọn).
+        """.trimIndent()
 
-                append("Chọn bạn học phù hợp. Quy tắc:\n")
-                append("- Cùng JLPT hoặc cùng rank.\n")
-                append("- Điểm matchScore từ 0–100.\n")
-                append("TRẢ VỀ JSON THUẦN.\n")
-                append("Mỗi object gồm: userId, username, jlptLevel, rank, matchScore, matchReasons.\n")
-                append("Không giải thích, không ký tự thừa.\n")
-            }
+            rootObj.put("contents", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "user")
+                    put("parts", JSONArray().apply { put(JSONObject().apply { put("text", prompt) }) })
+                })
+            })
+
+            // TỐI ƯU CỰC MẠNH: Ép model chỉ được phép nhả ra JSON thuần
+            rootObj.put("generationConfig", JSONObject().apply {
+                put("temperature", 0.4) // Nhiệt độ thấp = logic chính xác hơn
+                put("response_mime_type", "application/json") // Không bao giờ có mã markdown ```json
+            })
 
             // 4️⃣ CALL GEMINI API
-            val aiReply = callGeminiAPI(prompt)
-
-            if (aiReply.isNullOrEmpty()) {
-                return@withContext existingRecs.take(limit)
-            }
-
-            val cleanedReply = aiReply
-                .removePrefix("```json")
-                .removePrefix("```")
-                .removeSuffix("```")
-                .trim()
+            val aiReply = executeGeminiRequest(rootObj) ?: return@withContext existingRecs.take(limit)
 
             val jsonArray = try {
-                JSONArray(cleanedReply)
+                JSONArray(aiReply) // Parser ăn liền, không cần cắt chuỗi
             } catch (_: Exception) {
-                Log.e("AIRepository", "AI reply is not valid JSON: $cleanedReply")
+                Log.e("AIRepository", "Parse JSON failed: $aiReply")
                 return@withContext existingRecs.take(limit)
             }
 
@@ -300,30 +343,29 @@ class AIRepository {
 
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-
                 val recommendedId = obj.optString("userId")
                 if (recommendedId.isBlank()) continue
 
-                val imgUrl = otherUsers.find { it["userId"] == recommendedId }?.get("imageUrl") as? String ?: ""
+                // Map ngược lại dữ liệu gốc từ Firebase (để lấy Username và ImageUrl)
+                val originalUser = otherUsersMap[recommendedId] ?: continue
 
                 val rec = UserRecommendation(
                     userId = recommendedId,
-                    username = obj.optString("username"),
-                    jlptLevel = if (!obj.isNull("jlptLevel")) obj.getInt("jlptLevel") else null,
-                    rank = obj.optString("rank"),
+                    username = originalUser.getString("username").orEmpty(),
+                    jlptLevel = originalUser.getLong("jlptLevel")?.toInt(),
+                    rank = originalUser.getString("rank").orEmpty(),
                     matchScore = obj.optInt("matchScore", 0),
-                    imageUrl = imgUrl,
+                    imageUrl = originalUser.getString("imageUrl").orEmpty(),
                     matchReasons = (0 until (obj.optJSONArray("matchReasons")?.length() ?: 0)).map { j ->
                         obj.optJSONArray("matchReasons")!!.optString(j)
                     }
                 )
 
-                // Tránh lưu duplicate
+                // Lưu Firestore (Batching có thể tốt hơn, nhưng giữ luồng cũ của cậu)
                 val existsSnapshot = collectionRef
                     .whereEqualTo("userId", currentUser.id)
                     .whereEqualTo("recommendedUserId", rec.userId)
-                    .get()
-                    .await()
+                    .get().await()
 
                 if (existsSnapshot.isEmpty) {
                     collectionRef.add(
@@ -340,22 +382,107 @@ class AIRepository {
                         )
                     ).await()
                 }
-
                 newRecs.add(rec)
             }
 
-            // 6️⃣ COMBINE & RETURN
             return@withContext (existingRecs + newRecs)
                 .distinctBy { it.userId }
                 .sortedByDescending { it.matchScore }
                 .take(limit)
 
         } catch (e: Exception) {
-            Log.e("AIRepository", "Error getting AI partner recommendations", e)
+            Log.e("AIRepository", "Error recommendations", e)
             emptyList()
         }
     }
+    suspend fun generateChatTitle(firstMessage: String): String = withContext(Dispatchers.IO) {
+        try {
+            val prompt = "Tóm tắt nội dung sau thành một tiêu đề ngắn gọn (tối đa 8 chữ, không dùng dấu ngoặc kép). Nội dung: $firstMessage"
 
+            val rootObj = JSONObject().apply {
+                put("contents", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("role", "user")
+                        put("parts", JSONArray().apply { put(JSONObject().apply { put("text", prompt) }) })
+                    })
+                })
+                put("generationConfig", JSONObject().apply {
+                    put("temperature", 0.3)
+                    put("maxOutputTokens", 20) // Chỉ cho AI sinh ra một mẩu text siêu ngắn
+                })
+            }
+
+            val aiReply = executeGeminiRequest(rootObj)
+            return@withContext aiReply?.trim()?.removeSurrounding("\"") ?: "Hội thoại mới"
+        } catch (e: Exception) {
+            Log.e("AIRepository", "Lỗi tạo tiêu đề: ", e)
+            return@withContext "Hội thoại mới"
+        }
+    }
+    suspend fun saveConversation(
+        sessionId: String?,
+        userId: String,
+        title: String,
+        messages: List<Pair<String, String>>
+    ): String? = withContext(Dispatchers.IO) {
+        try {
+            // Chuyển List<Pair> của UI thành định dạng Map để lưu Firestore
+            val dbMessages = messages.map { mapOf("role" to it.first, "content" to it.second) }
+            val collectionRef = firestore.collection("aiChatHistory")
+
+            if (sessionId == null) {
+                // Tạo phiên chat mới
+                val docRef = collectionRef.document()
+                val newData = mapOf(
+                    "userId" to userId,
+                    "title" to title,
+                    "messages" to dbMessages,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+                docRef.set(newData).await()
+                return@withContext docRef.id
+            } else {
+                // Cập nhật phiên chat cũ (ghi đè mảng tin nhắn mới nhất)
+                collectionRef.document(sessionId).update(
+                    mapOf(
+                        "messages" to dbMessages,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+                return@withContext sessionId
+            }
+        } catch (e: Exception) {
+            Log.e("AIRepository", "Lỗi lưu hội thoại: ", e)
+            return@withContext sessionId
+        }
+    }
+    suspend fun getUserChatHistory(userId: String): List<AIChatSession> = withContext(Dispatchers.IO) {
+        try {
+            val snapshot = firestore.collection("aiChatHistory")
+                .whereEqualTo("userId", userId)
+                .orderBy("updatedAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+
+            return@withContext snapshot.documents.mapNotNull { doc ->
+                val title = doc.getString("title") ?: "Hội thoại"
+                // Ép kiểu an toàn từ Firestore Map về List<Map<String, String>>
+                val messages = doc.get("messages") as? List<Map<String, String>> ?: emptyList()
+                val updatedAt = doc.getTimestamp("updatedAt")?.toDate()?.time ?: System.currentTimeMillis()
+
+                AIChatSession(
+                    id = doc.id,
+                    userId = userId,
+                    title = title,
+                    messages = messages,
+                    updatedAt = updatedAt
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("AIRepository", "Error fetching chat history", e)
+            emptyList()
+        }
+    }
     // ============ GROUP CHALLENGE FUNCTIONS ============
 
     suspend fun createGroupChallenge(challenge: GroupChallenge): String? {
@@ -450,7 +577,11 @@ class AIRepository {
                 .await()
                 .documents
                 .mapNotNull { it.toObject(GroupChallenge::class.java)?.copy(id = it.id) }
+        } catch (e: CancellationException) {
+            // NẾU LÀ LỆNH HỦY DO THOÁT MÀN HÌNH -> Ném trả lại cho hệ thống tự lo, không in lỗi
+            throw e
         } catch (e: Exception) {
+            // CÁC LỖI THỰC SỰ (Mất mạng, sai logic, v.v.)
             Log.e("AIRepository", "Error getting challenges", e)
             emptyList()
         }
@@ -480,19 +611,30 @@ class AIRepository {
             if (lastTipDoc != null) {
                 val lastTipDate = lastTipDoc.getLong("date") ?: 0L
                 if (lastTipDate >= dayStart) {
-                    return lastTipDoc.toObject(AITip::class.java)
-                        ?.copy(id = lastTipDoc.id)
+                    return lastTipDoc.toObject(AITip::class.java)?.copy(id = lastTipDoc.id)
                 }
             }
 
-            // Generate new tip
+            // Generate new tip using optimized request
             val prompt = """
-                Hãy tạo một mẹo học tiếng Nhật NGẮN GỌN cho trình độ $level, tối đa 20 chữ.
-                Ngữ cảnh nhóm: "$description"
-                Chỉ xuất ra câu mẹo, không giải thích, không markdown.
-            """.trimIndent()
+            Hãy tạo một mẹo học tiếng Nhật NGẮN GỌN cho trình độ $level, tối đa 20 chữ.
+            Ngữ cảnh nhóm: "$description"
+            Chỉ xuất ra câu mẹo, không giải thích, không markdown.
+        """.trimIndent()
 
-            val aiReply = callGeminiAPI(prompt)
+            val rootObj = JSONObject().apply {
+                put("contents", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("role", "user")
+                        put("parts", JSONArray().apply { put(JSONObject().apply { put("text", prompt) }) })
+                    })
+                })
+                put("generationConfig", JSONObject().apply {
+                    put("temperature", 0.7) // Giữ mức 0.7 để câu mẹo tự nhiên, không bị cứng
+                })
+            }
+
+            val aiReply = executeGeminiRequest(rootObj)
 
             if (aiReply.isNullOrEmpty()) return null
 
@@ -506,10 +648,7 @@ class AIRepository {
                 date = now
             )
 
-            // Xóa tip cũ
             lastTipDoc?.reference?.delete()?.await()
-
-            // Lưu tip mới
             val docRef = firestore.collection("aiTips").add(newTip).await()
 
             newTip.copy(id = docRef.id)
@@ -520,56 +659,72 @@ class AIRepository {
         }
     }
 
-    suspend fun generateDiscussionTopic(groupId: String, level: String): AIDiscussionTopic? {
-        return try {
+    suspend fun generateQuizForGroup(groupTopic: String, numberOfQuestions: Int = 5): List<Exercise> = withContext(Dispatchers.IO) {
+        try {
             val prompt = """
-                Generate an interesting discussion topic for Japanese learners at $level level.
-                Include a topic title and a brief description to spark conversation.
-                Response in Vietnamese. Format: 
-                Topic: [title]
-                Description: [description]
-            """.trimIndent()
+            Đóng vai một giáo viên tiếng Nhật JLPT. Tạo một bài trắc nghiệm $numberOfQuestions câu hỏi đơn giản về chủ đề: "$groupTopic".
+            
+            Yêu cầu SƯ PHẠM (Rất quan trọng):
+            1. Tránh ra đề quá dễ: Nếu hỏi tìm Kanji, các đáp án BẮT BUỘC phải viết bằng Kanji có nét tương đồng nhau để gây nhiễu. KHÔNG để đáp án dưới dạng Hiragana.
+            2. Các đáp án sai (distractors) phải hợp lý và dễ nhầm lẫn với đáp án đúng.
+            3. Đa dạng hóa: Trộn lẫn các loại câu hỏi (Tìm nghĩa, Chọn cách đọc đúng, Điền từ vào chỗ trống).
+            
+            Yêu cầu KỸ THUẬT:
+            Trả về MẢNG JSON thuần túy. Mỗi object gồm:
+            - "question": Câu hỏi.
+            - "kana": Cách đọc (nếu cần, không có để "").
+            - "romanji": Cách đọc romanji (nếu cần, không có để "").
+            - "options": Mảng đúng 4 đáp án.
+            - "answer": Đáp án đúng nhất (nằm trong mảng options).
+        """.trimIndent()
 
-            val aiReply = callGeminiAPI(prompt)
-
-            if (aiReply != null) {
-                val lines = aiReply.split("\n")
-                val topic = lines.find { it.startsWith("Topic:") }
-                    ?.substringAfter("Topic:")?.trim() ?: "Thảo luận tiếng Nhật"
-                val description = lines.find { it.startsWith("Description:") }
-                    ?.substringAfter("Description:")?.trim() ?: aiReply
-
-                val discussionTopic = AIDiscussionTopic(
-                    groupId = groupId,
-                    topic = topic,
-                    description = description,
-                    level = level
-                )
-
-                val docRef = firestore.collection("aiDiscussionTopics").add(discussionTopic).await()
-                discussionTopic.copy(id = docRef.id)
-            } else {
-                null
+            val rootObj = JSONObject().apply {
+                put("contents", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("role", "user")
+                        put("parts", JSONArray().apply { put(JSONObject().apply { put("text", prompt) }) })
+                    })
+                })
+                put("generationConfig", JSONObject().apply {
+                    put("temperature", 0.7) // Có độ sáng tạo nhẹ để câu hỏi không bị trùng lặp
+                    put("response_mime_type", "application/json") // Bắt buộc trả về JSON
+                })
             }
-        } catch (e: Exception) {
-            Log.e("AIRepository", "Error generating discussion topic", e)
-            null
-        }
-    }
 
-    suspend fun getDiscussionTopicsForGroup(groupId: String, limit: Int = 10): List<AIDiscussionTopic> {
-        return try {
-            firestore.collection("aiDiscussionTopics")
-                .whereEqualTo("groupId", groupId)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(limit.toLong())
-                .get()
-                .await()
-                .documents
-                .mapNotNull { it.toObject(AIDiscussionTopic::class.java)?.copy(id = it.id) }
+            val aiReply = executeGeminiRequest(rootObj)
+            if (aiReply.isNullOrEmpty()) return@withContext emptyList()
+
+            val jsonArray = JSONArray(aiReply)
+            val quizList = mutableListOf<Exercise>()
+
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val optionsArray = obj.optJSONArray("options")
+                val optionsList = mutableListOf<String>()
+
+                if (optionsArray != null) {
+                    for (j in 0 until optionsArray.length()) {
+                        optionsList.add(optionsArray.optString(j))
+                    }
+                }
+
+                quizList.add(
+                    Exercise(
+                        id = "ai_quiz_$i",
+                        question = obj.optString("question", "Câu hỏi bị lỗi"),
+                        kana = obj.optString("kana", ""),
+                        romanji = obj.optString("romanji", ""),
+                        options = optionsList,
+                        answer = obj.optString("answer", ""),
+                        type = ExerciseType.PRACTICE
+                    )
+                )
+            }
+            return@withContext quizList
+
         } catch (e: Exception) {
-            Log.e("AIRepository", "Error getting discussion topics", e)
-            emptyList()
+            Log.e("AIRepository", "Error generating quiz: ", e)
+            return@withContext emptyList()
         }
     }
 }

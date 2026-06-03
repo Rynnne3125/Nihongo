@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -18,6 +20,7 @@ import com.example.nihongo.User.data.models.Exercise
 import com.example.nihongo.User.data.repository.AIRepository
 import com.example.nihongo.User.data.repository.CourseRepository
 import com.example.nihongo.User.data.repository.ExerciseRepository
+import com.example.nihongo.User.data.repository.GroupChallenge
 import com.example.nihongo.User.data.repository.LessonRepository
 import com.example.nihongo.User.data.repository.UserRepository
 import com.example.nihongo.User.ui.components.BottomNavItem
@@ -30,6 +33,8 @@ import com.example.nihongo.User.ui.screens.homepage.CourseDetailScreen
 import com.example.nihongo.User.ui.screens.homepage.CoursesScreen
 import com.example.nihongo.User.ui.screens.homepage.ExerciseScreen
 import com.example.nihongo.User.ui.screens.homepage.FlashcardScreen
+import com.example.nihongo.User.ui.screens.homepage.GroupChallengeHubScreen
+import com.example.nihongo.User.ui.screens.homepage.GroupChallengeQuizScreen
 import com.example.nihongo.User.ui.screens.homepage.HomeScreen
 import com.example.nihongo.User.ui.screens.homepage.ProfileScreen
 import com.example.nihongo.User.ui.screens.homepage.QuizScreen
@@ -220,7 +225,88 @@ fun AppNavGraph(
                 aiRepository = aiRepo
             )
         }
+        composable(
+            route = "group_challenges/{groupId}/{user_email}",
+            arguments = listOf(
+                navArgument("groupId") { type = NavType.StringType },
+                navArgument("user_email") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
 
+            // Trích xuất currentUser thông qua Coroutine
+            var currentUser by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.example.nihongo.User.data.models.User?>(null) }
+
+            androidx.compose.runtime.LaunchedEffect(userEmail) {
+                currentUser = userRepo.getUserByEmail(userEmail)
+            }
+
+            if (currentUser != null) {
+                GroupChallengeHubScreen(
+                    groupId = groupId,
+                    currentUser = currentUser!!,
+                    aiRepository = aiRepo,
+                    navController = navController
+                )
+            }
+        }
+
+        composable(
+            route = "challenge_leaderboard/{challengeId}/{user_email}",
+            arguments = listOf(
+                navArgument("challengeId") { type = NavType.StringType },
+                navArgument("user_email") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val challengeId = backStackEntry.arguments?.getString("challengeId") ?: ""
+            val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
+
+            var currentUser by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.example.nihongo.User.data.models.User?>(null) }
+
+            androidx.compose.runtime.LaunchedEffect(userEmail) {
+                currentUser = userRepo.getUserByEmail(userEmail)
+            }
+
+            if (currentUser != null) {
+                com.example.nihongo.User.ui.screens.homepage.ChallengeLeaderboardScreen(
+                    challengeId = challengeId,
+                    currentUser = currentUser!!,
+                    aiRepository = aiRepo,
+                    navController = navController
+                )
+            }
+        }
+
+        composable(
+            route = "challenge_quiz/{challengeId}/{user_email}",
+            arguments = listOf(
+                navArgument("challengeId") { type = NavType.StringType },
+                navArgument("user_email") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val challengeId = backStackEntry.arguments?.getString("challengeId") ?: ""
+            val userEmail = backStackEntry.arguments?.getString("user_email") ?: ""
+
+            val challengeObj = navController.previousBackStackEntry?.savedStateHandle?.get<GroupChallenge>("currentChallenge")
+            val quizExercises = navController.previousBackStackEntry?.savedStateHandle?.get<List<Exercise>>("quizList") ?: emptyList()
+
+            var currentUser by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.example.nihongo.User.data.models.User?>(null) }
+
+            androidx.compose.runtime.LaunchedEffect(userEmail) {
+                currentUser = userRepo.getUserByEmail(userEmail)
+            }
+
+            if (challengeObj != null && currentUser != null) {
+                GroupChallengeQuizScreen(
+                    challenge = challengeObj,
+                    quizExercises = quizExercises,
+                    currentUser = currentUser!!,
+                    aiRepository = aiRepo,
+                    navController = navController
+                )
+            }
+        }
         // Thêm route cho màn hình chat cá nhân
         composable(
             "private_chat/{partnerId}/{user_email}",

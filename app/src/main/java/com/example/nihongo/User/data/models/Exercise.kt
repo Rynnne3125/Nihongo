@@ -2,6 +2,7 @@ package com.example.nihongo.User.data.models
 
 import android.os.Parcelable
 import kotlinx.android.parcel.Parcelize
+import java.io.Serializable
 
 // Exercise model cho Firestore
 @Parcelize
@@ -20,7 +21,7 @@ data class Exercise(
     val title: String? = null,
     val passed: Boolean = false,
     val explanation: String? = null
-): Parcelable
+): Serializable, Parcelable
 
 enum class ExerciseType {
     FLASHCARD, MEMORY_GAME,VIDEO,

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Card
@@ -191,6 +192,21 @@ fun GroupChatScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            if (studyGroup != null && currentUser != null) {
+                                // Chuyển hướng sang màn hình Quản lý Thử thách của nhóm
+                                navController.navigate("group_challenges/${groupId}/${userEmail}")                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EmojiEvents,
+                            contentDescription = "Thử Thách",
+                            tint = Color(0xFFF57C00) // Màu cam cho nổi bật
+                        )
                     }
                 }
             )
