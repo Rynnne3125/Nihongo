@@ -1,6 +1,7 @@
 package com.example.nihongo.Admin.utils
 
 import android.util.Log
+import com.example.nihongo.BuildConfig
 import com.example.nihongo.Admin.viewmodel.AdminCourseViewModel
 import com.example.nihongo.Admin.viewmodel.AdminExerciseViewModel
 import com.example.nihongo.Admin.viewmodel.AdminLessonViewModel
@@ -25,25 +26,10 @@ import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
-
 object AiCourseGenerate {
-    private const val API_KEY_1="AIzaSyA24l20dv9rMSLLplk3Ei6Sts5z1_gjWEk"
-    private const val API_KEY_2="AIzaSyDt001YYOPOS6hkkK318YHzdynePu2ANAU"
-    private const val API_KEY_3="AIzaSyC9jmTNz-7iC_bxTzZqFSynaKCHPKUZCl0"
 
-    // ---- 3 API KEY GEMINI
-    private val apiKeys = listOf(
-        API_KEY_1,
-        API_KEY_2,
-        API_KEY_3
-    )
+    private val API_KEY = BuildConfig.GEMINI_API_KEY
 
-    // ---- Random 1 API KEY trong danh sách
-    private fun getRandomKey(): String {
-        return apiKeys[Random.nextInt(apiKeys.size)]
-    }
-
-    // ---- OKHttp client
     private val client = OkHttpClient.Builder()
         .connectTimeout(520, TimeUnit.SECONDS)
         .writeTimeout(520, TimeUnit.SECONDS)
@@ -70,8 +56,7 @@ object AiCourseGenerate {
         onSuccess: (String) -> Unit,
         onError: (String) -> Unit
     ) {
-        val apiKey = getRandomKey()
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey"
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$API_KEY"
 
         val prompt = """
             Bạn là một giáo viên song ngữ việt-nhật và đang dạy tiếng nhật cho người việt.
@@ -231,9 +216,6 @@ object AiCourseGenerate {
                 onError("Không tìm thấy Title hoặc Summary")
                 return
             }
-
-            // ❌ XÓA DÒNG NÀY
-            // val courseId = generateId()
 
             // Tạo Course object KHÔNG có ID (để Firebase tự generate)
             val course = Course(
@@ -705,8 +687,6 @@ object AiCourseGenerate {
         return System.currentTimeMillis().toString() + Random.nextInt(1000, 9999)
     }
 
-
-
     // ---- Hàm generate
     suspend fun generateImageUrl(prompt: String): String? {
         return withContext(Dispatchers.IO) {
@@ -742,28 +722,15 @@ object AiCourseGenerate {
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
     suspend fun generateAIChallenge(
         content: String,
         number_of_question: Int,
         levelJLPT: String,
         mode: String
     ): String? {
-        val apiKey = getRandomKey()
         val modelName = "gemini-2.0-flash"
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey"
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$API_KEY"
 
-        // Prompt giữ nguyên như của bạn
         val prompt = """
     Bạn là một giáo viên song ngữ việt-nhật và đang dạy tiếng nhật cho người việt.
     Nội dung đang học gồm: "$content" (nếu là "" thì cho câu hỏi chủ đề ngẫu nhiên)
@@ -829,13 +796,11 @@ object AiCourseGenerate {
                     val responseBody = response.body?.string()
 
                     if (!response.isSuccessful) {
-                        // ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT: In lỗi ra Logcat
                         Log.e("AiCourseGenerate", "API call failed with code: ${response.code}")
                         Log.e("AiCourseGenerate", "Error Body: $responseBody")
                         return@withContext null
                     }
 
-                    // Nếu thành công thì trả về body
                     responseBody
                 }
             } catch (e: Exception) {
@@ -844,133 +809,4 @@ object AiCourseGenerate {
             }
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
 }
-//val course = Course(
-//    id = id.value,
-//    title = title.value,
-//    description = description.value,
-//    rating = rating.value,
-//    reviews = reviews.value,
-//    likes = likes.value,
-//    imageRes = finalImageUrl, mặc định https://drive.google.com/uc?export=view&id=1uyNSW54w4stVjixb9ke_rOFhiGaeekEN
-//    vip = isVip.value //mặc định false
-//)
-//viewModel: AdminCourseViewModel = viewModel()
-//viewModel.addCourse(course)
-//
-//data class Lesson(
-//    val id: String = "",               // ID bài học
-//    val courseId: String = "",         // ID khóa học
-//    val step: Int = 0,                 // Ví dụ đây  là Lesson 1 thì step =1 nếu là Lesson 2 thì step =2 và tương tự
-//    val stepTitle: String = "",        // Tên Lesson
-//    val overview: String = "",         // Overview của Lesson
-//    val totalUnits: Int = 0,           // Tổng số Unit
-//    val completedUnits: Int = 0,       // mặc định = 0
-//    val units: List<UnitItem> = listOf()  // Mặc định rỗng
-//)
-//data class UnitItem(
-//    val unitTitle: String = "",          // Tên Unit
-//    val progress: String = "",           // mặc định = ""
-//    val subLessons: List<SubLesson> = listOf() // mặc định rỗng
-//)
-//
-//data class SubLesson(
-//    val id: String = "",
-//    val title: String = "",               //tên title
-//    val type: String = "",               //"Video" hoặc "Practice"
-//    val isCompleted: Boolean = false     //mặc định false
-//)
-//
-//viewModel: AdminLessonViewModel = viewModel(),
-//viewModel.createLesson(courseId, updatedLesson)
-//viewModel.addUnitToLesson(currentLessonId, newUnit)
-//viewModel.addSubLessonToUnit(currentLessonId, currentUnitIndex, newSubLesson)
-//trong sublesson sẽ add content vào
-//nếu là Video type
-//
-//    data class Exercise(
-//        var id: String? = null,              // Firestore Document ID
-//        val subLessonId: String? = null,             // Firestore lessonId là String
-//        val question: String? = null,             //để default
-//        val answer: String? = null,               //để default
-//        val type: ExerciseType? = null,           //để là "Video"
-//        val options: List<String>? = null,        //để default
-//        val videoUrl: String? = null,             //để default
-//        val romanji: String? = null,              //để default
-//        val kana: String? = null,             //để default
-//        val audioUrl: String? = null,            //để default
-//        val imageUrl: String? = null,         //chọn random trong val defaultImages = listOf(
-//        "https://img.freepik.com/premium-vector/man-wearing-hakama-with-crest-thinking-while-scratching-his-face_180401-12331.jpg",
-//        "https://thumb.ac-illust.com/95/95d92d1467ccf189f05af2b503a3e5a0_t.jpeg",
-//        "https://drive.google.com/uc?export=view&id=1TWpes3nKYbwSWyUj0uG0v5p-_a_zaVVh"
-//    )
-//        val title: String? = null,            //để title
-//        val passed: Boolean = false,          //để default
-//        val explanation: String? =  "I. Giới thiệu các loại chữ trong tiếng Nhật➤Trong tiếng Nhật có 3 loại chữ:
-//
-//a. Kanji (chữ Hán): 日本
-//- Chữ Kanji du nhập từ Trung Quốc vào Nhật Bản từ thế kỷ thứ 4.
-//
-//b. Hiragana (chữ mềm): にほん
-//- Hiragana được tạo từ Kanji, dùng viết trợ từ, từ thuần Nhật.
-//- VD: 世 ⇒ せ.
-//
-//c. Katakana (chữ cứng): 二ホン
-//- Katakana dùng cho từ ngoại lai, tên nước, tên riêng.
-//- VD: Orange ⇒ オレンジ.➤II. Giới thiệu bảng chữ cái Hiragana➤- Bảng Hiragana gồm 46 chữ cái.
-//- Hàng あ: あ(a), い(i), う(u), え(e), お(o).
-//- Hàng か: か(ka), き(ki), く(ku), け(ke), こ(ko).
-//- Hàng さ: さ(sa), し(shi), す(su), せ(se), そ(so).
-//- Hàng た: た(ta), ち(chi), つ(tsu), て(te), と(to).
-//- Hàng な: な(na), に(ni), ぬ(nu), ね(ne), の(no).
-//- Hàng は: は(ha), ひ(hi), ふ(fu), へ(he), ほ(ho).
-//- Hàng ま: ま(ma), み(mi), む(mu), め(me), も(mo).
-//- Hàng や: や(ya), ゆ(yu), よ(yo).
-//- Hàng ら: ら(ra), り(ri), る(ru), れ(re), ろ(ro).
-//- Hàng わ: わ(wa), を(wo), ん(n)."
-//    ) //cấu trúc ➤title1➤content➤title2➤content2➤...
-//
-//                  viewModel.createExercise(
-//                        lessonId = lessonId,
-//                        exercise = updatedExercise,
-//                        onSuccess = { showAddDialog = false },
-//                        onError = { /* Error is handled by viewModel */ }
-//                    )
-//nếu là Video type
-//
-//    data class Exercise(
-//        var id: String? = null,              // Firestore Document ID
-//        val subLessonId: String? = null,             // Firestore lessonId là String
-//        val question: String? = null,             //để title câu hỏi
-//        val answer: String? = null,               //để đáp án đúng
-//        val type: ExerciseType? = null,           //để là "Practice"
-//        val options: List<String>? = null,        //để bảo gồm đáp án đúng và sai
-//        val videoUrl: String? = null,             //để default
-//        val romanji: String? = null,              //để romanji, nếu có hoặc cần
-//        val kana: String? = null,             //để katakana, nếu có hoặc cần
-//        val audioUrl: String? = null,            //để default
-//        val imageUrl: String? = null,         //để default
-//        val title: String? = null,            // để title
-//        val passed: Boolean = false,          //để default
-//        val explanation: String? =  ""
-//                  ViewModel: AdminExerciseViewModel = viewModel()
-//                  viewModel.createExercise(
-//                        lessonId = lessonId,
-//                        exercise = updatedExercise,
-//                        onSuccess = { showAddDialog = false },
-//                        onError = { /* Error is handled by viewModel */ }
-//                    )
-//mẫu trả về:
-//"text": "Dưới đây là cấu trúc bài học theo yêu cầu, tập trung vào chủ đề gia đình trình độ N5, có lồng ghép tiếng Việt và tiếng Nhật:\n\n&Title&\nGia Đình Thân Yêu - 家族 (Kazoku) - N5\n\n&Summary&\nKhóa học \"Gia Đình Thân Yêu\" được thiết kế dành riêng cho người Việt mới bắt đầu học tiếng Nhật (trình độ N5). Khóa học sẽ giúp bạn làm quen với các từ vựng cơ bản về gia đình, cách xưng hô, và các mẫu câu đơn giản để giới thiệu về gia đình mình bằng tiếng Nhật. Với 3 bài học và nhiều bài tập thực hành thú vị, bạn sẽ tự tin hơn khi nói về gia đình mình trong tiếng Nhật.\n\n&Lesson&\n    &Leason1&\n         &Lesson1Name&\n        Chào Hỏi và Giới Thiệu Gia Đình (家族の挨拶と紹介 - Kazoku no aisatsu to shoukai)\n        &Lesson1Overview&\n        Trong bài học này, chúng ta sẽ học cách chào hỏi bằng tiếng Nhật và giới thiệu các thành viên trong gia đình mình. Chúng ta sẽ tập trung vào các từ vựng cơ bản và các mẫu câu đơn giản để giúp bạn tự tin hơn khi giao tiếp.\n            &Unit1&\n                &Unit1Name&\n                Chào Hỏi Cơ Bản (基本的な挨拶 - Kihonteki na aisatsu)\n                &Unit1Type&\n                    &Unit1Video&\n                        &Unit1VideoName&\n                        Video: Chào Hỏi Hàng Ngày (毎日の挨拶 - Mainichi no aisatsu)\n                        &Unit1Explation&\n                            &Unit1Explation1&\n                                &Unit1Explation1Name&\n                                Chào buổi sáng (おはようございます - Ohayou gozaimasu)\n                                &Unit1Explation1Content&\n                                Cách chào buổi sáng lịch sự. Sử dụng từ sáng đến khoảng 10 giờ sáng.\n                            &Unit1Explation2&\n                                &Unit1Explation2Name&\n                                Chào buổi trưa (こんにちは - Konnichiwa)\n                                &Unit1Explation2Content&\n                                Cách chào vào buổi trưa và chiều.\n                            &Unit1Explation3&\n                                &Unit1Explation3Name&\n                                Chào buổi tối (こんばんは - Konbanwa)\n                                &Unit1Explation3Content&\n                                Cách chào vào buổi tối.\n                            &Unit1Explation4&\n                                &Unit1Explation4Name&\n                                Tạm biệt (さようなら - Sayounara)\n                                &Unit1Explation4Content&\n                                Cách chào tạm biệt (ít dùng trong giao tiếp hàng ngày).\n                                \n                    &Unit1Practice&\n                        &Unit1Practice1&\n                            &Unit1Practice1Question&\n                            Chọn cách chào \"buổi sáng\" đúng trong tiếng Nhật:\n                            &Unit1Practice1Answer&\n                            おはようございます (Ohayou gozaimasu)\n                            &Unit1Practice1Option&\n                                &Unit1Practice1Option1&\n                                こんにちは (Konnichiwa)\n                                &Unit1Practice1Option2&\n                                こんばんは (Konbanwa)\n                                &Unit1Practice1Option3&\n                                ありがとうございます (Arigatou gozaimasu)\n                            &Unit1Practice1Explanation&\n                            \"おはようございます\" (Ohayou gozaimasu) là cách chào buổi sáng lịch sự. \"こんにちは\" (Konnichiwa) là chào buổi tr?
