@@ -27,9 +27,38 @@ import kotlin.random.Random
 
 
 object AiCourseGenerate {
-    private const val API_KEY_1="AIzaSyA24l20dv9rMSLLplk3Ei6Sts5z1_gjWEk"
-    private const val API_KEY_2="AIzaSyDt001YYOPOS6hkkK318YHzdynePu2ANAU"
-    private const val API_KEY_3="AIzaSyC9jmTNz-7iC_bxTzZqFSynaKCHPKUZCl0"
+    private const val API_KEY_1="YOUR-APIkage com.example.nihongo.Admin.utils
+
+import android.util.Log
+import com.example.nihongo.Admin.viewmodel.AdminCourseViewModel
+import com.example.nihongo.Admin.viewmodel.AdminExerciseViewModel
+import com.example.nihongo.Admin.viewmodel.AdminLessonViewModel
+import com.example.nihongo.User.data.models.Course
+import com.example.nihongo.User.data.models.Exercise
+import com.example.nihongo.User.data.models.ExerciseType
+import com.example.nihongo.User.data.models.Lesson
+import com.example.nihongo.User.data.models.SubLesson
+import com.example.nihongo.User.data.models.UnitItem
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
+import kotlin.random.Random
+
+
+object AiCourseGenerate {
+    private const val API_KEY_1="YOUR-API-KEY"
+    private const val API_KEY_2="YOUR-API-KEY"
+    private const val API_KEY_3="YOUR-API-KEY"
 
     // ---- 3 API KEY GEMINI
     private val apiKeys = listOf(
