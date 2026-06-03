@@ -74,7 +74,7 @@ class AIRepository {
     private val firestore = FirebaseFirestore.getInstance()
 
     // ============ GEMINI API CONFIG ============
-    private val GEMINI_API_KEY = "AIzaSyD1EQ1a2FUZT6iEBGJdlgWGzHALhpIklz8"
+    private val GEMINI_API_KEY = "YOUR-API-KEY"
     private val GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent"
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
