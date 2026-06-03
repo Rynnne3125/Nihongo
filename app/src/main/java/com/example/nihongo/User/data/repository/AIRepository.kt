@@ -1,6 +1,7 @@
 package com.example.nihongo.User.data.repository
 
 import android.util.Log
+import com.example.nihongo.BuildConfig
 import kotlinx.coroutines.CancellationException
 import com.example.nihongo.User.data.models.Exercise
 import com.example.nihongo.User.data.models.ExerciseType
@@ -74,7 +75,7 @@ class AIRepository {
     private val firestore = FirebaseFirestore.getInstance()
 
     // ============ GEMINI API CONFIG ============
-    private val GEMINI_API_KEY = "YOUR-API-KEY"
+    private val GEMINI_API_KEY = BuildConfig.GEMINI_API_KEY
     private val GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent"
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
